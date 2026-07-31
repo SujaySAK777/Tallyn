@@ -1112,7 +1112,26 @@
   gap: 12px;
 }
 
+.field-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #43527e;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .form-grid input {
+  width: 100%;
+  border: 1px solid #dfe6fa;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  background: #fbfcff;
+  color: #27345a;
+}
+
+.form-grid select {
   width: 100%;
   border: 1px solid #dfe6fa;
   border-radius: 10px;
@@ -1125,6 +1144,71 @@
 .form-grid input:focus {
   outline: 2px solid rgba(76, 93, 255, 0.2);
   border-color: #4b5cff;
+}
+
+.form-grid select:focus {
+  outline: 2px solid rgba(76, 93, 255, 0.2);
+  border-color: #4b5cff;
+}
+
+.account-modal {
+  width: min(720px, 96vw);
+}
+
+.account-modal-head {
+  align-items: flex-start;
+}
+
+.account-mode-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.mode-btn {
+  border: 1px solid #dbe3fb;
+  background: #f5f8ff;
+  color: #33457e;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.mode-btn.active {
+  background: #4458ff;
+  color: #fff;
+  border-color: #4458ff;
+}
+
+.account-created-summary {
+  margin-top: 4px;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #dfe7ff;
+  background: linear-gradient(145deg, #f6f8ff, #eef3ff);
+  color: #25355f;
+  font-size: 14px;
+}
+
+.account-created-summary.done {
+  margin-top: 10px;
+}
+
+.tpin-strip {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid #dce4ff;
+  border-radius: 10px;
+  background: #f4f7ff;
+  color: #31416f;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 13px;
 }
 
 .modal-actions {
@@ -1334,7 +1418,8 @@
 }
 
 .smartpay-app.dark-theme .search-wrap input,
-.smartpay-app.dark-theme .form-grid input {
+.smartpay-app.dark-theme .form-grid input,
+.smartpay-app.dark-theme .form-grid select {
   color: #e6ecff;
 }
 
@@ -1350,6 +1435,33 @@
 
 .smartpay-app.dark-theme .spend-progress {
   background: #2a3555;
+}
+
+.smartpay-app.dark-theme .field-col {
+  color: #b7c2e7;
+}
+
+.smartpay-app.dark-theme .form-grid select {
+  background: #1c2742;
+  border-color: #314163;
+}
+
+.smartpay-app.dark-theme .mode-btn {
+  background: #253455;
+  border-color: #344769;
+  color: #d9e3ff;
+}
+
+.smartpay-app.dark-theme .mode-btn.active {
+  background: #4f68ff;
+  border-color: #4f68ff;
+}
+
+.smartpay-app.dark-theme .account-created-summary,
+.smartpay-app.dark-theme .tpin-strip {
+  background: #212d49;
+  border-color: #304263;
+  color: #d9e3ff;
 }
 
 .smartpay-app.dark-theme .search-wrap kbd {
