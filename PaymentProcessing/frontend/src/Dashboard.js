@@ -3,7 +3,6 @@ import {
   FiBell,
   FiCalendar,
   FiEye,
-  FiLifeBuoy,
   FiMoon,
   FiSearch,
   FiSun,
@@ -60,11 +59,14 @@ function Dashboard() {
   const [theme, setTheme] = useState('light');
   const [language, setLanguage] = useState('en');
   const [payments, setPayments] = useState([]);
+  const [scheduledPayments, setScheduledPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchText, setSearchText] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('This Month');
   const [activeModal, setActiveModal] = useState('');
+  const [scheduleStep, setScheduleStep] = useState('details');
+  const [cancellingId, setCancellingId] = useState(null);
   const [paymentJourneyOpen, setPaymentJourneyOpen] = useState(false);
   const [paymentJourneyStep, setPaymentJourneyStep] = useState('method');
   const [paymentJourneyMethod, setPaymentJourneyMethod] = useState('bank');
@@ -107,34 +109,91 @@ function Dashboard() {
     window.setTimeout(() => setToast(''), 2200);
   };
 
-  const loadPayments = async () => {
-    setLoading(true);
+  const loadPayments = async (options = {}) => {
+    const { silent = false } = options;
+    if (!silent) {
+      setLoading(true);
+    }
     setError('');
     try {
       const data = await apiRequest('/payments');
       setPayments(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(err.message || 'Unable to load payments');
-      setPayments([]);
+      if (!silent) {
+        setError(err.message || 'Unable to load payments');
+      }
+      setPayments((prev) => (silent ? prev : []));
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
+    }
+  };
+
+  const loadScheduledPayments = async () => {
+    try {
+      const data = await apiRequest('/scheduled-payments');
+      setScheduledPayments(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setScheduledPayments([]);
+    }
+  };
+
+  const cancelScheduledPayment = async (scheduledPaymentId) => {
+    setCancellingId(scheduledPaymentId);
+    try {
+      await apiRequest(`/scheduled-payments/${scheduledPaymentId}/cancel`, { method: 'PUT' });
+      showToast(t('paymentCancelled'));
+      await loadScheduledPayments();
+    } catch (err) {
+      setError(err.message || 'Failed to cancel scheduled payment');
+    } finally {
+      setCancellingId(null);
     }
   };
 
   useEffect(() => {
     loadPayments();
+    loadScheduledPayments();
+
+    const pollInterval = window.setInterval(() => {
+      loadPayments({ silent: true });
+      loadScheduledPayments();
+    }, 15000);
+
+    return () => window.clearInterval(pollInterval);
   }, []);
+
+  const cancelledScheduledAsTransactions = useMemo(() => {
+    return scheduledPayments
+      .filter((payment) => String(payment.status || '').toUpperCase() === 'CANCELLED')
+      .map((payment) => ({
+        paymentId: `sch-${payment.scheduledPaymentId}`,
+        referenceNumber: payment.referenceNumber,
+        status: 'CANCELLED',
+        amount: payment.amount,
+        currency: payment.currency,
+        remarks: payment.remarks,
+        sourceAccountId: payment.sourceAccountId,
+        destinationAccountId: payment.destinationAccountId,
+        createdAt: payment.updatedAt || payment.createdAt || payment.scheduledAt
+      }));
+  }, [scheduledPayments]);
+
+  const allTransactions = useMemo(() => {
+    return [...payments, ...cancelledScheduledAsTransactions];
+  }, [payments, cancelledScheduledAsTransactions]);
 
   const searchedPayments = useMemo(() => {
     const query = searchText.trim().toLowerCase();
     if (!query) {
-      return payments;
+      return allTransactions;
     }
-    return payments.filter((payment) => {
+    return allTransactions.filter((payment) => {
       const haystack = `${payment.paymentId} ${payment.referenceNumber || ''} ${payment.remarks || ''} ${payment.sourceAccountId || ''} ${payment.destinationAccountId || ''}`.toLowerCase();
       return haystack.includes(query);
     });
-  }, [payments, searchText]);
+  }, [allTransactions, searchText]);
 
   const recentPayments = useMemo(() => {
     return [...searchedPayments]
@@ -143,8 +202,11 @@ function Dashboard() {
   }, [searchedPayments]);
 
   const upcomingPayments = useMemo(() => {
-    return payments.filter((payment) => String(payment.remarks || '').includes('[Scheduled:')).slice(0, 2);
-  }, [payments]);
+    return scheduledPayments
+      .filter((payment) => String(payment.status || '').toUpperCase() === 'PENDING')
+      .sort((a, b) => new Date(a.scheduledAt || 0) - new Date(b.scheduledAt || 0))
+      .slice(0, 5);
+  }, [scheduledPayments]);
 
   const spendingStats = useMemo(() => {
     const now = new Date();
@@ -224,6 +286,8 @@ function Dashboard() {
     }
     if (action === 'schedulePayment') {
       setActiveModal('schedule');
+      setScheduleStep('details');
+      setError('');
       return;
     }
     if (action === 'groupSplit') {
@@ -235,7 +299,33 @@ function Dashboard() {
     setActiveModal('');
     setFormState(initialFormState);
     setScheduleDate('');
+    setScheduleStep('details');
     setGroupSplit({ amount: '', members: '' });
+    setError('');
+  };
+
+  const goToTpinStep = () => {
+    const sourceAccountId = Number(formState.sourceAccountId);
+    const destinationAccountId = Number(formState.destinationAccountId);
+    const amount = Number(formState.amount);
+
+    if (!Number.isInteger(sourceAccountId) || !Number.isInteger(destinationAccountId)) {
+      setError('Source and Destination must be numeric account IDs (example: 1, 2).');
+      return;
+    }
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setError('Amount must be greater than 0.');
+      return;
+    }
+
+    if (!scheduleDate) {
+      setError('Please choose a date and time for the scheduled payment.');
+      return;
+    }
+
+    setError('');
+    setScheduleStep('tpin');
   };
 
   const handleFormChange = (event) => {
@@ -246,15 +336,9 @@ function Dashboard() {
   const createPayment = async (mode) => {
     setSubmitting(true);
     try {
-      let remarks = formState.remarks;
-      if (mode === 'schedule' && scheduleDate) {
-        remarks = `${remarks || ''} [Scheduled:${scheduleDate}]`.trim();
-      }
-
       const sourceAccountId = Number(formState.sourceAccountId);
       const destinationAccountId = Number(formState.destinationAccountId);
       const amount = Number(formState.amount);
-      const referenceNumber = (formState.referenceNumber || formState.reference || '').trim() || `REF${Date.now()}`;
 
       if (!Number.isInteger(sourceAccountId) || !Number.isInteger(destinationAccountId)) {
         setError('Source and Destination must be numeric account IDs (example: 1, 2).');
@@ -266,27 +350,58 @@ function Dashboard() {
         return false;
       }
 
+      if (mode === 'schedule') {
+        if (!scheduleDate) {
+          setError('Please choose a date and time for the scheduled payment.');
+          return false;
+        }
+
+        if (!/^\d{6}$/.test(formState.tpin || '')) {
+          setError('Enter your 6-digit TPIN to confirm scheduling.');
+          return false;
+        }
+
+        const payload = {
+          sourceAccountId,
+          destinationAccountId,
+          amount,
+          currency: formState.currency || 'INR',
+          remarks: formState.remarks,
+          scheduledAt: scheduleDate,
+          tpin: formState.tpin
+        };
+
+        await apiRequest('/scheduled-payments', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        showToast(t('paymentScheduled'));
+        await loadScheduledPayments();
+        return true;
+      }
+
+      const referenceNumber = (formState.referenceNumber || formState.reference || '').trim() || `REF${Date.now()}`;
       const payload = {
         sourceAccountId,
         destinationAccountId,
         amount,
         currency: formState.currency || 'INR',
         referenceNumber,
-        remarks
+        remarks: formState.remarks
       };
       const createdPayment = await apiRequest('/payments', {
         method: 'POST',
         body: JSON.stringify(payload)
       });
       setFormState((prev) => ({ ...prev, referenceNumber }));
-      if (mode === 'payment' && createdPayment?.paymentId) {
+      if (createdPayment?.paymentId) {
         setJourneyPaymentId(createdPayment.paymentId);
       }
-      showToast(mode === 'schedule' ? t('paymentScheduled') : t('paymentCreated'));
+      showToast(t('paymentCreated'));
       await loadPayments();
       return true;
     } catch (err) {
-      setError(err.message || 'Failed to submit payment');
+      setError(err.message === 'Incorrect TPIN' ? t('invalidTpin') : err.message || 'Failed to submit payment');
       return false;
     } finally {
       setSubmitting(false);
@@ -553,13 +668,28 @@ function Dashboard() {
                 </div>
                 {upcomingPayments.length === 0 && <p className="empty-note">{t('noScheduled')}</p>}
                 {upcomingPayments.map((payment) => (
-                  <div className="tx-row" key={`up-${payment.paymentId}`}>
+                  <div className="tx-row" key={`sch-${payment.scheduledPaymentId}`}>
                     <span>
-                      {payment.referenceNumber || `PAY-${payment.paymentId}`}
+                      {payment.referenceNumber || `SCH-${payment.scheduledPaymentId}`}
                       <br />
-                      <small>{payment.remarks}</small>
+                      <small>
+                        {formatDateTime(payment.scheduledAt)}
+                        {payment.remarks ? ` • ${payment.remarks}` : ''}
+                      </small>
                     </span>
-                    <strong>{currency(payment.amount)}</strong>
+                    <span className="sch-right">
+                      <strong>{currency(payment.amount)}</strong>
+                      <span className={`status-pill status-${String(payment.status || '').toLowerCase()}`}>
+                        {payment.status}
+                      </span>
+                      <button
+                        className="cancel-btn"
+                        disabled={cancellingId === payment.scheduledPaymentId}
+                        onClick={() => cancelScheduledPayment(payment.scheduledPaymentId)}
+                      >
+                        {cancellingId === payment.scheduledPaymentId ? t('cancelling') : t('cancel')}
+                      </button>
+                    </span>
                   </div>
                 ))}
               </article>
@@ -575,7 +705,7 @@ function Dashboard() {
 
         {toast && <div className="toast-msg">{toast}</div>}
 
-        {activeModal === 'schedule' && (
+        {activeModal === 'schedule' && scheduleStep === 'details' && (
           <div className="modal-overlay" onClick={closeModal}>
             <div className="modal-card" onClick={(event) => event.stopPropagation()}>
               <h3>{t('schedulePaymentTitle')}</h3>
@@ -584,14 +714,67 @@ function Dashboard() {
                 <input name="destinationAccountId" placeholder={t('destinationAccount')} value={formState.destinationAccountId} onChange={handleFormChange} />
                 <input name="amount" placeholder={t('amount')} type="number" value={formState.amount} onChange={handleFormChange} />
                 <input name="currency" placeholder={t('currency')} value={formState.currency} onChange={handleFormChange} />
-                <input name="referenceNumber" placeholder={t('reference')} value={formState.referenceNumber} onChange={handleFormChange} />
                 <input name="remarks" placeholder={t('remarks')} value={formState.remarks} onChange={handleFormChange} />
-                <input type="date" value={scheduleDate} onChange={(event) => setScheduleDate(event.target.value)} />
+                <input
+                  type="datetime-local"
+                  aria-label={t('scheduleDateTime')}
+                  value={scheduleDate}
+                  onChange={(event) => setScheduleDate(event.target.value)}
+                />
               </div>
+              {error && <p className="empty-note error-note">{error}</p>}
               <div className="modal-actions">
                 <button className="secondary-btn" onClick={closeModal}>{t('reset')}</button>
-                <button className="primary-btn" disabled={submitting} onClick={() => createPayment('schedule')}>
-                  {submitting ? t('processing') : t('submitSchedule')}
+                <button className="primary-btn" onClick={goToTpinStep}>
+                  {t('continueToTpin')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeModal === 'schedule' && scheduleStep === 'tpin' && (
+          <div className="modal-overlay" onClick={closeModal}>
+            <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+              <h3>{t('tpin')}</h3>
+              <div className="tpin-summary">
+                <div className="info-row"><span>{t('sourceAccount')}</span><strong>{formState.sourceAccountId}</strong></div>
+                <div className="info-row"><span>{t('destinationAccount')}</span><strong>{formState.destinationAccountId}</strong></div>
+                <div className="info-row"><span>{t('amount')}</span><strong>{currency(formState.amount)}</strong></div>
+                <div className="info-row"><span>{t('scheduleDateTime')}</span><strong>{formatDateTime(scheduleDate)}</strong></div>
+              </div>
+              <p className="tpin-hint">{t('tpinHint')}</p>
+              <div className="form-grid tpin-row">
+                <input
+                  name="tpin"
+                  placeholder={t('tpin')}
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={6}
+                  autoFocus
+                  value={formState.tpin}
+                  onChange={(event) => {
+                    const digitsOnly = event.target.value.replace(/\D/g, '').slice(0, 6);
+                    setFormState((prev) => ({ ...prev, tpin: digitsOnly }));
+                  }}
+                />
+              </div>
+              {error && <p className="empty-note error-note">{error}</p>}
+              <div className="modal-actions">
+                <button className="secondary-btn" onClick={() => { setScheduleStep('details'); setError(''); }} disabled={submitting}>
+                  {t('back')}
+                </button>
+                <button
+                  className="primary-btn"
+                  disabled={submitting || !/^\d{6}$/.test(formState.tpin || '')}
+                  onClick={async () => {
+                    const ok = await createPayment('schedule');
+                    if (ok) {
+                      closeModal();
+                    }
+                  }}
+                >
+                  {submitting ? t('processing') : t('verifyAndSchedule')}
                 </button>
               </div>
             </div>

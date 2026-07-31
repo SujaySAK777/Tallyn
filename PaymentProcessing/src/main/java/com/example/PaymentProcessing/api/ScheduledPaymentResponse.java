@@ -17,6 +17,8 @@ public class ScheduledPaymentResponse {
     private String referenceNumber;
     private String errorCode;
     private String errorMessage;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
     public static ScheduledPaymentResponse fromEntity(ScheduledPayment payment) {
         ScheduledPaymentResponse response = new ScheduledPaymentResponse();
@@ -31,6 +33,8 @@ public class ScheduledPaymentResponse {
         response.setReferenceNumber(payment.getReferenceNumber());
         response.setErrorCode(payment.getErrorCode());
         response.setErrorMessage(payment.getErrorMessage());
+        response.setCreatedAt(payment.getCreatedAt());
+        response.setUpdatedAt(payment.getUpdatedAt());
         return response;
     }
 
@@ -66,4 +70,10 @@ public class ScheduledPaymentResponse {
 
     public String getErrorMessage() { return errorMessage; }
     public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

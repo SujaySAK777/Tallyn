@@ -6,9 +6,11 @@ import com.example.PaymentProcessing.api.PaymentResponse;
 import com.example.PaymentProcessing.api.ScheduledPaymentResponse;
 import com.example.PaymentProcessing.api.UpdatePaymentStatusRequest;
 import com.example.PaymentProcessing.exception.ApiException;
+import com.example.PaymentProcessing.model.Account;
 import com.example.PaymentProcessing.model.PaymentStatus;
 import com.example.PaymentProcessing.model.ScheduledPayment;
 import com.example.PaymentProcessing.model.ScheduledPaymentStatus;
+import com.example.PaymentProcessing.repository.AccountRepository;
 import com.example.PaymentProcessing.repository.ScheduledPaymentRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -16,23 +18,32 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ScheduledPaymentService {
 
+    private static final BCryptPasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder();
+
     private final ScheduledPaymentRepository scheduledPaymentRepository;
+    private final AccountRepository accountRepository;
     private final PaymentService paymentService;
 
-    public ScheduledPaymentService(ScheduledPaymentRepository scheduledPaymentRepository, PaymentService paymentService) {
+    public ScheduledPaymentService(
+            ScheduledPaymentRepository scheduledPaymentRepository,
+            AccountRepository accountRepository,
+            PaymentService paymentService) {
         this.scheduledPaymentRepository = scheduledPaymentRepository;
+        this.accountRepository = accountRepository;
         this.paymentService = paymentService;
     }
 
     @Transactional
     public ScheduledPaymentResponse createScheduledPayment(CreateScheduledPaymentRequest request) {
         validateCreateRequest(request);
+        verifyTpin(request.getSourceAccountId(), request.getTpin());
 
         ScheduledPayment scheduledPayment = new ScheduledPayment();
         scheduledPayment.setSourceAccountId(request.getSourceAccountId());
@@ -51,6 +62,23 @@ public class ScheduledPaymentService {
     @Transactional(readOnly = true)
     public List<ScheduledPaymentResponse> listScheduledPayments() {
         return scheduledPaymentRepository.findAll().stream().map(ScheduledPaymentResponse::fromEntity).toList();
+    }
+
+    @Transactional
+    public ScheduledPaymentResponse cancelScheduledPayment(Long scheduledPaymentId) {
+        ScheduledPayment scheduledPayment = scheduledPaymentRepository.findById(scheduledPaymentId)
+                .orElseThrow(() -> new ApiException("SCHEDULED_PAYMENT_NOT_FOUND", "Scheduled payment not found", HttpStatus.NOT_FOUND));
+
+        if (scheduledPayment.getStatus() != ScheduledPaymentStatus.PENDING) {
+            throw new ApiException(
+                    "INVALID_STATUS",
+                    "Only pending scheduled payments can be cancelled",
+                    HttpStatus.CONFLICT);
+        }
+
+        scheduledPayment.setStatus(ScheduledPaymentStatus.CANCELLED);
+        ScheduledPayment saved = scheduledPaymentRepository.save(scheduledPayment);
+        return ScheduledPaymentResponse.fromEntity(saved);
     }
 
     @Scheduled(fixedDelay = 60000)
@@ -118,6 +146,15 @@ public class ScheduledPaymentService {
         return request;
     }
 
+    private void verifyTpin(Long sourceAccountId, String tpin) {
+        Account sourceAccount = accountRepository.findById(sourceAccountId)
+                .orElseThrow(() -> new ApiException("ACCOUNT_NOT_FOUND", "Source account not found", HttpStatus.NOT_FOUND));
+
+        if (!PASSWORD_ENCODER.matches(tpin, sourceAccount.getTpinHash())) {
+            throw new ApiException("INVALID_TPIN", "Incorrect TPIN", HttpStatus.UNAUTHORIZED);
+        }
+    }
+
     private void validateCreateRequest(CreateScheduledPaymentRequest request) {
         if (request == null
                 || request.getSourceAccountId() == null
@@ -125,7 +162,9 @@ public class ScheduledPaymentService {
                 || request.getAmount() == null
                 || request.getCurrency() == null
                 || request.getCurrency().isBlank()
-                || request.getScheduledAt() == null) {
+                || request.getScheduledAt() == null
+                || request.getTpin() == null
+                || request.getTpin().isBlank()) {
             throw new ApiException("VALIDATION_FAILED", "Required fields are missing", HttpStatus.BAD_REQUEST);
         }
 

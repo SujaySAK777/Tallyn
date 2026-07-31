@@ -13,6 +13,7 @@ export const initialFormState = {
   ifscCode: '',
   ifsc: '',
   bankName: '',
+  tpin: '',
   transferType: 'Normal',
   transferMethod: 'Bank Transfer'
 };
@@ -66,6 +67,13 @@ export const translations = {
     currency: 'Currency',
     reference: 'Reference Number',
     remarks: 'Remarks',
+    scheduleDateTime: 'Schedule Date & Time',
+    tpin: 'Transaction PIN',
+    tpinHint: 'Enter your 6-digit TPIN to confirm scheduling.',
+    invalidTpin: 'Incorrect TPIN. Payment was not scheduled.',
+    continueToTpin: 'Continue',
+    back: 'Back',
+    verifyAndSchedule: 'Verify & Schedule',
     upiId: 'UPI ID',
     payingAmount: 'Paying Amount',
     mode: 'Mode',
@@ -79,6 +87,9 @@ export const translations = {
     perPerson: 'Per person',
     paymentCreated: 'Payment created.',
     paymentScheduled: 'Payment scheduled.',
+    paymentCancelled: 'Scheduled payment cancelled.',
+    cancel: 'Cancel',
+    cancelling: 'Cancelling...',
     accountComing: 'Account details panel coming next.',
     totalTracked: 'Total payments tracked:'
   },
