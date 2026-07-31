@@ -45,6 +45,7 @@ function PaymentJourney({
   setMethod,
   formState,
   setFormState,
+  paymentId,
   currency,
   onClose,
   onAuthorize,
@@ -327,6 +328,7 @@ function PaymentJourney({
     completedView === 'success'
       ? (
         <SuccessPage
+          paymentId={paymentId}
           referenceNumber={referenceNumber}
           selectedDestination={selectedDestination}
           formState={formState}
@@ -351,6 +353,7 @@ function PaymentJourney({
 
   const renderTransactionPage = () => (
     <TransactionDetails
+      paymentId={paymentId}
       formState={formState}
       referenceNumber={referenceNumber}
       selectedDestination={selectedDestination}

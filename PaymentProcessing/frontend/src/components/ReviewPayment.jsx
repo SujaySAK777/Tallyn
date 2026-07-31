@@ -82,7 +82,7 @@ function ReviewPayment({
             </div>
             <div className="review-party-grid review-origin-grid">
               <div className="recipient-meta">
-                <strong>SmartPay Savings</strong>
+                <strong>Tallyn Savings</strong>
                 <span className="meta-line">Source Account ID: {formState.sourceAccountId || 'Pending'}</span>
                 <span className="meta-line">Transaction Type: Immediate</span>
               </div>

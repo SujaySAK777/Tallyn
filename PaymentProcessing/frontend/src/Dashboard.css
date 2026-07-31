@@ -11,7 +11,7 @@
 .sidebar {
   background: #fff;
   border-right: 1px solid #e8ebf2;
-  padding: 10px 10px;
+  padding: 18px 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -25,9 +25,11 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-size: 22px;
   font-weight: 700;
+  padding: 0 6px 14px;
+  border-bottom: 1px solid #f0f2f7;
 }
 
 .brand-icon {
@@ -49,38 +51,53 @@
   flex: 1 1 auto;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-right: 2px;
+  padding: 12px 2px 2px;
 }
 
 .menu-item {
   border: 0;
   background: transparent;
   text-align: left;
-  padding: 7px 8px;
+  padding: 9px 10px;
   border-radius: 8px;
   color: #506085;
   font-weight: 500;
   font-size: 14px;
   cursor: pointer;
-  transition: background-color 0.18s ease, color 0.18s ease;
+  position: relative;
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
 }
 
 .menu-item:hover {
   background: #f5f7fd;
   color: #364672;
+  transform: translateX(2px);
 }
 
 .menu-item.active {
   background: #eff2ff;
   color: #3b4dff;
+  font-weight: 650;
+}
+
+.menu-item.active::before {
+  content: '';
+  position: absolute;
+  width: 3px;
+  height: 18px;
+  left: -12px;
+  top: 50%;
+  border-radius: 0 999px 999px 0;
+  background: #4d5dff;
+  transform: translateY(-50%);
 }
 
 .invite-card {
-  margin-top: 4px;
+  margin: 10px 2px 0;
   background: linear-gradient(180deg, #f6f8ff, #eef2ff);
   border: 1px solid #e4e9ff;
   border-radius: 12px;
-  padding: 7px;
+  padding: 12px;
   flex-shrink: 0;
   overflow: hidden;
 }
@@ -102,12 +119,13 @@
   background: transparent;
   color: #4154ff;
   font-weight: 600;
-  padding: 0;
+  padding: 3px 0;
+  cursor: pointer;
 }
 
 .support {
-  margin-top: 6px;
-  padding: 12px 8px 0 34px;
+  margin: 8px 2px 0;
+  padding: 10px 8px;
   margin-top: auto;
   padding-top: 8px;
   border-top: 1px solid #edf1f8;
@@ -140,10 +158,8 @@
   display: grid;
   place-items: center;
   font-size: 16px;
-  position: absolute;
-  left: -12px;
-  top: 50%;
-  transform: translateY(-50%);
+  position: static;
+  flex: 0 0 auto;
   box-shadow: 0 10px 20px rgba(29, 51, 124, 0.2);
   animation: supportIconFloat 2.8s ease-in-out infinite;
 }
@@ -151,11 +167,11 @@
 @keyframes supportIconFloat {
   0%,
   100% {
-    transform: translateY(-50%);
+    transform: translateY(0);
   }
 
   50% {
-    transform: translateY(calc(-50% - 4px));
+    transform: translateY(-3px);
   }
 }
 
@@ -562,14 +578,15 @@
 
 .spend-row {
   display: grid;
-  grid-template-columns: 220px 1fr;
-  gap: 14px;
+  grid-template-columns: minmax(190px, 220px) 1fr;
+  gap: 24px;
   align-items: center;
 }
 
 .donut-wrap {
   display: grid;
   place-items: center;
+  gap: 10px;
 }
 
 .donut {
@@ -612,6 +629,66 @@
   color: #1e2a4b;
 }
 
+.donut-caption {
+  color: #7e88a3;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.spend-breakdown {
+  display: grid;
+  gap: 13px;
+  min-width: 0;
+}
+
+.spend-category {
+  display: grid;
+  gap: 6px;
+}
+
+.spend-category-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  color: #44506d;
+  font-size: 13px;
+}
+
+.spend-category-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.spend-category-head b {
+  color: #25304b;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.spend-progress {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #eef1f7;
+}
+
+.spend-progress-fill {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  border-radius: inherit;
+  transition: width 0.35s ease;
+}
+
+.spend-progress-fill.d1 { background: #4762ff; }
+.spend-progress-fill.d2 { background: #7c57ff; }
+.spend-progress-fill.d3 { background: #ff8a24; }
+.spend-progress-fill.d4 { background: #f7aa2a; }
+.spend-progress-fill.d5 { background: #697499; }
+
 .legend {
   list-style: none;
   margin: 0;
@@ -632,8 +709,7 @@
 .legend-pct {
   color: #7e88a3;
   font-size: 12px;
-  min-width: 34px;
-  text-align: right;
+  line-height: 1;
 }
 
 .dot {
@@ -1260,6 +1336,20 @@
 .smartpay-app.dark-theme .search-wrap input,
 .smartpay-app.dark-theme .form-grid input {
   color: #e6ecff;
+}
+
+.smartpay-app.dark-theme .spend-category-head b,
+.smartpay-app.dark-theme .spend-category-head {
+  color: #e6ecff;
+}
+
+.smartpay-app.dark-theme .donut-caption,
+.smartpay-app.dark-theme .legend-pct {
+  color: #b7c2e7;
+}
+
+.smartpay-app.dark-theme .spend-progress {
+  background: #2a3555;
 }
 
 .smartpay-app.dark-theme .search-wrap kbd {
