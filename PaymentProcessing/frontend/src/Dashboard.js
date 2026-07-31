@@ -382,7 +382,7 @@ function Dashboard() {
             }
           }}
         >
-          <span className="support-icon">🎧</span>
+          <span className="support-icon"><FiLifeBuoy /></span>
           <div>
             <div className="support-title">{t('needHelp')}</div>
             <div className="support-subtitle">{t('support')}</div>
@@ -398,6 +398,7 @@ function Dashboard() {
             setMethod={setPaymentJourneyMethod}
             formState={formState}
             setFormState={setFormState}
+            paymentId={journeyPaymentId}
             currency={currency}
             onClose={closePaymentJourney}
             onAuthorize={() => createPayment('payment')}
@@ -522,23 +523,29 @@ function Dashboard() {
 
                 <div className="spend-row">
                   <div className="donut-wrap">
-                    <div className="donut" style={donutStyle}>
+                    <div className="donut" style={donutStyle} role="img" aria-label={`${t('totalSpent')}: ${currency(spendingStats.total)}`}>
                       <div className="donut-center">
                         <small>{t('totalSpent')}</small>
                         <strong>{currency(spendingStats.total)}</strong>
                       </div>
                     </div>
+                    <span className="donut-caption">{selectedMonth}</span>
                   </div>
 
-                  <ul className="legend">
+                  <div className="spend-breakdown" aria-label="Spending categories">
                     {spendingStats.items.map((item, index) => (
-                      <li key={item.label}>
-                        <span className={`dot d${index + 1}`} /> {item.label}
-                        <span className="legend-pct">{item.pct}%</span>
-                        <b>{currency(item.amount)}</b>
-                      </li>
+                      <div className="spend-category" key={item.label}>
+                        <div className="spend-category-head">
+                          <span className="spend-category-name"><span className={`dot d${index + 1}`} /> {item.label}</span>
+                          <b>{currency(item.amount)}</b>
+                        </div>
+                        <div className="spend-progress" aria-hidden="true">
+                          <span className={`spend-progress-fill d${index + 1}`} style={{ width: `${item.pct}%` }} />
+                        </div>
+                        <span className="legend-pct">{item.pct}% of spending</span>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
 
                 <div className="insight">{t('insight')}</div>

@@ -48,8 +48,6 @@ function AuthorizePayment({
         <div className="premium-card authorize-main-card">
           <div className="authorize-tabs" role="tablist" aria-label="Authorization methods">
             <button type="button" className="authorize-tab active" role="tab" aria-selected="true">Transaction PIN</button>
-            <button type="button" className="authorize-tab" role="tab" aria-selected="false">Net Banking</button>
-            <button type="button" className="authorize-tab" role="tab" aria-selected="false">OTP</button>
           </div>
 
           <div className="authorize-pin-card" onClick={focusPinInput}>

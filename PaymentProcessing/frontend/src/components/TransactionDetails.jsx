@@ -1,11 +1,21 @@
 import { FiAlertCircle, FiCheckCircle, FiDownload, FiPrinter, FiShare2 } from 'react-icons/fi';
+import { downloadReceiptPdf } from '../services/receipt';
 
 function TransactionDetails({
+  paymentId,
   formState,
   referenceNumber,
   selectedDestination,
   goBack
 }) {
+  const handleDownloadReceipt = async () => {
+    try {
+      await downloadReceiptPdf(paymentId || formState.paymentId);
+    } catch (error) {
+      window.alert(error.message || 'Unable to download receipt.');
+    }
+  };
+
   return (
     <div className="journey-page transaction-page">
       <div className="page-heading premium-heading">
@@ -58,7 +68,7 @@ function TransactionDetails({
           <div className="receipt-card premium-card">
             <div className="section-label">Buttons</div>
             <div className="receipt-actions vertical-actions">
-              <button type="button"><FiDownload /> Download PDF</button>
+              <button type="button" onClick={handleDownloadReceipt} disabled={!paymentId && !formState.paymentId}><FiDownload /> Download PDF</button>
               <button type="button"><FiShare2 /> Share</button>
               <button type="button"><FiPrinter /> Print</button>
               <button type="button"><FiAlertCircle /> Report Issue</button>

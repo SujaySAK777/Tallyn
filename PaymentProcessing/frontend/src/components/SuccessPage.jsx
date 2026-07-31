@@ -1,6 +1,8 @@
 import { FiCheckCircle, FiDownload, FiExternalLink, FiRefreshCw, FiShare2 } from 'react-icons/fi';
+import { downloadReceiptPdf } from '../services/receipt';
 
 function SuccessPage({
+  paymentId,
   referenceNumber,
   selectedDestination,
   formState,
@@ -13,6 +15,14 @@ function SuccessPage({
   const accountNumber = formState.accountNumber || String(formState.destinationAccountId || '').trim() || '1234 5678 9012';
   const bankName = formState.bankName || 'HDFC Bank';
   const ifsc = formState.ifscCode || formState.ifsc || 'HDFC0001234';
+
+  const handleDownloadReceipt = async () => {
+    try {
+      await downloadReceiptPdf(paymentId);
+    } catch (error) {
+      window.alert(error.message || 'Unable to download receipt.');
+    }
+  };
 
   return (
     <div className="journey-page success-page">
@@ -28,7 +38,7 @@ function SuccessPage({
 
           <div className="success-actions-grid">
             <button type="button" onClick={() => onStepChange('transaction')}><FiExternalLink /> View Transaction</button>
-            <button type="button"><FiDownload /> Download Receipt</button>
+            <button type="button" onClick={handleDownloadReceipt} disabled={!paymentId}><FiDownload /> Download Receipt</button>
             <button type="button"><FiShare2 /> Share Receipt</button>
             <button type="button" onClick={onClose}><FiRefreshCw /> Make Another Payment</button>
           </div>
