@@ -2,6 +2,7 @@ package com.example.PaymentProcessing.controller;
 
 import com.example.PaymentProcessing.api.CreatePaymentRequest;
 import com.example.PaymentProcessing.api.PaymentHistoryResponse;
+import com.example.PaymentProcessing.api.PaymentReceiptResponse;
 import com.example.PaymentProcessing.api.PaymentResponse;
 import com.example.PaymentProcessing.api.UpdatePaymentStatusRequest;
 import com.example.PaymentProcessing.model.PaymentStatus;
@@ -47,6 +48,11 @@ public class PaymentController {
     @GetMapping("/{paymentId}/history")
     public List<PaymentHistoryResponse> history(@PathVariable Long paymentId) {
         return paymentService.getPaymentHistory(paymentId);
+    }
+
+    @GetMapping("/{paymentId}/receipt")
+    public PaymentReceiptResponse receipt(@PathVariable Long paymentId) {
+        return paymentService.getPaymentReceipt(paymentId);
     }
 
     @PutMapping("/{paymentId}/status")

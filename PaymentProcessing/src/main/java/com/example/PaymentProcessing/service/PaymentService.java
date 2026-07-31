@@ -2,6 +2,7 @@ package com.example.PaymentProcessing.service;
 
 import com.example.PaymentProcessing.api.CreatePaymentRequest;
 import com.example.PaymentProcessing.api.PaymentHistoryResponse;
+import com.example.PaymentProcessing.api.PaymentReceiptResponse;
 import com.example.PaymentProcessing.api.PaymentResponse;
 import com.example.PaymentProcessing.api.UpdatePaymentStatusRequest;
 import com.example.PaymentProcessing.exception.ApiException;
@@ -102,6 +103,12 @@ public class PaymentService {
                 .stream()
                 .map(PaymentHistoryResponse::fromEntity)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PaymentReceiptResponse getPaymentReceipt(Long paymentId) {
+        Payment payment = findPayment(paymentId);
+        return PaymentReceiptResponse.fromEntity(payment);
     }
 
     @Transactional
