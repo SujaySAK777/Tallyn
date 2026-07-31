@@ -3,6 +3,7 @@ import {
   FiBell,
   FiCalendar,
   FiEye,
+  FiLifeBuoy,
   FiLock,
   FiMoon,
   FiSearch,
