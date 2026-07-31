@@ -1,15 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
+import {
+  FiBell,
+  FiCalendar,
+  FiEye,
+  FiLifeBuoy,
+  FiMoon,
+  FiSearch,
+  FiSun,
+  FiUser,
+  FiUsers
+} from 'react-icons/fi';
+import { MdOutlinePayments } from 'react-icons/md';
 import './Dashboard.css';
+import PaymentJourney from './components/PaymentJourney';
 import { apiRequest } from './services/api';
-
-const initialFormState = {
-  sourceAccountId: '',
-  destinationAccountId: '',
-  amount: '',
-  currency: 'INR',
-  referenceNumber: '',
-  remarks: ''
-};
+import SupportChatbot from './SupportChatbot';
+import { initialFormState, languageOptions, translations } from './dashboardContent';
 
 function currency(amount) {
   const value = Number(amount || 0);
@@ -44,27 +50,57 @@ function getPaymentCategory(payment) {
 
 function classifyTransaction(payment) {
   const status = String(payment.status || '').toUpperCase();
-  if (status === 'FAILED') {
-    return { sign: '-', className: '' };
-  }
-  if (status === 'COMPLETED') {
+  if (status === 'FAILED' || status === 'COMPLETED') {
     return { sign: '-', className: '' };
   }
   return { sign: '-', className: '' };
 }
 
 function Dashboard() {
+  const [theme, setTheme] = useState('light');
+  const [language, setLanguage] = useState('en');
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchText, setSearchText] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('This Month');
   const [activeModal, setActiveModal] = useState('');
+  const [paymentJourneyOpen, setPaymentJourneyOpen] = useState(false);
+  const [paymentJourneyStep, setPaymentJourneyStep] = useState('method');
+  const [paymentJourneyMethod, setPaymentJourneyMethod] = useState('bank');
   const [formState, setFormState] = useState(initialFormState);
   const [scheduleDate, setScheduleDate] = useState('');
   const [groupSplit, setGroupSplit] = useState({ amount: '', members: '' });
   const [toast, setToast] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [isSupportChatOpen, setIsSupportChatOpen] = useState(false);
+  const [journeyPaymentId, setJourneyPaymentId] = useState(null);
+
+  useEffect(() => {
+    const savedTheme = window.localStorage.getItem('dashboard-theme');
+    if (savedTheme === 'dark' || savedTheme === 'light') {
+      setTheme(savedTheme);
+    }
+
+    const savedLanguage = window.localStorage.getItem('dashboard-language');
+    if (savedLanguage && translations[savedLanguage]) {
+      setLanguage(savedLanguage);
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(nextTheme);
+    window.localStorage.setItem('dashboard-theme', nextTheme);
+  };
+
+  const handleLanguageChange = (event) => {
+    const nextLanguage = event.target.value;
+    setLanguage(nextLanguage);
+    window.localStorage.setItem('dashboard-language', nextLanguage);
+  };
+
+  const t = (key) => translations[language][key] || translations.en[key] || key;
 
   const showToast = (message) => {
     setToast(message);
@@ -107,9 +143,7 @@ function Dashboard() {
   }, [searchedPayments]);
 
   const upcomingPayments = useMemo(() => {
-    return payments
-      .filter((payment) => String(payment.remarks || '').includes('[Scheduled:'))
-      .slice(0, 2);
+    return payments.filter((payment) => String(payment.remarks || '').includes('[Scheduled:')).slice(0, 2);
   }, [payments]);
 
   const spendingStats = useMemo(() => {
@@ -156,18 +190,36 @@ function Dashboard() {
     };
   }, [payments, selectedMonth]);
 
+  const openPaymentJourney = () => {
+    setPaymentJourneyOpen(true);
+    setPaymentJourneyStep('method');
+    setPaymentJourneyMethod('bank');
+    setJourneyPaymentId(null);
+    setActiveModal('');
+    setError('');
+  };
+
+  const closePaymentJourney = () => {
+    setPaymentJourneyOpen(false);
+    setPaymentJourneyStep('method');
+    setPaymentJourneyMethod('bank');
+    setJourneyPaymentId(null);
+    setFormState(initialFormState);
+    setError('');
+  };
+
   const handleQuickAction = (action) => {
     if (action === 'account') {
-      showToast('Account details panel coming next.');
+      showToast(t('accountComing'));
       return;
     }
     if (action === 'makePayment') {
-      setActiveModal('payment');
+      openPaymentJourney();
       return;
     }
     if (action === 'checkBalance') {
-      const totalOut = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-      showToast(`Total payments tracked: ${currency(totalOut)}`);
+      const totalOut = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+      showToast(`${t('totalTracked')} ${currency(totalOut)}`);
       return;
     }
     if (action === 'schedulePayment') {
@@ -198,26 +250,82 @@ function Dashboard() {
       if (mode === 'schedule' && scheduleDate) {
         remarks = `${remarks || ''} [Scheduled:${scheduleDate}]`.trim();
       }
+
+      const sourceAccountId = Number(formState.sourceAccountId);
+      const destinationAccountId = Number(formState.destinationAccountId);
+      const amount = Number(formState.amount);
+      const referenceNumber = (formState.referenceNumber || formState.reference || '').trim() || `REF${Date.now()}`;
+
+      if (!Number.isInteger(sourceAccountId) || !Number.isInteger(destinationAccountId)) {
+        setError('Source and Destination must be numeric account IDs (example: 1, 2).');
+        return false;
+      }
+
+      if (!Number.isFinite(amount) || amount <= 0) {
+        setError('Amount must be greater than 0.');
+        return false;
+      }
+
       const payload = {
-        sourceAccountId: Number(formState.sourceAccountId),
-        destinationAccountId: Number(formState.destinationAccountId),
-        amount: Number(formState.amount),
+        sourceAccountId,
+        destinationAccountId,
+        amount,
         currency: formState.currency || 'INR',
-        referenceNumber: formState.referenceNumber,
+        referenceNumber,
         remarks
       };
-      await apiRequest('/payments', {
+      const createdPayment = await apiRequest('/payments', {
         method: 'POST',
         body: JSON.stringify(payload)
       });
-      showToast(mode === 'schedule' ? 'Payment scheduled.' : 'Payment created.');
-      closeModal();
+      setFormState((prev) => ({ ...prev, referenceNumber }));
+      if (mode === 'payment' && createdPayment?.paymentId) {
+        setJourneyPaymentId(createdPayment.paymentId);
+      }
+      showToast(mode === 'schedule' ? t('paymentScheduled') : t('paymentCreated'));
       await loadPayments();
+      return true;
     } catch (err) {
       setError(err.message || 'Failed to submit payment');
+      return false;
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const updatePaymentStatus = async (paymentId, status, remarks) => {
+    return apiRequest(`/payments/${paymentId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status, remarks })
+    });
+  };
+
+  const runJourneyStatusUpdate = async (status, remarks) => {
+    if (!journeyPaymentId) {
+      setError('Payment ID not found. Please retry.');
+      return false;
+    }
+
+    try {
+      await updatePaymentStatus(journeyPaymentId, status, remarks);
+      setError('');
+      return true;
+    } catch (err) {
+      setError(err.message || `Failed to move payment to ${status}`);
+      return false;
+    }
+  };
+
+  const validateJourneyPayment = () => runJourneyStatusUpdate('VALIDATED', 'Validated via UI flow');
+
+  const processJourneyPayment = () => runJourneyStatusUpdate('PROCESSING', 'Processing via UI flow');
+
+  const settleJourneyPayment = async () => {
+    const ok = await runJourneyStatusUpdate('COMPLETED', 'Completed via UI flow');
+    if (ok) {
+      await loadPayments();
+    }
+    return ok;
   };
 
   const perHead = useMemo(() => {
@@ -239,231 +347,285 @@ function Dashboard() {
   }, [spendingStats]);
 
   return (
-    <div className="smartpay-app">
+    <div className={`smartpay-app ${theme === 'dark' ? 'dark-theme' : ''}`}>
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-icon">S</div>
-          <span>SmartPay</span>
+          <span>{t('appName')}</span>
         </div>
 
         <nav className="menu">
-          <button className="menu-item active">Dashboard</button>
-          <button className="menu-item">Payments</button>
-          <button className="menu-item">Transactions</button>
-          <button className="menu-item">Beneficiaries</button>
+          <button className="menu-item active">{t('dashboard')}</button>
+          <button className="menu-item">{t('payments')}</button>
+          <button className="menu-item">{t('transactions')}</button>
+          <button className="menu-item">{t('beneficiaries')}</button>
           <button className="menu-item">Analytics</button>
           <button className="menu-item">Rewards</button>
           <button className="menu-item">Settings</button>
         </nav>
 
         <div className="invite-card">
-          <h4>Invite &amp; Earn</h4>
-          <p>Invite your friends and earn exciting rewards</p>
-          <button>Invite Now</button>
+          <h4>{t('inviteTitle')}</h4>
+          <p>{t('inviteText')}</p>
+          <button>{t('inviteButton')}</button>
         </div>
 
-        <div className="support">
+        <div
+          className="support"
+          role="button"
+          tabIndex={0}
+          onClick={() => setIsSupportChatOpen(true)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              setIsSupportChatOpen(true);
+            }
+          }}
+        >
           <span className="support-icon">🎧</span>
           <div>
-            <div className="support-title">Need Help?</div>
-            <div className="support-subtitle">24/7 Support</div>
+            <div className="support-title">{t('needHelp')}</div>
+            <div className="support-subtitle">{t('support')}</div>
           </div>
         </div>
       </aside>
 
-      <main className="main-content">
-        <header className="topbar">
-          <div className="search-wrap">
-            <span className="search-icon">⌕</span>
-            <input
-              placeholder="Search by name, payment ID, account..."
-              value={searchText}
-              onChange={(event) => setSearchText(event.target.value)}
-            />
-            <kbd>Ctrl K</kbd>
-          </div>
+      <main className={`main-content ${paymentJourneyOpen ? 'journey-mode' : ''}`}>
+        {paymentJourneyOpen && (
+          <PaymentJourney
+            step={paymentJourneyStep}
+            method={paymentJourneyMethod}
+            setMethod={setPaymentJourneyMethod}
+            formState={formState}
+            setFormState={setFormState}
+            currency={currency}
+            onClose={closePaymentJourney}
+            onAuthorize={() => createPayment('payment')}
+            onValidate={validateJourneyPayment}
+            onProcessStatus={processJourneyPayment}
+            onSettle={settleJourneyPayment}
+            submitting={submitting}
+            t={t}
+            errorMessage={error}
+            payments={payments}
+            selectedDestination={formState.destinationAccountId || 'Not added yet'}
+            selectedAmount={formState.amount || '0'}
+            onStepChange={setPaymentJourneyStep}
+          />
+        )}
 
-          <div className="top-right">
-            <div className="icon-btn">🔔<span className="badge">3</span></div>
-            <div className="icon-btn">💬</div>
-            <div className="profile">
-              <div className="avatar">SG</div>
-              <div>
-                <div className="name">Soumitha G</div>
-                <div className="plan">Premium Member</div>
+        {!paymentJourneyOpen && (
+          <>
+            <header className="topbar">
+              <div className="search-wrap">
+                <span className="search-icon"><FiSearch /></span>
+                <input placeholder={t('searchPlaceholder')} value={searchText} onChange={(event) => setSearchText(event.target.value)} />
+                <kbd>Ctrl K</kbd>
               </div>
-            </div>
-          </div>
-        </header>
 
-        <section className="hero-head">
-          <h1>Good Morning, Soumitha! 👋</h1>
-          <p>Here&apos;s what&apos;s happening with your account today.</p>
-        </section>
-
-        <section className="top-grid">
-          <article className="quick-actions card">
-            <div className="card-title-row">
-              <h3>Quick Actions</h3>
-              <button className="link-btn">Customize</button>
-            </div>
-            <div className="actions-grid">
-              <button className="action action-btn a1" onClick={() => handleQuickAction('account')}>👤<span>Account</span></button>
-              <button className="action action-btn a2" onClick={() => handleQuickAction('makePayment')}>💸<span>Make Payment</span></button>
-              <button className="action action-btn a3" onClick={() => handleQuickAction('checkBalance')}>👁<span>Check Balance</span></button>
-              <button className="action action-btn a4" onClick={() => handleQuickAction('schedulePayment')}>📅<span>Schedule Payment</span></button>
-              <button className="action action-btn a5" onClick={() => handleQuickAction('groupSplit')}>👥<span>Group Split</span></button>
-            </div>
-          </article>
-        </section>
-
-        <section className="middle-grid">
-          <article className="card">
-            <div className="card-title-row">
-              <h3>Recent Transactions</h3>
-              <button className="link-btn">View All</button>
-            </div>
-
-            {loading && <p className="empty-note">Loading payments...</p>}
-            {!loading && error && <p className="empty-note error-note">{error}</p>}
-            {!loading && !error && recentPayments.length === 0 && <p className="empty-note">No payments found.</p>}
-
-            {!loading && !error && recentPayments.length > 0 && (
-              <div className="tx-list">
-                {recentPayments.map((payment) => {
-                  const txType = classifyTransaction(payment);
-                  return (
-                    <div className="tx-row" key={payment.paymentId}>
-                      <span>
-                        Ref {payment.referenceNumber || `PAY-${payment.paymentId}`}
-                        <br />
-                        <small>{payment.status} • {formatDateTime(payment.createdAt)}</small>
-                      </span>
-                      <strong className={txType.className}>{txType.sign} {currency(payment.amount)}</strong>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            <button className="view-more">View All Transactions →</button>
-          </article>
-
-          <article className="card">
-            <div className="card-title-row">
-              <h3>Spending Overview</h3>
-              <select className="month-btn" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)}>
-                <option>This Month</option>
-                <option>Last Month</option>
-              </select>
-            </div>
-
-            <div className="spend-row">
-              <div className="donut-wrap">
-                <div className="donut" style={donutStyle}>
-                  <div className="donut-center">
-                    <small>Total Spent</small>
-                    <strong>{currency(spendingStats.total)}</strong>
+              <div className="top-right">
+                <div className="icon-btn"><FiBell /><span className="badge">3</span></div>
+                <button className="icon-btn theme-btn" onClick={toggleTheme} aria-label="Toggle theme">
+                  {theme === 'light' ? <FiMoon /> : <FiSun />}
+                </button>
+                <select className="lang-select" value={language} onChange={handleLanguageChange} aria-label="Language selector">
+                  {languageOptions.map((option) => (
+                    <option key={option.code} value={option.code}>{option.label}</option>
+                  ))}
+                </select>
+                <div className="profile">
+                  <div className="avatar">SG</div>
+                  <div>
+                    <div className="name">Soumitha G</div>
+                    <div className="plan">Premium Member</div>
                   </div>
                 </div>
               </div>
+            </header>
 
-              <ul className="legend">
-                {spendingStats.items.map((item, index) => (
-                  <li key={item.label}>
-                    <span className={`dot d${index + 1}`} /> {item.label}
-                    <span className="legend-pct">{item.pct}%</span>
-                    <b>{currency(item.amount)}</b>
-                  </li>
+            <section className="hero-head">
+              <h1>{t('greeting')}</h1>
+              <p>{t('greetingSub')}</p>
+            </section>
+
+            <section className="top-grid">
+              <article className="quick-actions card">
+                <div className="card-title-row">
+                  <h3>{t('quickActions')}</h3>
+                  <button className="link-btn">{t('customize')}</button>
+                </div>
+                <div className="actions-grid">
+                  <button className="action action-btn a1" onClick={() => handleQuickAction('account')}>
+                    <span className="action-icon"><FiUser /></span>
+                    <span className="action-label">{t('account')}</span>
+                  </button>
+                  <button className="action action-btn a2" onClick={() => handleQuickAction('makePayment')}>
+                    <span className="action-icon"><MdOutlinePayments /></span>
+                    <span className="action-label">{t('makePayment')}</span>
+                  </button>
+                  <button className="action action-btn a3" onClick={() => handleQuickAction('checkBalance')}>
+                    <span className="action-icon"><FiEye /></span>
+                    <span className="action-label">{t('checkBalance')}</span>
+                  </button>
+                  <button className="action action-btn a4" onClick={() => handleQuickAction('schedulePayment')}>
+                    <span className="action-icon"><FiCalendar /></span>
+                    <span className="action-label">{t('schedulePayment')}</span>
+                  </button>
+                  <button className="action action-btn a5" onClick={() => handleQuickAction('groupSplit')}>
+                    <span className="action-icon"><FiUsers /></span>
+                    <span className="action-label">{t('groupSplit')}</span>
+                  </button>
+                </div>
+              </article>
+            </section>
+
+            <section className="middle-grid">
+              <article className="card">
+                <div className="card-title-row">
+                  <h3>{t('recentTransactions')}</h3>
+                  <button className="link-btn">{t('viewAll')}</button>
+                </div>
+
+                {loading && <p className="empty-note">{t('loadingPayments')}</p>}
+                {!loading && error && <p className="empty-note error-note">{error}</p>}
+                {!loading && !error && recentPayments.length === 0 && <p className="empty-note">{t('noPayments')}</p>}
+
+                {!loading && !error && recentPayments.length > 0 && (
+                  <div className="tx-list">
+                    {recentPayments.map((payment) => {
+                      const txType = classifyTransaction(payment);
+                      return (
+                        <div className="tx-row" key={payment.paymentId}>
+                          <span>
+                            Ref {payment.referenceNumber || `PAY-${payment.paymentId}`}
+                            <br />
+                            <small>{payment.status} • {formatDateTime(payment.createdAt)}</small>
+                          </span>
+                          <strong className={txType.className}>{txType.sign} {currency(payment.amount)}</strong>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <button className="view-more">{t('viewAll')} →</button>
+              </article>
+
+              <article className="card">
+                <div className="card-title-row">
+                  <h3>{t('spendingOverview')}</h3>
+                  <select className="month-btn" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)}>
+                    <option>{t('thisMonth')}</option>
+                    <option>{t('lastMonth')}</option>
+                  </select>
+                </div>
+
+                <div className="spend-row">
+                  <div className="donut-wrap">
+                    <div className="donut" style={donutStyle}>
+                      <div className="donut-center">
+                        <small>{t('totalSpent')}</small>
+                        <strong>{currency(spendingStats.total)}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  <ul className="legend">
+                    {spendingStats.items.map((item, index) => (
+                      <li key={item.label}>
+                        <span className={`dot d${index + 1}`} /> {item.label}
+                        <span className="legend-pct">{item.pct}%</span>
+                        <b>{currency(item.amount)}</b>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="insight">{t('insight')}</div>
+              </article>
+            </section>
+
+            <section className="bottom-grid">
+              <article className="card">
+                <div className="card-title-row">
+                  <h3>{t('upcomingPayments')}</h3>
+                  <button className="link-btn">{t('viewAll')}</button>
+                </div>
+                {upcomingPayments.length === 0 && <p className="empty-note">{t('noScheduled')}</p>}
+                {upcomingPayments.map((payment) => (
+                  <div className="tx-row" key={`up-${payment.paymentId}`}>
+                    <span>
+                      {payment.referenceNumber || `PAY-${payment.paymentId}`}
+                      <br />
+                      <small>{payment.remarks}</small>
+                    </span>
+                    <strong>{currency(payment.amount)}</strong>
+                  </div>
                 ))}
-              </ul>
-            </div>
+              </article>
 
-            <div className="insight">You can compare month-wise spending using the selector above.</div>
-          </article>
-        </section>
-
-        <section className="bottom-grid">
-          <article className="card">
-            <div className="card-title-row">
-              <h3>Upcoming Payments</h3>
-              <button className="link-btn">View All</button>
-            </div>
-            {upcomingPayments.length === 0 && <p className="empty-note">No scheduled payments yet.</p>}
-            {upcomingPayments.map((payment) => (
-              <div className="tx-row" key={`up-${payment.paymentId}`}>
-                <span>
-                  {payment.referenceNumber || `PAY-${payment.paymentId}`}
-                  <br />
-                  <small>{payment.remarks}</small>
-                </span>
-                <strong>{currency(payment.amount)}</strong>
-              </div>
-            ))}
-          </article>
-
-          <article className="promo-card">
-            <h3>Send money instantly</h3>
-            <p>Anytime, anywhere with SmartPay</p>
-            <button>Make a Payment →</button>
-          </article>
-        </section>
+              <article className="promo-card">
+                <h3>{t('sendMoney')}</h3>
+                <p>{t('sendMoneySub')}</p>
+                <button onClick={openPaymentJourney}>{t('payNow')} →</button>
+              </article>
+            </section>
+          </>
+        )}
 
         {toast && <div className="toast-msg">{toast}</div>}
 
-        {activeModal && (
+        {activeModal === 'schedule' && (
           <div className="modal-overlay" onClick={closeModal}>
             <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-              {activeModal !== 'groupSplit' && (
-                <>
-                  <h3>{activeModal === 'payment' ? 'Make Payment' : 'Schedule Payment'}</h3>
-                  <div className="form-grid">
-                    <input name="sourceAccountId" placeholder="Source Account ID" value={formState.sourceAccountId} onChange={handleFormChange} />
-                    <input name="destinationAccountId" placeholder="Destination Account ID" value={formState.destinationAccountId} onChange={handleFormChange} />
-                    <input name="amount" placeholder="Amount" type="number" value={formState.amount} onChange={handleFormChange} />
-                    <input name="currency" placeholder="Currency" value={formState.currency} onChange={handleFormChange} />
-                    <input name="referenceNumber" placeholder="Reference Number" value={formState.referenceNumber} onChange={handleFormChange} />
-                    <input name="remarks" placeholder="Remarks" value={formState.remarks} onChange={handleFormChange} />
-                    {activeModal === 'schedule' && (
-                      <input type="date" value={scheduleDate} onChange={(event) => setScheduleDate(event.target.value)} />
-                    )}
-                  </div>
-                  <div className="modal-actions">
-                    <button className="secondary-btn" onClick={closeModal}>Cancel</button>
-                    <button className="primary-btn" disabled={submitting} onClick={() => createPayment(activeModal)}>
-                      {submitting ? 'Submitting...' : activeModal === 'payment' ? 'Create Payment' : 'Schedule'}
-                    </button>
-                  </div>
-                </>
-              )}
+              <h3>{t('schedulePaymentTitle')}</h3>
+              <div className="form-grid">
+                <input name="sourceAccountId" placeholder={t('sourceAccount')} value={formState.sourceAccountId} onChange={handleFormChange} />
+                <input name="destinationAccountId" placeholder={t('destinationAccount')} value={formState.destinationAccountId} onChange={handleFormChange} />
+                <input name="amount" placeholder={t('amount')} type="number" value={formState.amount} onChange={handleFormChange} />
+                <input name="currency" placeholder={t('currency')} value={formState.currency} onChange={handleFormChange} />
+                <input name="referenceNumber" placeholder={t('reference')} value={formState.referenceNumber} onChange={handleFormChange} />
+                <input name="remarks" placeholder={t('remarks')} value={formState.remarks} onChange={handleFormChange} />
+                <input type="date" value={scheduleDate} onChange={(event) => setScheduleDate(event.target.value)} />
+              </div>
+              <div className="modal-actions">
+                <button className="secondary-btn" onClick={closeModal}>{t('reset')}</button>
+                <button className="primary-btn" disabled={submitting} onClick={() => createPayment('schedule')}>
+                  {submitting ? t('processing') : t('submitSchedule')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
-              {activeModal === 'groupSplit' && (
-                <>
-                  <h3>Group Split</h3>
-                  <div className="form-grid">
-                    <input
-                      type="number"
-                      placeholder="Total Amount"
-                      value={groupSplit.amount}
-                      onChange={(event) => setGroupSplit((prev) => ({ ...prev, amount: event.target.value }))}
-                    />
-                    <input
-                      type="number"
-                      placeholder="Number of People"
-                      value={groupSplit.members}
-                      onChange={(event) => setGroupSplit((prev) => ({ ...prev, members: event.target.value }))}
-                    />
-                  </div>
-                  <p className="split-result">Per person: <strong>{currency(perHead)}</strong></p>
-                  <div className="modal-actions">
-                    <button className="secondary-btn" onClick={closeModal}>Close</button>
-                  </div>
-                </>
-              )}
+        {activeModal === 'groupSplit' && (
+          <div className="modal-overlay" onClick={closeModal}>
+            <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+              <h3>{t('groupSplit')}</h3>
+              <div className="form-grid">
+                <input
+                  type="number"
+                  placeholder={t('totalAmount')}
+                  value={groupSplit.amount}
+                  onChange={(event) => setGroupSplit((prev) => ({ ...prev, amount: event.target.value }))}
+                />
+                <input
+                  type="number"
+                  placeholder={t('numberOfPeople')}
+                  value={groupSplit.members}
+                  onChange={(event) => setGroupSplit((prev) => ({ ...prev, members: event.target.value }))}
+                />
+              </div>
+              <p className="split-result">{t('perPerson')}: <strong>{currency(perHead)}</strong></p>
+              <div className="modal-actions">
+                <button className="secondary-btn" onClick={closeModal}>{t('close')}</button>
+              </div>
             </div>
           </div>
         )}
       </main>
+
+      <SupportChatbot isOpen={isSupportChatOpen} onClose={() => setIsSupportChatOpen(false)} hideFab />
     </div>
   );
 }

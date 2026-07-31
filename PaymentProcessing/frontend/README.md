@@ -1,5 +1,24 @@
 # Getting Started with Create React App
 
+## SmartPay Support Chatbot Setup
+
+This frontend includes a Groq-powered customer support chatbot.
+
+1. Open `.env` in this folder and set your key:
+
+	`REACT_APP_GROQ_API_KEY=your_actual_groq_key`
+
+2. Keep or adjust these values as needed:
+
+	- `REACT_APP_GROQ_MODEL=llama-3.1-8b-instant`
+	- `REACT_APP_GROQ_BASE_URL=https://api.groq.com/openai/v1`
+
+3. Restart `npm start` after changing `.env` values.
+
+Notes:
+- This is a frontend-only integration, so the API key is exposed in browser network traffic.
+- For production, route Groq calls through your backend and keep keys server-side.
+
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Available Scripts
