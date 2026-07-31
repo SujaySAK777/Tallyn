@@ -1,25 +1,30 @@
 .smartpay-app {
   min-height: 100vh;
+  height: 100vh;
   background: #f7f8fc;
   display: grid;
   grid-template-columns: 206px 1fr;
   color: #17203b;
+  overflow: hidden;
 }
 
 .sidebar {
   background: #fff;
   border-right: 1px solid #e8ebf2;
-  padding: 16px 14px;
+  padding: 10px 10px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 8px;
+  overflow: hidden;
+  height: 100vh;
+  min-height: 0;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 9px;
-  font-size: 24px;
+  gap: 8px;
+  font-size: 22px;
   font-weight: 700;
 }
 
@@ -37,17 +42,23 @@
 .menu {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
 }
 
 .menu-item {
   border: 0;
   background: transparent;
   text-align: left;
-  padding: 9px 10px;
+  padding: 7px 8px;
   border-radius: 8px;
   color: #506085;
   font-weight: 500;
+  font-size: 14px;
   cursor: pointer;
   transition: background-color 0.18s ease, color 0.18s ease;
 }
@@ -63,22 +74,25 @@
 }
 
 .invite-card {
-  margin-top: auto;
+  margin-top: 4px;
   background: linear-gradient(180deg, #f6f8ff, #eef2ff);
   border: 1px solid #e4e9ff;
   border-radius: 12px;
-  padding: 10px;
+  padding: 7px;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
 .invite-card h4 {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   color: #4f5dff;
+  font-size: 14px;
 }
 
 .invite-card p {
-  margin: 0 0 10px;
+  margin: 0 0 6px;
   color: #5f6d8a;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .invite-card button {
@@ -90,13 +104,14 @@
 }
 
 .support {
-  margin-top: 6px;
-  padding-top: 12px;
+  margin-top: auto;
+  padding-top: 8px;
   border-top: 1px solid #edf1f8;
   color: #7a849c;
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .support-icon {
@@ -118,6 +133,35 @@
 .support-subtitle {
   color: #7a849c;
   font-size: 11px;
+}
+
+@media (max-height: 840px) {
+  .sidebar {
+    padding: 8px;
+    gap: 6px;
+  }
+
+  .brand {
+    font-size: 20px;
+  }
+
+  .menu-item {
+    padding: 6px 7px;
+    font-size: 13px;
+  }
+
+  .invite-card {
+    margin-top: 4px;
+    padding: 7px;
+  }
+
+  .support {
+    padding-top: 8px;
+  }
+}
+
+@media (max-height: 760px) {
+  .invite-card { display: none; }
 }
 
 .main-content {
