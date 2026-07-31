@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import './Dashboard.css';
 import { apiRequest } from './services/api';
+import SupportChatbot from './SupportChatbot';
 
 const initialFormState = {
   sourceAccountId: '',
@@ -65,6 +66,7 @@ function Dashboard() {
   const [groupSplit, setGroupSplit] = useState({ amount: '', members: '' });
   const [toast, setToast] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [isSupportChatOpen, setIsSupportChatOpen] = useState(false);
 
   const showToast = (message) => {
     setToast(message);
@@ -243,7 +245,7 @@ function Dashboard() {
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-icon">S</div>
-          <span>SmartPay</span>
+          <span>Tallyn</span>
         </div>
 
         <nav className="menu">
@@ -262,7 +264,18 @@ function Dashboard() {
           <button>Invite Now</button>
         </div>
 
-        <div className="support">
+        <div
+          className="support"
+          role="button"
+          tabIndex={0}
+          onClick={() => setIsSupportChatOpen(true)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              setIsSupportChatOpen(true);
+            }
+          }}
+        >
           <span className="support-icon">🎧</span>
           <div>
             <div className="support-title">Need Help?</div>
@@ -404,7 +417,7 @@ function Dashboard() {
 
           <article className="promo-card">
             <h3>Send money instantly</h3>
-            <p>Anytime, anywhere with SmartPay</p>
+            <p>Anytime, anywhere with Tallyn</p>
             <button>Make a Payment →</button>
           </article>
         </section>
@@ -464,6 +477,8 @@ function Dashboard() {
           </div>
         )}
       </main>
+
+      <SupportChatbot isOpen={isSupportChatOpen} onClose={() => setIsSupportChatOpen(false)} hideFab />
     </div>
   );
 }
