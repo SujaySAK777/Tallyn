@@ -1,6 +1,8 @@
 package com.example.PaymentProcessing.service;
 
 import com.example.PaymentProcessing.api.AccountResponse;
+import com.example.PaymentProcessing.api.BalanceResponse;
+import com.example.PaymentProcessing.api.CheckBalanceRequest;
 import com.example.PaymentProcessing.api.CreateAccountRequest;
 import com.example.PaymentProcessing.exception.ApiException;
 import com.example.PaymentProcessing.model.Account;
@@ -55,6 +57,31 @@ public class AccountService {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new ApiException("ACCOUNT_NOT_FOUND", "Account not found", HttpStatus.NOT_FOUND));
         return AccountResponse.fromEntity(account);
+    }
+
+    @Transactional(readOnly = true)
+    public BalanceResponse checkBalance(CheckBalanceRequest request) {
+        if (request == null
+                || request.getAccountNumber() == null
+                || request.getAccountNumber().isBlank()
+                || request.getTpin() == null
+                || request.getTpin().isBlank()) {
+            throw new ApiException("VALIDATION_FAILED", "account_number and tpin are required", HttpStatus.BAD_REQUEST);
+        }
+
+        Account account = accountRepository.findByAccountNumber(request.getAccountNumber().trim())
+                .orElseThrow(() -> new ApiException("ACCOUNT_NOT_FOUND", "Account not found", HttpStatus.NOT_FOUND));
+
+        if (!PASSWORD_ENCODER.matches(request.getTpin(), account.getTpinHash())) {
+            throw new ApiException("INVALID_TPIN", "Invalid tpin", HttpStatus.UNAUTHORIZED);
+        }
+
+        BalanceResponse response = new BalanceResponse();
+        response.setAccountNumber(account.getAccountNumber());
+        response.setAccountHolderName(account.getAccountHolderName());
+        response.setBalance(account.getBalance());
+        response.setCurrency(account.getCurrency());
+        return response;
     }
 
     private void validateCreateRequest(CreateAccountRequest request) {

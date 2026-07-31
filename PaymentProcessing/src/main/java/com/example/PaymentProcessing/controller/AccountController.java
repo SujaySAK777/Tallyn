@@ -1,6 +1,8 @@
 package com.example.PaymentProcessing.controller;
 
 import com.example.PaymentProcessing.api.AccountResponse;
+import com.example.PaymentProcessing.api.BalanceResponse;
+import com.example.PaymentProcessing.api.CheckBalanceRequest;
 import com.example.PaymentProcessing.api.CreateAccountRequest;
 import com.example.PaymentProcessing.service.AccountService;
 import java.util.List;
@@ -37,5 +39,10 @@ public class AccountController {
     @GetMapping("/{accountId}")
     public AccountResponse get(@PathVariable Long accountId) {
         return accountService.getAccount(accountId);
+    }
+
+    @PostMapping("/balance")
+    public BalanceResponse checkBalance(@RequestBody CheckBalanceRequest request) {
+        return accountService.checkBalance(request);
     }
 }
