@@ -1,52 +1,35 @@
-package com.example.PaymentProcessing.model;
+package com.example.PaymentProcessing.api;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import com.example.PaymentProcessing.model.Account;
+import com.example.PaymentProcessing.model.AccountStatus;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "account")
-public class Account {
+public class AccountResponse {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "account_id")
     private Long accountId;
-
-    @Column(name = "bank_name", nullable = false, length = 100)
     private String bankName;
-
-    @Column(name = "account_number", nullable = false, unique = true, length = 20)
     private String accountNumber;
-
-    @Column(name = "account_holder_name", nullable = false, length = 100)
     private String accountHolderName;
-
-    @Column(name = "balance", nullable = false, precision = 15, scale = 2)
     private BigDecimal balance;
-
-    @Column(name = "tpin", nullable = false, length = 120)
-    private String tpinHash;
-
-    @Column(name = "currency", nullable = false, length = 3)
     private String currency;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
     private AccountStatus status;
-
-    @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", insertable = false, updatable = false)
     private LocalDateTime updatedAt;
+
+    public static AccountResponse fromEntity(Account account) {
+        AccountResponse response = new AccountResponse();
+        response.setAccountId(account.getAccountId());
+        response.setBankName(account.getBankName());
+        response.setAccountNumber(account.getAccountNumber());
+        response.setAccountHolderName(account.getAccountHolderName());
+        response.setBalance(account.getBalance());
+        response.setCurrency(account.getCurrency());
+        response.setStatus(account.getStatus());
+        response.setCreatedAt(account.getCreatedAt());
+        response.setUpdatedAt(account.getUpdatedAt());
+        return response;
+    }
 
     public Long getAccountId() {
         return accountId;
@@ -88,14 +71,6 @@ public class Account {
         this.balance = balance;
     }
 
-    public String getTpinHash() {
-        return tpinHash;
-    }
-
-    public void setTpinHash(String tpinHash) {
-        this.tpinHash = tpinHash;
-    }
-
     public String getCurrency() {
         return currency;
     }
@@ -116,7 +91,15 @@ public class Account {
         return createdAt;
     }
 
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }
