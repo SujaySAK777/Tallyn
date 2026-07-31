@@ -1,8 +1,10 @@
 CREATE TABLE account (
     account_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    bank_name VARCHAR(50) NOT NULL,
     account_number VARCHAR(20) NOT NULL UNIQUE,
     account_holder_name VARCHAR(100) NOT NULL,
     balance DECIMAL(15,2) NOT NULL,
+    tpin char(60),
     currency CHAR(3) NOT NULL,
     status ENUM('ACTIVE','INACTIVE','BLOCKED') NOT NULL DEFAULT 'ACTIVE',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
