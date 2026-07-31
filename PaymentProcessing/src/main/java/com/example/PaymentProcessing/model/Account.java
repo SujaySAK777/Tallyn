@@ -32,12 +32,6 @@ public class Account {
     @Column(name = "currency", nullable = false, length = 3)
     private String currency;
 
-    @Column(name = "bank_name", nullable = false, length = 20)
-    private String bankName;
-
-    @Column(name = "tpin", nullable = false, length = 100)
-    private String tpin;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private AccountStatus status;
@@ -86,22 +80,6 @@ public class Account {
 
     public void setCurrency(String currency) {
         this.currency = currency;
-    }
-
-    public String getBankName() {
-        return bankName;
-    }
-
-    public void setBankName(String bankName) {
-        this.bankName = bankName;
-    }
-
-    public String getTpin() {
-        return tpin;
-    }
-
-    public void setTpin(String tpin) {
-        this.tpin = tpin;
     }
 
     public AccountStatus getStatus() {

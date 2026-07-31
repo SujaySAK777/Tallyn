@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,7 +27,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class PaymentService {
 
     private static final Map<PaymentStatus, Set<PaymentStatus>> VALID_TRANSITIONS = buildTransitions();
-    private static final BCryptPasswordEncoder BCRYPT_ENCODER = new BCryptPasswordEncoder();
 
     private final AccountRepository accountRepository;
     private final PaymentRepository paymentRepository;
@@ -135,7 +133,6 @@ public class PaymentService {
         }
 
         if (next == PaymentStatus.COMPLETED) {
-            verifySourceTpin(payment, request.getTpin());
             settleBalances(payment);
             payment.setErrorCode(null);
             payment.setErrorMessage(null);
@@ -194,28 +191,6 @@ public class PaymentService {
         destination.setBalance(destination.getBalance().add(amount));
         accountRepository.save(source);
         accountRepository.save(destination);
-    }
-
-    private void verifySourceTpin(Payment payment, String tpin) {
-        if (tpin == null || !tpin.trim().matches("\\d{6}")) {
-            throw new ApiException("INVALID_TPIN", "Valid 6-digit tpin is required for COMPLETED status", HttpStatus.BAD_REQUEST);
-        }
-
-        String storedTpinHash = payment.getSourceAccount().getTpin();
-        if (storedTpinHash == null || storedTpinHash.isBlank()) {
-            throw new ApiException("INVALID_ACCOUNT", "Source account tpin is not configured", HttpStatus.BAD_REQUEST);
-        }
-
-        boolean isMatch;
-        try {
-            isMatch = BCRYPT_ENCODER.matches(tpin.trim(), storedTpinHash);
-        } catch (IllegalArgumentException ex) {
-            throw new ApiException("INVALID_ACCOUNT", "Source account tpin hash is invalid", HttpStatus.BAD_REQUEST);
-        }
-
-        if (!isMatch) {
-            throw new ApiException("INVALID_TPIN", "Incorrect tpin", HttpStatus.BAD_REQUEST);
-        }
     }
 
     private void saveHistory(Payment payment, PaymentStatus previous, PaymentStatus current, String remarks) {

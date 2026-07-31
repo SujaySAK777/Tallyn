@@ -7,7 +7,6 @@ public class UpdatePaymentStatusRequest {
     private String remarks;
     private String errorCode;
     private String errorMessage;
-    private String tpin;
 
     public PaymentStatus getStatus() {
         return status;
@@ -39,13 +38,5 @@ public class UpdatePaymentStatusRequest {
 
     public void setErrorMessage(String errorMessage) {
         this.errorMessage = errorMessage;
-    }
-
-    public String getTpin() {
-        return tpin;
-    }
-
-    public void setTpin(String tpin) {
-        this.tpin = tpin;
     }
 }
