@@ -4,6 +4,7 @@ import {
   FiCalendar,
   FiEye,
   FiLifeBuoy,
+  FiLogOut,
   FiLock,
   FiMoon,
   FiSearch,
@@ -57,7 +58,7 @@ function classifyTransaction(payment) {
   return { sign: '-', className: '' };
 }
 
-function Dashboard() {
+function Dashboard({ onLogout }) {
   const supportedBanks = ['HDFC BANK', 'ICICI BANK', 'STATE BANK OF INDIA', 'AXIS BANK'];
 
   const [theme, setTheme] = useState('light');
@@ -78,6 +79,7 @@ function Dashboard() {
   const [submitting, setSubmitting] = useState(false);
   const [isSupportChatOpen, setIsSupportChatOpen] = useState(false);
   const [journeyPaymentId, setJourneyPaymentId] = useState(null);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [accountMode, setAccountMode] = useState('simulate');
   const [accountStep, setAccountStep] = useState('entry');
   const [accountSubmitting, setAccountSubmitting] = useState(false);
@@ -585,13 +587,20 @@ function Dashboard() {
                     <option key={option.code} value={option.code}>{option.label}</option>
                   ))}
                 </select>
-                <div className="profile">
+                <button className="profile profile-button" onClick={() => setProfileOpen((open) => !open)} aria-expanded={profileOpen}>
                   <div className="avatar">SG</div>
                   <div>
                     <div className="name">Soumitha G</div>
                     <div className="plan">Premium Member</div>
                   </div>
-                </div>
+                </button>
+                {profileOpen && <div className="profile-menu">
+                  <div className="profile-menu-head"><strong>Soumitha G</strong><span>Premium member</span></div>
+                  <button onClick={() => showToast('Profile management is coming soon.')}>My profile</button>
+                  <button onClick={() => showToast('Notification preferences are saved automatically.')}>Notifications</button>
+                  <button onClick={() => showToast('Settings panel is coming soon.')}>Settings</button>
+                  <button className="logout-btn" onClick={onLogout}><FiLogOut /> Log out</button>
+                </div>}
               </div>
             </header>
 

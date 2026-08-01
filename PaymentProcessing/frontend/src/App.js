@@ -1,7 +1,23 @@
+import { useState } from 'react';
 import Dashboard from './Dashboard';
+import OnboardingWizard from './components/OnboardingWizard';
 
 function App() {
-  return <Dashboard />;
+  const [session, setSession] = useState(() => {
+    try { return JSON.parse(window.localStorage.getItem('tallyn-session') || 'null'); } catch { return null; }
+  });
+
+  const handleLogin = (nextSession) => {
+    window.localStorage.setItem('tallyn-session', JSON.stringify(nextSession));
+    setSession(nextSession);
+  };
+
+  const handleLogout = () => {
+    window.localStorage.removeItem('tallyn-session');
+    setSession(null);
+  };
+
+  return session ? <Dashboard onLogout={handleLogout} /> : <OnboardingWizard onLogin={handleLogin} />;
 }
 
 export default App;

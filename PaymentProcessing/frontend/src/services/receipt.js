@@ -89,16 +89,40 @@ function buildReceiptPdf(receipt) {
   return doc;
 }
 
-export async function downloadReceiptPdf(paymentId) {
-  if (!paymentId) {
-    throw new Error('Payment ID is required to download receipt.');
-  }
-
-  const receipt = await apiRequest(`/payments/${paymentId}/receipt`);
-  const doc = buildReceiptPdf(receipt);
+function getReceiptFileName(receipt, paymentId) {
   const safeReference = (receipt.referenceNumber || `payment-${paymentId}`)
     .replace(/[^a-zA-Z0-9_-]+/g, '-')
     .slice(0, 60);
 
-  doc.save(`Tallyn-Receipt-${safeReference}.pdf`);
+  return `Tallyn-Receipt-${safeReference}.pdf`;
+}
+
+export async function createReceiptPdfFile(paymentId) {
+  if (!paymentId) {
+    throw new Error('Payment ID is required to create receipt.');
+  }
+
+  const receipt = await apiRequest(`/payments/${paymentId}/receipt`);
+  const doc = buildReceiptPdf(receipt);
+  const fileName = getReceiptFileName(receipt, paymentId);
+  const blob = doc.output('blob');
+
+  return new File([blob], fileName, { type: 'application/pdf' });
+}
+
+export async function downloadReceiptPdf(paymentId) {
+  const file = await createReceiptPdfFile(paymentId);
+  saveReceiptPdfFile(file);
+}
+
+export function saveReceiptPdfFile(file) {
+  const objectUrl = URL.createObjectURL(file);
+  const link = document.createElement('a');
+
+  link.href = objectUrl;
+  link.download = file.name;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(objectUrl);
 }
