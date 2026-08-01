@@ -6,7 +6,7 @@ CREATE TABLE scheduled_payment (
     currency CHAR(3) NOT NULL,
     remarks VARCHAR(255),
     scheduled_at DATETIME NOT NULL,
-    status ENUM('PENDING','COMPLETED','FAILED') NOT NULL DEFAULT 'PENDING',
+    status ENUM('PENDING','COMPLETED','FAILED','CANCELLED') NOT NULL DEFAULT 'PENDING',
     reference_number VARCHAR(100) NOT NULL UNIQUE,
     error_code VARCHAR(50),
     error_message VARCHAR(255),

@@ -10,6 +10,7 @@ public class CreateScheduledPaymentRequest {
     private String currency;
     private String remarks;
     private LocalDateTime scheduledAt;
+    private String tpin;
 
     public Long getSourceAccountId() { return sourceAccountId; }
     public void setSourceAccountId(Long sourceAccountId) { this.sourceAccountId = sourceAccountId; }
@@ -28,4 +29,7 @@ public class CreateScheduledPaymentRequest {
 
     public LocalDateTime getScheduledAt() { return scheduledAt; }
     public void setScheduledAt(LocalDateTime scheduledAt) { this.scheduledAt = scheduledAt; }
+
+    public String getTpin() { return tpin; }
+    public void setTpin(String tpin) { this.tpin = tpin; }
 }
