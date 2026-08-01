@@ -1,0 +1,4 @@
+.idea/
+.vscode/
+PaymentProcessing/frontend/node_modules/
+PaymentProcessing/frontend/.env

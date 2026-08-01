@@ -11,6 +11,7 @@ public class AccountResponse {
     private String bankName;
     private String accountNumber;
     private String accountHolderName;
+    private String ifscCode;
     private BigDecimal balance;
     private String currency;
     private AccountStatus status;
@@ -23,6 +24,7 @@ public class AccountResponse {
         response.setBankName(account.getBankName());
         response.setAccountNumber(account.getAccountNumber());
         response.setAccountHolderName(account.getAccountHolderName());
+        response.setIfscCode(account.getIfscCode());
         response.setBalance(account.getBalance());
         response.setCurrency(account.getCurrency());
         response.setStatus(account.getStatus());
@@ -62,6 +64,9 @@ public class AccountResponse {
     public void setAccountHolderName(String accountHolderName) {
         this.accountHolderName = accountHolderName;
     }
+
+    public String getIfscCode() { return ifscCode; }
+    public void setIfscCode(String ifscCode) { this.ifscCode = ifscCode; }
 
     public BigDecimal getBalance() {
         return balance;

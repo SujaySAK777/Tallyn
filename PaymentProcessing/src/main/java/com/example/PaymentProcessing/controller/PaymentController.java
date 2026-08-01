@@ -41,8 +41,10 @@ public class PaymentController {
     }
 
     @GetMapping
-    public List<PaymentResponse> list(@RequestParam(required = false) PaymentStatus status) {
-        return paymentService.listPayments(status);
+    public List<PaymentResponse> list(
+            @RequestParam(required = false) PaymentStatus status,
+            @RequestParam(required = false) Long customerId) {
+        return paymentService.listPayments(status, customerId);
     }
 
     @GetMapping("/{paymentId}/history")

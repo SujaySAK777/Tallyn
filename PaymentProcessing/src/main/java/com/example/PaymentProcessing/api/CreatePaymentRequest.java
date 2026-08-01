@@ -9,6 +9,7 @@ public class CreatePaymentRequest {
     private String currency;
     private String referenceNumber;
     private String remarks;
+    private String tpin;
 
     public Long getSourceAccountId() {
         return sourceAccountId;
@@ -57,4 +58,7 @@ public class CreatePaymentRequest {
     public void setRemarks(String remarks) {
         this.remarks = remarks;
     }
+
+    public String getTpin() { return tpin; }
+    public void setTpin(String tpin) { this.tpin = tpin; }
 }
