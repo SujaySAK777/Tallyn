@@ -35,8 +35,28 @@ public class ScheduledPayment {
     @Column(name = "remarks", length = 255)
     private String remarks;
 
+    @Column(name = "receiver_bank_name", length = 100)
+    private String receiverBankName;
+
+    @Column(name = "receiver_ifsc", length = 20)
+    private String receiverIfsc;
+
     @Column(name = "scheduled_at", nullable = false)
     private LocalDateTime scheduledAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "execution_type", nullable = false)
+    private ScheduledPaymentExecutionType executionType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "recurrence_type")
+    private ScheduledPaymentRecurrenceType recurrenceType;
+
+    @Column(name = "recurrence_interval_days")
+    private Integer recurrenceIntervalDays;
+
+    @Column(name = "last_run_at")
+    private LocalDateTime lastRunAt;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
@@ -75,8 +95,26 @@ public class ScheduledPayment {
     public String getRemarks() { return remarks; }
     public void setRemarks(String remarks) { this.remarks = remarks; }
 
+    public String getReceiverBankName() { return receiverBankName; }
+    public void setReceiverBankName(String receiverBankName) { this.receiverBankName = receiverBankName; }
+
+    public String getReceiverIfsc() { return receiverIfsc; }
+    public void setReceiverIfsc(String receiverIfsc) { this.receiverIfsc = receiverIfsc; }
+
     public LocalDateTime getScheduledAt() { return scheduledAt; }
     public void setScheduledAt(LocalDateTime scheduledAt) { this.scheduledAt = scheduledAt; }
+
+    public ScheduledPaymentExecutionType getExecutionType() { return executionType; }
+    public void setExecutionType(ScheduledPaymentExecutionType executionType) { this.executionType = executionType; }
+
+    public ScheduledPaymentRecurrenceType getRecurrenceType() { return recurrenceType; }
+    public void setRecurrenceType(ScheduledPaymentRecurrenceType recurrenceType) { this.recurrenceType = recurrenceType; }
+
+    public Integer getRecurrenceIntervalDays() { return recurrenceIntervalDays; }
+    public void setRecurrenceIntervalDays(Integer recurrenceIntervalDays) { this.recurrenceIntervalDays = recurrenceIntervalDays; }
+
+    public LocalDateTime getLastRunAt() { return lastRunAt; }
+    public void setLastRunAt(LocalDateTime lastRunAt) { this.lastRunAt = lastRunAt; }
 
     public ScheduledPaymentStatus getStatus() { return status; }
     public void setStatus(ScheduledPaymentStatus status) { this.status = status; }

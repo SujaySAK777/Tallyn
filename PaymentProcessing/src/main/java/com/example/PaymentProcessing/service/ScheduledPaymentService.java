@@ -9,6 +9,8 @@ import com.example.PaymentProcessing.exception.ApiException;
 import com.example.PaymentProcessing.model.Account;
 import com.example.PaymentProcessing.model.PaymentStatus;
 import com.example.PaymentProcessing.model.ScheduledPayment;
+import com.example.PaymentProcessing.model.ScheduledPaymentExecutionType;
+import com.example.PaymentProcessing.model.ScheduledPaymentRecurrenceType;
 import com.example.PaymentProcessing.model.ScheduledPaymentStatus;
 import com.example.PaymentProcessing.repository.AccountRepository;
 import com.example.PaymentProcessing.repository.ScheduledPaymentRepository;
@@ -45,13 +47,26 @@ public class ScheduledPaymentService {
         validateCreateRequest(request);
         verifyTpin(request.getSourceAccountId(), request.getTpin());
 
+        ScheduledPaymentExecutionType executionType = request.getExecutionType() == null
+                ? ScheduledPaymentExecutionType.ONE_TIME
+                : request.getExecutionType();
+
         ScheduledPayment scheduledPayment = new ScheduledPayment();
         scheduledPayment.setSourceAccountId(request.getSourceAccountId());
         scheduledPayment.setDestinationAccountId(request.getDestinationAccountId());
         scheduledPayment.setAmount(request.getAmount());
         scheduledPayment.setCurrency(request.getCurrency().toUpperCase());
         scheduledPayment.setRemarks(request.getRemarks());
+        scheduledPayment.setReceiverBankName(request.getReceiverBankName());
+        scheduledPayment.setReceiverIfsc(request.getReceiverIfsc());
         scheduledPayment.setScheduledAt(request.getScheduledAt());
+        scheduledPayment.setExecutionType(executionType);
+        scheduledPayment.setRecurrenceType(executionType == ScheduledPaymentExecutionType.RECURRING ? request.getRecurrenceType() : null);
+        scheduledPayment.setRecurrenceIntervalDays(
+                executionType == ScheduledPaymentExecutionType.RECURRING
+                        && request.getRecurrenceType() == ScheduledPaymentRecurrenceType.CUSTOM_DAYS
+                        ? request.getRecurrenceIntervalDays()
+                        : null);
         scheduledPayment.setStatus(ScheduledPaymentStatus.PENDING);
         scheduledPayment.setReferenceNumber("SCH-" + UUID.randomUUID());
 
@@ -82,7 +97,6 @@ public class ScheduledPaymentService {
     }
 
     @Scheduled(fixedDelay = 60000)
-    @Transactional
     public void processDuePayments() {
         LocalDateTime now = LocalDateTime.now();
         List<ScheduledPayment> duePayments = scheduledPaymentRepository
@@ -109,23 +123,42 @@ public class ScheduledPaymentService {
                 paymentService.updateStatus(paymentId, statusUpdate(PaymentStatus.PROCESSING, scheduledPayment.getRemarks()));
                 paymentService.updateStatus(paymentId, statusUpdate(PaymentStatus.COMPLETED, scheduledPayment.getRemarks()));
 
-                scheduledPayment.setStatus(ScheduledPaymentStatus.COMPLETED);
                 scheduledPayment.setErrorCode(null);
                 scheduledPayment.setErrorMessage(null);
+                scheduledPayment.setLastRunAt(now);
+
+                if (scheduledPayment.getExecutionType() == ScheduledPaymentExecutionType.RECURRING) {
+                    // Recurring schedules stay PENDING and roll forward to their next
+                    // occurrence instead of terminating, per the "runs until cancelled" model.
+                    scheduledPayment.setScheduledAt(computeNextOccurrence(scheduledPayment));
+                    scheduledPayment.setStatus(ScheduledPaymentStatus.PENDING);
+                } else {
+                    scheduledPayment.setStatus(ScheduledPaymentStatus.COMPLETED);
+                }
             } catch (ApiException ex) {
-                failScheduledPayment(paymentId, scheduledPayment, ex.getErrorCode(), ex.getMessage());
+                failScheduledPayment(paymentId, scheduledPayment, ex.getErrorCode(), ex.getMessage(), now);
             } catch (Exception ex) {
-                failScheduledPayment(paymentId, scheduledPayment, "PROCESSING_ERROR", ex.getMessage());
+                failScheduledPayment(paymentId, scheduledPayment, "PROCESSING_ERROR", ex.getMessage(), now);
             } finally {
                 scheduledPaymentRepository.save(scheduledPayment);
             }
         }
     }
 
-    private void failScheduledPayment(Long paymentId, ScheduledPayment scheduledPayment, String errorCode, String errorMessage) {
-        scheduledPayment.setStatus(ScheduledPaymentStatus.FAILED);
+    private void failScheduledPayment(Long paymentId, ScheduledPayment scheduledPayment, String errorCode, String errorMessage, LocalDateTime now) {
         scheduledPayment.setErrorCode(errorCode);
         scheduledPayment.setErrorMessage(errorMessage);
+        scheduledPayment.setLastRunAt(now);
+
+        if (scheduledPayment.getExecutionType() == ScheduledPaymentExecutionType.RECURRING) {
+            // A single failed cycle (e.g. temporarily insufficient funds) doesn't kill the
+            // whole standing instruction — it stays PENDING and retries on the next occurrence,
+            // with the failure visible via errorCode/errorMessage until a cycle succeeds.
+            scheduledPayment.setScheduledAt(computeNextOccurrence(scheduledPayment));
+            scheduledPayment.setStatus(ScheduledPaymentStatus.PENDING);
+        } else {
+            scheduledPayment.setStatus(ScheduledPaymentStatus.FAILED);
+        }
 
         if (paymentId != null) {
             try {
@@ -179,5 +212,30 @@ public class ScheduledPaymentService {
         if (!request.getScheduledAt().isAfter(LocalDateTime.now())) {
             throw new ApiException("INVALID_SCHEDULE", "scheduledAt must be in the future", HttpStatus.BAD_REQUEST);
         }
+
+        ScheduledPaymentExecutionType executionType = request.getExecutionType() == null
+                ? ScheduledPaymentExecutionType.ONE_TIME
+                : request.getExecutionType();
+
+        if (executionType == ScheduledPaymentExecutionType.RECURRING) {
+            if (request.getRecurrenceType() == null) {
+                throw new ApiException("VALIDATION_FAILED", "recurrenceType is required for recurring schedules", HttpStatus.BAD_REQUEST);
+            }
+            if (request.getRecurrenceType() == ScheduledPaymentRecurrenceType.CUSTOM_DAYS
+                    && (request.getRecurrenceIntervalDays() == null || request.getRecurrenceIntervalDays() < 1)) {
+                throw new ApiException("VALIDATION_FAILED", "recurrenceIntervalDays must be at least 1 for a custom repeat interval", HttpStatus.BAD_REQUEST);
+            }
+        }
+    }
+
+    private LocalDateTime computeNextOccurrence(ScheduledPayment scheduledPayment) {
+        LocalDateTime current = scheduledPayment.getScheduledAt();
+        if (scheduledPayment.getRecurrenceType() == ScheduledPaymentRecurrenceType.CUSTOM_DAYS) {
+            return current.plusDays(scheduledPayment.getRecurrenceIntervalDays());
+        }
+        // LocalDateTime#plusMonths clamps automatically when the source day-of-month
+        // doesn't exist in the target month (e.g. Jan 31 -> Feb 28/29), so no manual
+        // end-of-month handling is needed here.
+        return current.plusMonths(1);
     }
 }

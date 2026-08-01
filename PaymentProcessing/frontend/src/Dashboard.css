@@ -1216,6 +1216,37 @@
   color: #1e2b50;
 }
 
+.payment-journey .journey-shell .modal-card {
+  width: 100%;
+  max-width: none;
+}
+
+.payment-journey .journey-shell .modal-card .form-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+/* Details step nests its own card chrome (.bank-form / .summary-card via
+   PaymentJourney.css), so the outer .modal-card should just be a plain,
+   unstyled layout wrapper here to avoid a double card-in-a-card look. */
+.payment-journey .journey-shell .modal-card.journey-panel {
+  box-shadow: none;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.payment-journey .journey-shell .bank-layout {
+  align-items: start;
+}
+
+.payment-journey .journey-shell .section-title {
+  margin: 22px 0 14px;
+}
+
+.payment-journey .journey-shell .section-title:first-child {
+  margin-top: 0;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

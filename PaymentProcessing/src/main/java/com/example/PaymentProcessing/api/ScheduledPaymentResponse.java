@@ -1,6 +1,8 @@
 package com.example.PaymentProcessing.api;
 
 import com.example.PaymentProcessing.model.ScheduledPayment;
+import com.example.PaymentProcessing.model.ScheduledPaymentExecutionType;
+import com.example.PaymentProcessing.model.ScheduledPaymentRecurrenceType;
 import com.example.PaymentProcessing.model.ScheduledPaymentStatus;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -12,7 +14,13 @@ public class ScheduledPaymentResponse {
     private BigDecimal amount;
     private String currency;
     private String remarks;
+    private String receiverBankName;
+    private String receiverIfsc;
     private LocalDateTime scheduledAt;
+    private ScheduledPaymentExecutionType executionType;
+    private ScheduledPaymentRecurrenceType recurrenceType;
+    private Integer recurrenceIntervalDays;
+    private LocalDateTime lastRunAt;
     private ScheduledPaymentStatus status;
     private String referenceNumber;
     private String errorCode;
@@ -28,7 +36,13 @@ public class ScheduledPaymentResponse {
         response.setAmount(payment.getAmount());
         response.setCurrency(payment.getCurrency());
         response.setRemarks(payment.getRemarks());
+        response.setReceiverBankName(payment.getReceiverBankName());
+        response.setReceiverIfsc(payment.getReceiverIfsc());
         response.setScheduledAt(payment.getScheduledAt());
+        response.setExecutionType(payment.getExecutionType());
+        response.setRecurrenceType(payment.getRecurrenceType());
+        response.setRecurrenceIntervalDays(payment.getRecurrenceIntervalDays());
+        response.setLastRunAt(payment.getLastRunAt());
         response.setStatus(payment.getStatus());
         response.setReferenceNumber(payment.getReferenceNumber());
         response.setErrorCode(payment.getErrorCode());
@@ -56,8 +70,26 @@ public class ScheduledPaymentResponse {
     public String getRemarks() { return remarks; }
     public void setRemarks(String remarks) { this.remarks = remarks; }
 
+    public String getReceiverBankName() { return receiverBankName; }
+    public void setReceiverBankName(String receiverBankName) { this.receiverBankName = receiverBankName; }
+
+    public String getReceiverIfsc() { return receiverIfsc; }
+    public void setReceiverIfsc(String receiverIfsc) { this.receiverIfsc = receiverIfsc; }
+
     public LocalDateTime getScheduledAt() { return scheduledAt; }
     public void setScheduledAt(LocalDateTime scheduledAt) { this.scheduledAt = scheduledAt; }
+
+    public ScheduledPaymentExecutionType getExecutionType() { return executionType; }
+    public void setExecutionType(ScheduledPaymentExecutionType executionType) { this.executionType = executionType; }
+
+    public ScheduledPaymentRecurrenceType getRecurrenceType() { return recurrenceType; }
+    public void setRecurrenceType(ScheduledPaymentRecurrenceType recurrenceType) { this.recurrenceType = recurrenceType; }
+
+    public Integer getRecurrenceIntervalDays() { return recurrenceIntervalDays; }
+    public void setRecurrenceIntervalDays(Integer recurrenceIntervalDays) { this.recurrenceIntervalDays = recurrenceIntervalDays; }
+
+    public LocalDateTime getLastRunAt() { return lastRunAt; }
+    public void setLastRunAt(LocalDateTime lastRunAt) { this.lastRunAt = lastRunAt; }
 
     public ScheduledPaymentStatus getStatus() { return status; }
     public void setStatus(ScheduledPaymentStatus status) { this.status = status; }

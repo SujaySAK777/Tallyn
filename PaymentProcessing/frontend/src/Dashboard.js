@@ -1,13 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  FiArrowLeft,
   FiBell,
   FiCalendar,
+  FiCheckCircle,
+  FiChevronRight,
+  FiClock,
+  FiCreditCard,
   FiEye,
+  FiFileText,
+  FiHash,
   FiLifeBuoy,
   FiLogOut,
   FiLock,
   FiMoon,
+  FiRefreshCw,
+  FiRepeat,
   FiSearch,
+  FiShield,
   FiSun,
   FiUser,
   FiUsers
@@ -77,6 +87,8 @@ function Dashboard({ onLogout }) {
   const [paymentJourneyMethod, setPaymentJourneyMethod] = useState('bank');
   const [formState, setFormState] = useState(initialFormState);
   const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduledReceipt, setScheduledReceipt] = useState(null);
+  const [accounts, setAccounts] = useState([]);
   const [groupSplit, setGroupSplit] = useState({ amount: '', members: '' });
   const [toast, setToast] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -158,6 +170,15 @@ function Dashboard({ onLogout }) {
     }
   };
 
+  const loadAccounts = async () => {
+    try {
+      const data = await apiRequest('/accounts');
+      setAccounts(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setAccounts([]);
+    }
+  };
+
   const cancelScheduledPayment = async (scheduledPaymentId) => {
     setCancellingId(scheduledPaymentId);
     try {
@@ -174,6 +195,7 @@ function Dashboard({ onLogout }) {
   useEffect(() => {
     loadPayments();
     loadScheduledPayments();
+    loadAccounts();
 
     const pollInterval = window.setInterval(() => {
       loadPayments({ silent: true });
@@ -306,7 +328,9 @@ function Dashboard({ onLogout }) {
     if (action === 'schedulePayment') {
       setActiveModal('schedule');
       setScheduleStep('details');
+      setScheduledReceipt(null);
       setError('');
+      loadAccounts();
       return;
     }
     if (action === 'groupSplit') {
@@ -319,6 +343,7 @@ function Dashboard({ onLogout }) {
     setFormState(initialFormState);
     setScheduleDate('');
     setScheduleStep('details');
+    setScheduledReceipt(null);
     setGroupSplit({ amount: '', members: '' });
     setError('');
     setAccountError('');
@@ -333,6 +358,13 @@ function Dashboard({ onLogout }) {
       tpin: '',
       confirmTpin: ''
     });
+  };
+
+  const goToUpcomingPayments = () => {
+    closeModal();
+    window.setTimeout(() => {
+      document.getElementById('upcoming-payments-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
   };
 
   const openAccountFlow = () => {
@@ -459,14 +491,28 @@ function Dashboard({ onLogout }) {
   };
 
   const goToTpinStep = () => {
-    const sourceAccountId = Number(formState.sourceAccountId);
-    const destinationAccountId = Number(formState.destinationAccountId);
-    const amount = Number(formState.amount);
-
-    if (!Number.isInteger(sourceAccountId) || !Number.isInteger(destinationAccountId)) {
-      setError('Source and Destination must be numeric account IDs (example: 1, 2).');
+    if (!formState.sourceAccountId) {
+      setError('Please select a source account.');
       return;
     }
+
+    if (!formState.scheduleDestinationAccountNumber?.trim()) {
+      setError('Please enter a destination account number.');
+      return;
+    }
+
+    const destinationAccount = getAccountByNumber(formState.scheduleDestinationAccountNumber);
+    if (!destinationAccount) {
+      setError('Destination account number not found.');
+      return;
+    }
+
+    if (String(destinationAccount.accountId) === String(formState.sourceAccountId)) {
+      setError('Source and destination accounts must be different.');
+      return;
+    }
+
+    const amount = Number(formState.amount);
 
     if (!Number.isFinite(amount) || amount <= 0) {
       setError('Amount must be greater than 0.');
@@ -478,6 +524,20 @@ function Dashboard({ onLogout }) {
       return;
     }
 
+    if (formState.executionType === 'RECURRING') {
+      if (!formState.recurrenceType) {
+        setError('Choose how often this payment should repeat.');
+        return;
+      }
+      if (formState.recurrenceType === 'CUSTOM_DAYS') {
+        const intervalDays = Number(formState.recurrenceIntervalDays);
+        if (!Number.isInteger(intervalDays) || intervalDays < 1) {
+          setError('Repeat interval must be a whole number of days, at least 1.');
+          return;
+        }
+      }
+    }
+
     setError('');
     setScheduleStep('tpin');
   };
@@ -487,17 +547,20 @@ function Dashboard({ onLogout }) {
     setFormState((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleDestinationAccountNumberChange = (event) => {
+    const value = event.target.value;
+    const matchedAccount = getAccountByNumber(value);
+    setFormState((prev) => ({
+      ...prev,
+      scheduleDestinationAccountNumber: value,
+      receiverBankName: matchedAccount ? matchedAccount.bankName : prev.receiverBankName
+    }));
+  };
+
   const createPayment = async (mode) => {
     setSubmitting(true);
     try {
-      const sourceAccountId = Number(formState.sourceAccountId);
-      const destinationAccountId = Number(formState.destinationAccountId);
       const amount = Number(formState.amount);
-
-      if (!Number.isInteger(sourceAccountId) || !Number.isInteger(destinationAccountId)) {
-        setError('Source and Destination must be numeric account IDs (example: 1, 2).');
-        return false;
-      }
 
       if (!Number.isFinite(amount) || amount <= 0) {
         setError('Amount must be greater than 0.');
@@ -505,6 +568,24 @@ function Dashboard({ onLogout }) {
       }
 
       if (mode === 'schedule') {
+        const sourceAccountId = Number(formState.sourceAccountId);
+        if (!Number.isInteger(sourceAccountId)) {
+          setError('Please select a source account.');
+          return false;
+        }
+
+        const destinationAccount = getAccountByNumber(formState.scheduleDestinationAccountNumber);
+        if (!destinationAccount) {
+          setError('Destination account number not found.');
+          return false;
+        }
+        const destinationAccountId = destinationAccount.accountId;
+
+        if (sourceAccountId === destinationAccountId) {
+          setError('Source and destination accounts must be different.');
+          return false;
+        }
+
         if (!scheduleDate) {
           setError('Please choose a date and time for the scheduled payment.');
           return false;
@@ -515,23 +596,40 @@ function Dashboard({ onLogout }) {
           return false;
         }
 
+        const isRecurring = formState.executionType === 'RECURRING';
         const payload = {
           sourceAccountId,
           destinationAccountId,
           amount,
           currency: formState.currency || 'INR',
           remarks: formState.remarks,
+          receiverBankName: formState.receiverBankName || null,
+          receiverIfsc: formState.receiverIfsc || null,
           scheduledAt: scheduleDate,
+          executionType: formState.executionType || 'ONE_TIME',
+          recurrenceType: isRecurring ? formState.recurrenceType : null,
+          recurrenceIntervalDays: isRecurring && formState.recurrenceType === 'CUSTOM_DAYS'
+            ? Number(formState.recurrenceIntervalDays)
+            : null,
           tpin: formState.tpin
         };
 
-        await apiRequest('/scheduled-payments', {
+        const created = await apiRequest('/scheduled-payments', {
           method: 'POST',
           body: JSON.stringify(payload)
         });
+        setScheduledReceipt(created);
         showToast(t('paymentScheduled'));
         await loadScheduledPayments();
         return true;
+      }
+
+      const sourceAccountId = Number(formState.sourceAccountId);
+      const destinationAccountId = Number(formState.destinationAccountId);
+
+      if (!Number.isInteger(sourceAccountId) || !Number.isInteger(destinationAccountId)) {
+        setError('Source and Destination must be numeric account IDs (example: 1, 2).');
+        return false;
       }
 
       const referenceNumber = (formState.referenceNumber || formState.reference || '').trim() || `REF${Date.now()}`;
@@ -615,6 +713,28 @@ function Dashboard({ onLogout }) {
     };
   }, [spendingStats]);
 
+  const scheduleDateParts = useMemo(() => {
+    const [datePart = '', timePart = ''] = scheduleDate ? scheduleDate.split('T') : [];
+    return { datePart, timePart };
+  }, [scheduleDate]);
+
+  const activeAccounts = useMemo(() => {
+    return accounts
+      .filter((account) => String(account.status || '').toUpperCase() === 'ACTIVE')
+      .sort((a, b) => (a.accountNumber || '').localeCompare(b.accountNumber || ''));
+  }, [accounts]);
+
+  const getAccountLabel = (accountId) => {
+    const match = accounts.find((account) => String(account.accountId) === String(accountId));
+    return match ? `${match.accountNumber} (${match.bankName})` : accountId || '-';
+  };
+
+  const getAccountByNumber = (accountNumber) => {
+    const normalized = String(accountNumber || '').trim().toLowerCase();
+    if (!normalized) return null;
+    return accounts.find((account) => String(account.accountNumber || '').trim().toLowerCase() === normalized) || null;
+  };
+
   return (
     <div className={`smartpay-app ${theme === 'dark' ? 'dark-theme' : ''}`}>
       <aside className="sidebar">
@@ -659,7 +779,318 @@ function Dashboard({ onLogout }) {
         </div>
       </aside>
 
-      <main className={`main-content ${paymentJourneyOpen ? 'journey-mode' : ''}`}>
+      <main className={`main-content ${(paymentJourneyOpen || activeModal === 'schedule') ? 'journey-mode' : ''}`}>
+        {activeModal === 'schedule' && (
+          <section className="payment-journey">
+            <div className="journey-breadcrumb">
+              <span>{t('dashboard')}<FiChevronRight /></span>
+              <span className="current">{t('schedulePayment')}</span>
+            </div>
+
+            <div className="journey-hero premium-hero">
+              <div>
+                <h1>{t('schedulePaymentTitle')}</h1>
+              </div>
+              <button className="back-btn" onClick={closeModal}><FiArrowLeft /> {t('backToDashboard')}</button>
+            </div>
+
+            <div className="journey-shell premium-shell">
+              {scheduleStep !== 'success' && (
+                <div className="stepper premium-stepper">
+                  {[{ id: 'details', label: t('details') }, { id: 'tpin', label: t('tpin') }].map((item, index) => (
+                    <div
+                      key={item.id}
+                      className={`stepper-item ${scheduleStep === item.id ? 'active' : ''} ${scheduleStep === 'tpin' && item.id === 'details' ? 'completed' : ''}`}
+                    >
+                      <span>{index + 1}</span>
+                      <small>{item.label}</small>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {scheduleStep === 'details' && (
+                <div className="modal-card journey-panel">
+                  <div className="bank-form">
+                    <div className="section-title">
+                      <h2><FiFileText /> {t('paymentDetailsHeading')}</h2>
+                      <p>{t('paymentDetailsSub')}</p>
+                    </div>
+                    <div className="form-grid">
+                      <label className="field-col">
+                        <span><FiHash /> {t('sourceAccount')}</span>
+                        <select name="sourceAccountId" value={formState.sourceAccountId} onChange={handleFormChange}>
+                          <option value="">{t('selectAccountPlaceholder')}</option>
+                          {activeAccounts.map((account) => (
+                            <option key={account.accountId} value={account.accountId}>
+                              {account.accountNumber} — {account.bankName} ({account.accountHolderName})
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="field-col">
+                        <span><FiCreditCard /> {t('destinationAccount')}</span>
+                        <input
+                          name="scheduleDestinationAccountNumber"
+                          placeholder={t('destinationAccountNumberPlaceholder')}
+                          value={formState.scheduleDestinationAccountNumber}
+                          onChange={handleDestinationAccountNumberChange}
+                        />
+                      </label>
+                      <label className="field-col">
+                        <span><FiCreditCard /> {t('receiverBankName')}</span>
+                        <input
+                          name="receiverBankName"
+                          placeholder={t('receiverBankNamePlaceholder')}
+                          value={formState.receiverBankName}
+                          onChange={handleFormChange}
+                        />
+                      </label>
+                      <label className="field-col">
+                        <span><FiHash /> {t('receiverIfsc')}</span>
+                        <input
+                          name="receiverIfsc"
+                          placeholder={t('receiverIfscPlaceholder')}
+                          value={formState.receiverIfsc}
+                          onChange={(event) => setFormState((prev) => ({ ...prev, receiverIfsc: event.target.value.toUpperCase() }))}
+                          maxLength={11}
+                        />
+                      </label>
+                      <label className="field-col">
+                        <span>{t('amount')}</span>
+                        <input name="amount" placeholder={t('amount')} type="number" value={formState.amount} onChange={handleFormChange} />
+                      </label>
+                      <label className="field-col">
+                        <span>{t('currency')}</span>
+                        <input name="currency" placeholder={t('currency')} value={formState.currency} onChange={handleFormChange} />
+                      </label>
+                      <label className="field-col">
+                        <span><FiFileText /> {t('description')}</span>
+                        <input name="remarks" placeholder={t('description')} value={formState.remarks} onChange={handleFormChange} />
+                      </label>
+                    </div>
+
+                    <div className="section-title">
+                      <h2><FiCalendar /> {t('scheduleHeading')}</h2>
+                      <p>{t('scheduleSub')}</p>
+                    </div>
+                    <div className="form-grid">
+                      <label className="field-col">
+                        <span><FiCalendar /> {t('date')}</span>
+                        <input
+                          type="date"
+                          aria-label={t('date')}
+                          value={scheduleDateParts.datePart}
+                          onChange={(event) => setScheduleDate(`${event.target.value}T${scheduleDateParts.timePart || '00:00'}`)}
+                        />
+                      </label>
+                      <label className="field-col">
+                        <span><FiClock /> {t('time')}</span>
+                        <input
+                          type="time"
+                          aria-label={t('time')}
+                          value={scheduleDateParts.timePart}
+                          onChange={(event) => setScheduleDate(`${scheduleDateParts.datePart}T${event.target.value}`)}
+                          disabled={!scheduleDateParts.datePart}
+                        />
+                      </label>
+                    </div>
+
+                    <div className="section-title">
+                      <h2><FiRepeat /> {t('paymentTypeHeading')}</h2>
+                      <p>{t('paymentTypeSub')}</p>
+                    </div>
+                    <div className="payment-method-grid">
+                      <button
+                        type="button"
+                        className={`payment-method-card ${formState.executionType === 'ONE_TIME' ? 'selected' : ''}`}
+                        onClick={() => setFormState((prev) => ({ ...prev, executionType: 'ONE_TIME' }))}
+                      >
+                        <div className="method-card-body">
+                          <span className="method-icon tone-indigo"><FiCreditCard /></span>
+                          <div className="method-copy">
+                            <strong>{t('oneTime')}</strong>
+                            <p>{t('scheduledSuccessOneTimeSub')}</p>
+                          </div>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        className={`payment-method-card ${formState.executionType === 'RECURRING' ? 'selected' : ''}`}
+                        onClick={() => setFormState((prev) => ({ ...prev, executionType: 'RECURRING' }))}
+                      >
+                        <div className="method-card-body">
+                          <span className="method-icon tone-violet"><FiRepeat /></span>
+                          <div className="method-copy">
+                            <strong>{t('recurring')}</strong>
+                            <p>{t('scheduledSuccessRecurringSub')}</p>
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+
+                    {formState.executionType === 'RECURRING' && (
+                      <div className="form-grid" style={{ marginTop: '14px' }}>
+                        <label className="field-col">
+                          <span><FiRepeat /> {t('frequency')}</span>
+                          <select
+                            name="recurrenceType"
+                            value={formState.recurrenceType}
+                            onChange={handleFormChange}
+                          >
+                            <option value="MONTHLY">{t('monthly')}</option>
+                            <option value="CUSTOM_DAYS">{t('repeatEveryDays')}</option>
+                          </select>
+                        </label>
+
+                        {formState.recurrenceType === 'CUSTOM_DAYS' && (
+                          <label className="field-col">
+                            <span><FiClock /> {t('repeatEveryDays')}</span>
+                            <input
+                              name="recurrenceIntervalDays"
+                              type="number"
+                              min="1"
+                              placeholder={t('repeatEveryDaysPlaceholder')}
+                              value={formState.recurrenceIntervalDays}
+                              onChange={handleFormChange}
+                            />
+                          </label>
+                        )}
+                      </div>
+                    )}
+
+                    {error && <p className="empty-note error-note">{error}</p>}
+                    <div className="modal-actions">
+                      <button className="secondary-btn" onClick={closeModal}>{t('reset')}</button>
+                      <button className="primary-btn" onClick={goToTpinStep}>
+                        <FiCheckCircle /> {t('done')}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {scheduleStep === 'tpin' && (
+                <div className="modal-card journey-panel">
+                  <div className="bank-form">
+                    <div className="section-title">
+                      <h2><FiFileText /> {t('reviewHeading')}</h2>
+                    </div>
+                    <div className="tpin-summary">
+                      <div className="info-row"><span>{t('sourceAccount')}</span><strong>{getAccountLabel(formState.sourceAccountId)}</strong></div>
+                      <div className="info-row"><span>{t('destinationAccount')}</span><strong>{formState.scheduleDestinationAccountNumber || '-'}</strong></div>
+                      <div className="info-row"><span>{t('receiverBankName')}</span><strong>{formState.receiverBankName || '-'}</strong></div>
+                      <div className="info-row"><span>{t('receiverIfsc')}</span><strong>{formState.receiverIfsc || '-'}</strong></div>
+                      <div className="info-row"><span>{t('amount')}</span><strong>{currency(formState.amount)}</strong></div>
+                      <div className="info-row"><span>{t('scheduleDateTime')}</span><strong>{formatDateTime(scheduleDate)}</strong></div>
+                      <div className="info-row">
+                        <span>{t('executionType')}</span>
+                        <strong>
+                          {formState.executionType === 'RECURRING'
+                            ? `${t('recurring')} — ${formState.recurrenceType === 'CUSTOM_DAYS'
+                                ? `${t('repeatEveryDays')}: ${formState.recurrenceIntervalDays || '-'}`
+                                : t('monthly')}`
+                            : t('oneTime')}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div className="section-title">
+                      <h2><FiShield /> {t('verifyTpinHeading')}</h2>
+                      <p>{t('tpinHint')}</p>
+                    </div>
+                    <div className="form-grid tpin-row">
+                      <input
+                        name="tpin"
+                        placeholder={t('tpin')}
+                        type="password"
+                        inputMode="numeric"
+                        maxLength={6}
+                        autoFocus
+                        value={formState.tpin}
+                        onChange={(event) => {
+                          const digitsOnly = event.target.value.replace(/\D/g, '').slice(0, 6);
+                          setFormState((prev) => ({ ...prev, tpin: digitsOnly }));
+                        }}
+                      />
+                    </div>
+                    {error && <p className="empty-note error-note">{error}</p>}
+                    <div className="modal-actions">
+                      <button className="secondary-btn" onClick={() => { setScheduleStep('details'); setError(''); }} disabled={submitting}>
+                        {t('back')}
+                      </button>
+                      <button
+                        className="primary-btn"
+                        disabled={submitting || !/^\d{6}$/.test(formState.tpin || '')}
+                        onClick={async () => {
+                          const ok = await createPayment('schedule');
+                          if (ok) {
+                            setScheduleStep('success');
+                          }
+                        }}
+                      >
+                        <FiShield /> {submitting ? t('processing') : t('verifyAndSchedule')}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {scheduleStep === 'success' && (
+                <div className="modal-card journey-panel">
+                  <div className="premium-card success-main-card">
+                    <div className="success-center-wrap">
+                      <div className="success-icon"><FiCheckCircle /></div>
+                      <h2>{t('scheduledSuccessHeading')}</h2>
+                      <span className="success-subcopy">
+                        {scheduledReceipt?.executionType === 'RECURRING' ? t('scheduledSuccessRecurringSub') : t('scheduledSuccessOneTimeSub')}
+                      </span>
+                      {scheduledReceipt?.referenceNumber && (
+                        <div className="success-tx-pill">{t('referenceNumberLabel')}: {scheduledReceipt.referenceNumber}</div>
+                      )}
+                    </div>
+
+                    <div className="payment-summary-box premium-card">
+                      <div className="section-label">{t('summaryHeading')}</div>
+                      <div className="info-row"><span>{t('sourceAccount')}</span><strong>{getAccountLabel(scheduledReceipt?.sourceAccountId ?? formState.sourceAccountId)}</strong></div>
+                      <div className="info-row"><span>{t('destinationAccount')}</span><strong>{scheduledReceipt ? getAccountLabel(scheduledReceipt.destinationAccountId) : (formState.scheduleDestinationAccountNumber || '-')}</strong></div>
+                      <div className="info-row"><span>{t('receiverBankName')}</span><strong>{scheduledReceipt?.receiverBankName ?? formState.receiverBankName ?? '-'}</strong></div>
+                      <div className="info-row"><span>{t('receiverIfsc')}</span><strong>{scheduledReceipt?.receiverIfsc ?? formState.receiverIfsc ?? '-'}</strong></div>
+                      <div className="info-row"><span>{t('amount')}</span><strong>{currency(scheduledReceipt?.amount ?? formState.amount)}</strong></div>
+                      <div className="info-row"><span>{t('scheduleDateTime')}</span><strong>{formatDateTime(scheduledReceipt?.scheduledAt ?? scheduleDate)}</strong></div>
+                      <div className="info-row">
+                        <span>{t('executionType')}</span>
+                        <strong>
+                          {(scheduledReceipt?.executionType ?? formState.executionType) === 'RECURRING'
+                            ? `${t('recurring')} — ${(scheduledReceipt?.recurrenceType ?? formState.recurrenceType) === 'CUSTOM_DAYS'
+                                ? `${t('repeatEveryDays')}: ${scheduledReceipt?.recurrenceIntervalDays ?? formState.recurrenceIntervalDays ?? '-'}`
+                                : t('monthly')}`
+                            : t('oneTime')}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div className="success-actions-grid">
+                      <button type="button" onClick={goToUpcomingPayments}><FiEye /> {t('viewUpcoming')}</button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormState(initialFormState);
+                          setScheduleDate('');
+                          setScheduledReceipt(null);
+                          setScheduleStep('details');
+                        }}
+                      >
+                        <FiRefreshCw /> {t('scheduleAnother')}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         {paymentJourneyOpen && (
           <PaymentJourney
             step={paymentJourneyStep}
@@ -684,7 +1115,7 @@ function Dashboard({ onLogout }) {
           />
         )}
 
-        {!paymentJourneyOpen && (
+        {!paymentJourneyOpen && activeModal !== 'schedule' && (
           <>
             <header className="topbar">
               <div className="search-wrap">
@@ -829,7 +1260,7 @@ function Dashboard({ onLogout }) {
             </section>
 
             <section className="bottom-grid">
-              <article className="card">
+              <article className="card" id="upcoming-payments-section">
                 <div className="card-title-row">
                   <h3>{t('upcomingPayments')}</h3>
                   <button className="link-btn">{t('viewAll')}</button>
@@ -839,10 +1270,12 @@ function Dashboard({ onLogout }) {
                   <div className="tx-row" key={`sch-${payment.scheduledPaymentId}`}>
                     <span>
                       {payment.referenceNumber || `SCH-${payment.scheduledPaymentId}`}
+                      {payment.executionType === 'RECURRING' && <span className="status-pill status-pending">{t('recurringBadge')}</span>}
                       <br />
                       <small>
-                        {formatDateTime(payment.scheduledAt)}
+                        {t('nextRun')}: {formatDateTime(payment.scheduledAt)}
                         {payment.remarks ? ` • ${payment.remarks}` : ''}
+                        {payment.errorMessage ? ` • ${payment.errorMessage}` : ''}
                       </small>
                     </span>
                     <span className="sch-right">
@@ -869,82 +1302,6 @@ function Dashboard({ onLogout }) {
         )}
 
         {toast && <div className="toast-msg">{toast}</div>}
-
-        {activeModal === 'schedule' && scheduleStep === 'details' && (
-          <div className="modal-overlay" onClick={closeModal}>
-            <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-              <h3>{t('schedulePaymentTitle')}</h3>
-              <div className="form-grid">
-                <input name="sourceAccountId" placeholder={t('sourceAccount')} value={formState.sourceAccountId} onChange={handleFormChange} />
-                <input name="destinationAccountId" placeholder={t('destinationAccount')} value={formState.destinationAccountId} onChange={handleFormChange} />
-                <input name="amount" placeholder={t('amount')} type="number" value={formState.amount} onChange={handleFormChange} />
-                <input name="currency" placeholder={t('currency')} value={formState.currency} onChange={handleFormChange} />
-                <input name="remarks" placeholder={t('remarks')} value={formState.remarks} onChange={handleFormChange} />
-                <input
-                  type="datetime-local"
-                  aria-label={t('scheduleDateTime')}
-                  value={scheduleDate}
-                  onChange={(event) => setScheduleDate(event.target.value)}
-                />
-              </div>
-              {error && <p className="empty-note error-note">{error}</p>}
-              <div className="modal-actions">
-                <button className="secondary-btn" onClick={closeModal}>{t('reset')}</button>
-                <button className="primary-btn" onClick={goToTpinStep}>
-                  {t('continueToTpin')}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeModal === 'schedule' && scheduleStep === 'tpin' && (
-          <div className="modal-overlay" onClick={closeModal}>
-            <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-              <h3>{t('tpin')}</h3>
-              <div className="tpin-summary">
-                <div className="info-row"><span>{t('sourceAccount')}</span><strong>{formState.sourceAccountId}</strong></div>
-                <div className="info-row"><span>{t('destinationAccount')}</span><strong>{formState.destinationAccountId}</strong></div>
-                <div className="info-row"><span>{t('amount')}</span><strong>{currency(formState.amount)}</strong></div>
-                <div className="info-row"><span>{t('scheduleDateTime')}</span><strong>{formatDateTime(scheduleDate)}</strong></div>
-              </div>
-              <p className="tpin-hint">{t('tpinHint')}</p>
-              <div className="form-grid tpin-row">
-                <input
-                  name="tpin"
-                  placeholder={t('tpin')}
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={6}
-                  autoFocus
-                  value={formState.tpin}
-                  onChange={(event) => {
-                    const digitsOnly = event.target.value.replace(/\D/g, '').slice(0, 6);
-                    setFormState((prev) => ({ ...prev, tpin: digitsOnly }));
-                  }}
-                />
-              </div>
-              {error && <p className="empty-note error-note">{error}</p>}
-              <div className="modal-actions">
-                <button className="secondary-btn" onClick={() => { setScheduleStep('details'); setError(''); }} disabled={submitting}>
-                  {t('back')}
-                </button>
-                <button
-                  className="primary-btn"
-                  disabled={submitting || !/^\d{6}$/.test(formState.tpin || '')}
-                  onClick={async () => {
-                    const ok = await createPayment('schedule');
-                    if (ok) {
-                      closeModal();
-                    }
-                  }}
-                >
-                  {submitting ? t('processing') : t('verifyAndSchedule')}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {activeModal === 'groupSplit' && (
           <div className="modal-overlay" onClick={closeModal}>
