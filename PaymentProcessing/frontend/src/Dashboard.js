@@ -92,6 +92,13 @@ function Dashboard({ onLogout, session }) {
   const [accountSubmitting, setAccountSubmitting] = useState(false);
   const [accountError, setAccountError] = useState('');
   const [createdAccount, setCreatedAccount] = useState(null);
+  const [checkBalanceForm, setCheckBalanceForm] = useState({
+    accountNumber: '',
+    tpin: ''
+  });
+  const [checkBalanceSubmitting, setCheckBalanceSubmitting] = useState(false);
+  const [checkBalanceError, setCheckBalanceError] = useState('');
+  const [checkBalanceResult, setCheckBalanceResult] = useState(null);
   const [accountForm, setAccountForm] = useState({
     bankName: '',
     mobileNumber: '',
@@ -245,8 +252,7 @@ function Dashboard({ onLogout, session }) {
       return;
     }
     if (action === 'checkBalance') {
-      const totalOut = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-      showToast(`${t('totalTracked')} ${currency(totalOut)}`);
+      openCheckBalance();
       return;
     }
     if (action === 'schedulePayment') {
@@ -263,6 +269,10 @@ function Dashboard({ onLogout, session }) {
     setFormState(initialFormState);
     setScheduleDate('');
     setGroupSplit({ amount: '', members: '' });
+    setCheckBalanceError('');
+    setCheckBalanceSubmitting(false);
+    setCheckBalanceResult(null);
+    setCheckBalanceForm({ accountNumber: '', tpin: '' });
     setAccountError('');
     setAccountSubmitting(false);
     setAccountStep('entry');
@@ -275,6 +285,14 @@ function Dashboard({ onLogout, session }) {
       tpin: '',
       confirmTpin: ''
     });
+  };
+
+  const openCheckBalance = () => {
+    setActiveModal('checkBalance');
+    setCheckBalanceError('');
+    setCheckBalanceSubmitting(false);
+    setCheckBalanceResult(null);
+    setCheckBalanceForm({ accountNumber: '', tpin: '' });
   };
 
   const openAccountFlow = () => {
@@ -297,6 +315,47 @@ function Dashboard({ onLogout, session }) {
   const handleAccountFormChange = (event) => {
     const { name, value } = event.target;
     setAccountForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleCheckBalanceFormChange = (event) => {
+    const { name, value } = event.target;
+    setCheckBalanceForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const submitCheckBalance = async () => {
+    const accountNumber = String(checkBalanceForm.accountNumber || '').trim();
+    const tpin = String(checkBalanceForm.tpin || '').trim();
+
+    setCheckBalanceError('');
+    setCheckBalanceResult(null);
+
+    if (!accountNumber) {
+      setCheckBalanceError('Account number is required.');
+      return;
+    }
+
+    if (!/^\d{6}$/.test(tpin)) {
+      setCheckBalanceError('TPIN must be exactly 6 digits.');
+      return;
+    }
+
+    setCheckBalanceSubmitting(true);
+    try {
+      const response = await apiRequest('/accounts/balance', {
+        method: 'POST',
+        body: JSON.stringify({
+          account_number: accountNumber,
+          tpin
+        })
+      });
+
+      setCheckBalanceResult(response);
+      setCheckBalanceForm((prev) => ({ ...prev, tpin: '' }));
+    } catch (err) {
+      setCheckBalanceError(err.message || 'Unable to fetch balance.');
+    } finally {
+      setCheckBalanceSubmitting(false);
+    }
   };
 
   const validateMobile = (mobileNumber) => /^\d{10}$/.test(String(mobileNumber || '').trim());
@@ -800,6 +859,81 @@ function Dashboard({ onLogout, session }) {
               <p className="split-result">{t('perPerson')}: <strong>{currency(perHead)}</strong></p>
               <div className="modal-actions">
                 <button className="secondary-btn" onClick={closeModal}>{t('close')}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeModal === 'checkBalance' && (
+          <div className="modal-overlay" onClick={closeModal}>
+            <div className="modal-card check-balance-modal" onClick={(event) => event.stopPropagation()}>
+              <h3>Check Balance</h3>
+              {!checkBalanceResult && (
+                <>
+                  <p className="empty-note">Enter your account number and TPIN to fetch the live balance.</p>
+
+                  <div className="form-grid check-balance-grid">
+                    <label className="field-col check-balance-field">
+                      <span>Account Number</span>
+                      <input
+                        name="accountNumber"
+                        placeholder="Account number"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        maxLength={20}
+                        value={checkBalanceForm.accountNumber}
+                        onChange={handleCheckBalanceFormChange}
+                      />
+                    </label>
+                    <label className="field-col check-balance-field">
+                      <span>TPIN</span>
+                      <input
+                        name="tpin"
+                        type="password"
+                        inputMode="numeric"
+                        autoComplete="new-password"
+                        maxLength={6}
+                        placeholder="6-digit TPIN"
+                        value={checkBalanceForm.tpin}
+                        onChange={handleCheckBalanceFormChange}
+                      />
+                    </label>
+                  </div>
+
+                  {checkBalanceError && <p className="empty-note error-note">{checkBalanceError}</p>}
+                </>
+              )}
+
+              {checkBalanceResult && (
+                <div className="account-created-summary done">
+                  <div><strong>Account Number:</strong> {checkBalanceResult.accountNumber}</div>
+                  <div><strong>Account Holder Name:</strong> {checkBalanceResult.accountHolderName}</div>
+                  <div><strong>Available Balance:</strong> {currency(checkBalanceResult.balance)} {checkBalanceResult.currency}</div>
+                </div>
+              )}
+
+              <div className="modal-actions">
+                {!checkBalanceResult && (
+                  <>
+                    <button className="secondary-btn" onClick={closeModal}>Cancel</button>
+                    <button className="primary-btn" onClick={submitCheckBalance} disabled={checkBalanceSubmitting}>
+                      {checkBalanceSubmitting ? 'Checking...' : 'Check Balance'}
+                    </button>
+                  </>
+                )}
+
+                {checkBalanceResult && (
+                  <>
+                    <button className="secondary-btn" onClick={() => {
+                      setCheckBalanceResult(null);
+                      setCheckBalanceError('');
+                      setCheckBalanceForm({ accountNumber: '', tpin: '' });
+                    }}>
+                      Check Another
+                    </button>
+                    <button className="primary-btn" onClick={closeModal}>Done</button>
+                  </>
+                )}
               </div>
             </div>
           </div>
