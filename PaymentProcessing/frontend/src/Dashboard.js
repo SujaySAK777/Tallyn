@@ -102,6 +102,13 @@ function Dashboard({ session, onLogout }) {
   const [accountSubmitting, setAccountSubmitting] = useState(false);
   const [accountError, setAccountError] = useState('');
   const [createdAccount, setCreatedAccount] = useState(null);
+  const [checkBalanceForm, setCheckBalanceForm] = useState({
+    accountNumber: '',
+    tpin: ''
+  });
+  const [checkBalanceSubmitting, setCheckBalanceSubmitting] = useState(false);
+  const [checkBalanceError, setCheckBalanceError] = useState('');
+  const [checkBalanceResult, setCheckBalanceResult] = useState(null);
   const [accountForm, setAccountForm] = useState({
     bankName: 'HDFC BANK',
     mobileNumber: '',
@@ -332,8 +339,7 @@ function Dashboard({ session, onLogout }) {
       return;
     }
     if (action === 'checkBalance') {
-      const totalOut = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-      showToast(`${t('totalTracked')} ${currency(totalOut)}`);
+      openCheckBalance();
       return;
     }
     if (action === 'schedulePayment') {
@@ -356,7 +362,6 @@ function Dashboard({ session, onLogout }) {
     setScheduleStep('details');
     setScheduledReceipt(null);
     setGroupSplit({ amount: '', members: '' });
-    setError('');
     setAccountError('');
     setAccountSubmitting(false);
     setAccountStep('entry');
@@ -369,13 +374,6 @@ function Dashboard({ session, onLogout }) {
       tpin: '',
       confirmTpin: ''
     });
-  };
-
-  const goToUpcomingPayments = () => {
-    closeModal();
-    window.setTimeout(() => {
-      document.getElementById('upcoming-payments-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 150);
   };
 
   const openAccountFlow = () => {
@@ -398,6 +396,47 @@ function Dashboard({ session, onLogout }) {
   const handleAccountFormChange = (event) => {
     const { name, value } = event.target;
     setAccountForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleCheckBalanceFormChange = (event) => {
+    const { name, value } = event.target;
+    setCheckBalanceForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const submitCheckBalance = async () => {
+    const accountNumber = String(checkBalanceForm.accountNumber || '').trim();
+    const tpin = String(checkBalanceForm.tpin || '').trim();
+
+    setCheckBalanceError('');
+    setCheckBalanceResult(null);
+
+    if (!accountNumber) {
+      setCheckBalanceError('Account number is required.');
+      return;
+    }
+
+    if (!/^\d{6}$/.test(tpin)) {
+      setCheckBalanceError('TPIN must be exactly 6 digits.');
+      return;
+    }
+
+    setCheckBalanceSubmitting(true);
+    try {
+      const response = await apiRequest('/accounts/balance', {
+        method: 'POST',
+        body: JSON.stringify({
+          account_number: accountNumber,
+          tpin
+        })
+      });
+
+      setCheckBalanceResult(response);
+      setCheckBalanceForm((prev) => ({ ...prev, tpin: '' }));
+    } catch (err) {
+      setCheckBalanceError(err.message || 'Unable to fetch balance.');
+    } finally {
+      setCheckBalanceSubmitting(false);
+    }
   };
 
   const validateMobile = (mobileNumber) => /^\d{10}$/.test(String(mobileNumber || '').trim());
@@ -1331,16 +1370,6 @@ function Dashboard({ session, onLogout }) {
               <div className="modal-actions">
                 <button className="secondary-btn" onClick={closeModal}>{t('close')}</button>
               </div>
-            </div>
-          </div>
-        )}
-
-        {(activeModal === 'profile' || activeModal === 'settings') && (
-          <div className="modal-overlay" onClick={closeModal}>
-            <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-              <h3>{activeModal === 'profile' ? 'My profile' : 'Settings'}</h3>
-              {activeModal === 'profile' ? <div className="profile-details"><p><b>Name</b><span>{customerName}</span></p><p><b>Email</b><span>{session?.email}</span></p><p><b>Account status</b><span>Active</span></p></div> : <div className="profile-details"><p><b>Theme</b><button className="link-btn" onClick={toggleTheme}>Switch to {theme === 'light' ? 'dark' : 'light'} mode</button></p><p><b>Language</b><span>{languageOptions.find((option) => option.code === language)?.label}</span></p><p><b>Notifications</b><span>Enabled</span></p></div>}
-              <div className="modal-actions"><button className="primary-btn" onClick={closeModal}>Done</button></div>
             </div>
           </div>
         )}
