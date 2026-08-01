@@ -20,6 +20,9 @@ public class Account {
     @Column(name = "account_id")
     private Long accountId;
 
+    @Column(name = "customer_id")
+    private Long customerId;
+
     @Column(name = "bank_name", nullable = false, length = 100)
     private String bankName;
 
@@ -32,7 +35,7 @@ public class Account {
     @Column(name = "balance", nullable = false, precision = 15, scale = 2)
     private BigDecimal balance;
 
-    @Column(name = "tpin", nullable = false, length = 120)
+    @Column(name = "tpin", length = 120)
     private String tpinHash;
 
     @Column(name = "currency", nullable = false, length = 3)
@@ -51,6 +54,9 @@ public class Account {
     public Long getAccountId() {
         return accountId;
     }
+
+    public Long getCustomerId() { return customerId; }
+    public void setCustomerId(Long customerId) { this.customerId = customerId; }
 
     public void setAccountId(Long accountId) {
         this.accountId = accountId;
