@@ -28,7 +28,12 @@ public class OnboardingService {
     private Map<String,Object> response(Customer c) { Map<String,Object> out=new HashMap<>(); out.put("customerId",c.getCustomerId()); out.put("email",c.getEmail()); out.put("firstName",c.getFirstName()); out.put("status",c.getOnboardingStatus()); return out; }
     @Transactional public Map<String,Object> signup(Map<String,String> body) {
         String email=required(body,"email").toLowerCase(); String password=required(body,"password");
-        if(password.length()<8) throw new ApiException("WEAK_PASSWORD", "Password must contain at least 8 characters", HttpStatus.BAD_REQUEST);
+        if(password.length()<8
+                || !password.matches(".*[A-Z].*")
+                || !password.matches(".*[a-z].*")
+                || !password.matches(".*\\d.*")
+                || !password.matches(".*[^A-Za-z0-9].*"))
+            throw new ApiException("WEAK_PASSWORD","Password must be 8+ characters with uppercase, lowercase, number and special character",HttpStatus.BAD_REQUEST);
         if(customers.findByEmail(email).isPresent()) throw new ApiException("EMAIL_EXISTS", "An account already exists for this email", HttpStatus.CONFLICT);
         Customer c=new Customer(); c.setEmail(email); c.setPasswordHash(encoder.encode(password)); c.setOnboardingStatus("SIGNED_UP"); customers.save(c); return response(c);
     }
@@ -42,6 +47,7 @@ public class OnboardingService {
         if (a.getAccountId() == null) {
             a.setBankName(required(body,"bankName")); a.setAccountNumber(number); a.setAccountHolderName(required(body,"accountHolderName"));
             a.setBalance(new BigDecimal(body.getOrDefault("balance","0"))); a.setCurrency("INR"); a.setStatus(AccountStatus.INACTIVE);
+            String ifsc = body.get("ifsc_code"); if (ifsc != null && !ifsc.isBlank()) a.setIfscCode(ifsc.trim());
             // Satisfies legacy NOT NULL schema without exposing a usable TPIN before verification.
             a.setTpinHash(encoder.encode(String.valueOf(ThreadLocalRandom.current().nextInt(100000,1000000))));
         }
@@ -49,5 +55,6 @@ public class OnboardingService {
     }
     @Transactional public Map<String,Object> verify(Long id, Map<String,String> body) { Customer c=customer(id); if(!required(body,"otp").equals(developmentOtps.get(id))) throw new ApiException("INVALID_OTP", "Invalid verification code", HttpStatus.UNAUTHORIZED); c.setEmailVerifiedAt(LocalDateTime.now()); c.setOnboardingStatus("VERIFIED"); developmentOtps.remove(id); return response(c); }
     @Transactional public Map<String,Object> setTpin(Long id, Map<String,String> body) { String tpin=required(body,"tpin"); if(!tpin.matches("\\d{6}")) throw new ApiException("INVALID_TPIN", "TPIN must be 6 digits", HttpStatus.BAD_REQUEST); Customer c=customer(id); Account a=accounts.findFirstByCustomerId(id).orElseThrow(() -> new ApiException("ACCOUNT_NOT_FOUND","Link an account first",HttpStatus.BAD_REQUEST)); a.setTpinHash(encoder.encode(tpin)); a.setStatus(AccountStatus.ACTIVE); c.setOnboardingStatus("ACTIVE"); Map<String,Object> out=response(c); out.put("accountId",a.getAccountId()); return out; }
+    @Transactional public Map<String,Object> complete(Long id) { Customer c=customer(id); c.setOnboardingStatus("ACTIVE"); customers.save(c); return response(c); }
     @Transactional(readOnly=true) public Map<String,Object> login(Map<String,String> body) { Customer c=customers.findByEmail(required(body,"email").toLowerCase()).orElseThrow(() -> new ApiException("INVALID_LOGIN","Invalid email or password",HttpStatus.UNAUTHORIZED)); if(!encoder.matches(required(body,"password"),c.getPasswordHash()) || !"ACTIVE".equals(c.getOnboardingStatus())) throw new ApiException("INVALID_LOGIN","Invalid email or password",HttpStatus.UNAUTHORIZED); return response(c); }
 }

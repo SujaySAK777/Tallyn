@@ -21,12 +21,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class PaymentService {
 
+    private static final BCryptPasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder();
     private static final Map<PaymentStatus, Set<PaymentStatus>> VALID_TRANSITIONS = buildTransitions();
 
     private final AccountRepository accountRepository;
@@ -65,6 +67,15 @@ public class PaymentService {
             throw new ApiException("INVALID_ACCOUNT", "Both accounts must be ACTIVE", HttpStatus.BAD_REQUEST);
         }
 
+        // Verify TPIN against the source account
+        String tpin = request.getTpin();
+        if (tpin == null || tpin.isBlank()) {
+            throw new ApiException("TPIN_REQUIRED", "TPIN is required to authorize the payment", HttpStatus.BAD_REQUEST);
+        }
+        if (!PASSWORD_ENCODER.matches(tpin, source.getTpinHash())) {
+            throw new ApiException("INVALID_TPIN", "Invalid TPIN", HttpStatus.UNAUTHORIZED);
+        }
+
         String currency = request.getCurrency().toUpperCase();
         if (!source.getCurrency().equalsIgnoreCase(currency)
                 || !destination.getCurrency().equalsIgnoreCase(currency)) {
@@ -91,8 +102,19 @@ public class PaymentService {
     }
 
     @Transactional(readOnly = true)
-    public List<PaymentResponse> listPayments(PaymentStatus status) {
-        List<Payment> items = status == null ? paymentRepository.findAll() : paymentRepository.findByStatus(status);
+    public List<PaymentResponse> listPayments(PaymentStatus status, Long customerId) {
+        List<Payment> items;
+        if (customerId != null) {
+            List<Long> accountIds = accountRepository.findAccountIdsByCustomerId(customerId);
+            if (accountIds.isEmpty()) return List.of();
+            items = paymentRepository.findByAccountIds(accountIds);
+            if (status != null) {
+                final PaymentStatus s = status;
+                items = items.stream().filter(p -> p.getStatus() == s).toList();
+            }
+        } else {
+            items = status == null ? paymentRepository.findAll() : paymentRepository.findByStatus(status);
+        }
         return items.stream().map(PaymentResponse::fromEntity).toList();
     }
 

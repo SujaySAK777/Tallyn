@@ -57,7 +57,8 @@ function PaymentJourney({
   payments,
   selectedDestination,
   selectedAmount,
-  onStepChange
+  onStepChange,
+  session
 }) {
   const [authenticating, setAuthenticating] = useState(false);
   const [processingStage, setProcessingStage] = useState(0);
@@ -182,10 +183,10 @@ function PaymentJourney({
     }
   };
 
-  const handleAuthorize = async () => {
+  const handleAuthorize = async (pin) => {
     setAuthenticating(true);
     try {
-      const created = await Promise.resolve(onAuthorize?.());
+      const created = await Promise.resolve(onAuthorize?.(pin));
       if (created === false) {
         onStepChange('failed');
         return;
@@ -292,6 +293,7 @@ function PaymentJourney({
       previousStep={goBack}
       nextStep={goNext}
       balance={1250000}
+      session={session}
     />
   );
 

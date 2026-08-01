@@ -38,6 +38,9 @@ public class Account {
     @Column(name = "tpin", length = 120)
     private String tpinHash;
 
+    @Column(name = "ifsc_code", length = 15)
+    private String ifscCode;
+
     @Column(name = "currency", nullable = false, length = 3)
     private String currency;
 
@@ -101,6 +104,9 @@ public class Account {
     public void setTpinHash(String tpinHash) {
         this.tpinHash = tpinHash;
     }
+
+    public String getIfscCode() { return ifscCode; }
+    public void setIfscCode(String ifscCode) { this.ifscCode = ifscCode; }
 
     public String getCurrency() {
         return currency;

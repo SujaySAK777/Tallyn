@@ -14,5 +14,6 @@ public class OnboardingController {
     @PostMapping("/{customerId}/link-account") public Map<String,Object> link(@PathVariable Long customerId, @RequestBody Map<String,String> body) { return service.linkAccount(customerId, body); }
     @PostMapping("/{customerId}/verify") public Map<String,Object> verify(@PathVariable Long customerId, @RequestBody Map<String,String> body) { return service.verify(customerId, body); }
     @PostMapping("/{customerId}/set-tpin") public Map<String,Object> tpin(@PathVariable Long customerId, @RequestBody Map<String,String> body) { return service.setTpin(customerId, body); }
+    @PostMapping("/{customerId}/complete") public Map<String,Object> complete(@PathVariable Long customerId) { return service.complete(customerId); }
     @PostMapping("/login") public Map<String,Object> login(@RequestBody Map<String,String> body) { return service.login(body); }
 }

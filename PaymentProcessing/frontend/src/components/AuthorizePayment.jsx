@@ -27,7 +27,7 @@ function AuthorizePayment({
     if (pin.length < 6) {
       return;
     }
-    onAuthorize?.();
+    onAuthorize?.(pin);
   };
 
   const focusPinInput = () => {

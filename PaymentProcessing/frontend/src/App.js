@@ -17,7 +17,7 @@ function App() {
     setSession(null);
   };
 
-  return session ? <Dashboard onLogout={handleLogout} /> : <OnboardingWizard onLogin={handleLogin} />;
+  return session ? <Dashboard session={session} onLogout={handleLogout} /> : <OnboardingWizard onLogin={handleLogin} />;
 }
 
 export default App;

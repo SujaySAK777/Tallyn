@@ -58,8 +58,15 @@ function classifyTransaction(payment) {
   return { sign: '-', className: '' };
 }
 
-function Dashboard({ onLogout }) {
-  const supportedBanks = ['HDFC BANK', 'ICICI BANK', 'STATE BANK OF INDIA', 'AXIS BANK'];
+function Dashboard({ onLogout, session }) {
+  const displayName = session?.firstName
+    ? `${session.firstName}${session.lastName ? ' ' + session.lastName : ''}`
+    : session?.email?.split('@')[0] || 'User';
+  const initials = session?.firstName
+    ? (session.firstName[0] + (session.lastName?.[0] || '')).toUpperCase()
+    : (session?.email?.[0] || 'U').toUpperCase();
+
+  const [supportedBanks, setSupportedBanks] = useState([]);
 
   const [theme, setTheme] = useState('light');
   const [language, setLanguage] = useState('en');
@@ -86,7 +93,7 @@ function Dashboard({ onLogout }) {
   const [accountError, setAccountError] = useState('');
   const [createdAccount, setCreatedAccount] = useState(null);
   const [accountForm, setAccountForm] = useState({
-    bankName: 'HDFC BANK',
+    bankName: '',
     mobileNumber: '',
     accountHolderName: '',
     currency: 'INR',
@@ -129,7 +136,8 @@ function Dashboard({ onLogout }) {
     setLoading(true);
     setError('');
     try {
-      const data = await apiRequest('/payments');
+      const path = session?.customerId ? `/payments?customerId=${session.customerId}` : '/payments';
+      const data = await apiRequest(path);
       setPayments(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err.message || 'Unable to load payments');
@@ -141,6 +149,7 @@ function Dashboard({ onLogout }) {
 
   useEffect(() => {
     loadPayments();
+    apiRequest('/accounts/banks').then(setSupportedBanks).catch(() => {});
   }, []);
 
   const searchedPayments = useMemo(() => {
@@ -259,7 +268,7 @@ function Dashboard({ onLogout }) {
     setAccountStep('entry');
     setCreatedAccount(null);
     setAccountForm({
-      bankName: 'HDFC BANK',
+      bankName: supportedBanks[0] || '',
       mobileNumber: '',
       accountHolderName: '',
       currency: 'INR',
@@ -276,7 +285,7 @@ function Dashboard({ onLogout }) {
     setAccountError('');
     setAccountSubmitting(false);
     setAccountForm({
-      bankName: 'HDFC BANK',
+      bankName: supportedBanks[0] || '',
       mobileNumber: '',
       accountHolderName: '',
       currency: 'INR',
@@ -306,8 +315,9 @@ function Dashboard({ onLogout }) {
         const payload = {
           bank_name: accountForm.bankName,
           mobile_number: accountForm.mobileNumber.trim(),
-          account_holder_name: accountForm.accountHolderName.trim() || undefined,
-          currency: accountForm.currency.trim() || 'INR'
+          account_holder_name: accountForm.accountHolderName.trim() || displayName || undefined,
+          currency: accountForm.currency.trim() || 'INR',
+          customer_id: session?.customerId || undefined
         };
 
         const account = await apiRequest('/accounts/simulate', {
@@ -336,7 +346,9 @@ function Dashboard({ onLogout }) {
           bank_name: accountForm.bankName,
           mobile_number: accountForm.mobileNumber.trim(),
           tpin: accountForm.tpin.trim(),
-          confirm_tpin: accountForm.confirmTpin.trim()
+          confirm_tpin: accountForm.confirmTpin.trim(),
+          customer_id: session?.customerId ? String(session.customerId) : undefined,
+          account_holder_name: accountForm.accountHolderName.trim() || displayName || undefined
         })
       });
 
@@ -396,7 +408,7 @@ function Dashboard({ onLogout }) {
     setFormState((prev) => ({ ...prev, [name]: value }));
   };
 
-  const createPayment = async (mode) => {
+  const createPayment = async (mode, tpin) => {
     setSubmitting(true);
     try {
       let remarks = formState.remarks;
@@ -425,7 +437,8 @@ function Dashboard({ onLogout }) {
         amount,
         currency: formState.currency || 'INR',
         referenceNumber,
-        remarks
+        remarks,
+        tpin: tpin || undefined
       };
       const createdPayment = await apiRequest('/payments', {
         method: 'POST',
@@ -554,7 +567,7 @@ function Dashboard({ onLogout }) {
             paymentId={journeyPaymentId}
             currency={currency}
             onClose={closePaymentJourney}
-            onAuthorize={() => createPayment('payment')}
+            onAuthorize={(pin) => createPayment('payment', pin)}
             onValidate={validateJourneyPayment}
             onProcessStatus={processJourneyPayment}
             onSettle={settleJourneyPayment}
@@ -565,6 +578,7 @@ function Dashboard({ onLogout }) {
             selectedDestination={formState.destinationAccountId || 'Not added yet'}
             selectedAmount={formState.amount || '0'}
             onStepChange={setPaymentJourneyStep}
+            session={session}
           />
         )}
 
@@ -588,14 +602,14 @@ function Dashboard({ onLogout }) {
                   ))}
                 </select>
                 <button className="profile profile-button" onClick={() => setProfileOpen((open) => !open)} aria-expanded={profileOpen}>
-                  <div className="avatar">SG</div>
+                  <div className="avatar">{initials}</div>
                   <div>
-                    <div className="name">Soumitha G</div>
+                    <div className="name">{displayName}</div>
                     <div className="plan">Premium Member</div>
                   </div>
                 </button>
                 {profileOpen && <div className="profile-menu">
-                  <div className="profile-menu-head"><strong>Soumitha G</strong><span>Premium member</span></div>
+                  <div className="profile-menu-head"><strong>{displayName}</strong><span>Premium member</span></div>
                   <button onClick={() => showToast('Profile management is coming soon.')}>My profile</button>
                   <button onClick={() => showToast('Notification preferences are saved automatically.')}>Notifications</button>
                   <button onClick={() => showToast('Settings panel is coming soon.')}>Settings</button>
@@ -605,7 +619,7 @@ function Dashboard({ onLogout }) {
             </header>
 
             <section className="hero-head">
-              <h1>{t('greeting')}</h1>
+              <h1>{t('greeting')} {displayName}!</h1>
               <p>{t('greetingSub')}</p>
             </section>
 
@@ -828,6 +842,7 @@ function Dashboard({ onLogout }) {
                     <label className="field-col">
                       <span>Bank</span>
                       <select name="bankName" value={accountForm.bankName} onChange={handleAccountFormChange}>
+                        <option value="">Select a bank</option>
                         {supportedBanks.map((bank) => (
                           <option key={bank} value={bank}>{bank}</option>
                         ))}
