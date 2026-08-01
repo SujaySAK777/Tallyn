@@ -4,6 +4,7 @@ import {
   FiCalendar,
   FiEye,
   FiLifeBuoy,
+  FiLock,
   FiMoon,
   FiSearch,
   FiSun,
@@ -57,6 +58,8 @@ function classifyTransaction(payment) {
 }
 
 function Dashboard() {
+  const supportedBanks = ['HDFC BANK', 'ICICI BANK', 'STATE BANK OF INDIA', 'AXIS BANK'];
+
   const [theme, setTheme] = useState('light');
   const [language, setLanguage] = useState('en');
   const [payments, setPayments] = useState([]);
@@ -75,6 +78,19 @@ function Dashboard() {
   const [submitting, setSubmitting] = useState(false);
   const [isSupportChatOpen, setIsSupportChatOpen] = useState(false);
   const [journeyPaymentId, setJourneyPaymentId] = useState(null);
+  const [accountMode, setAccountMode] = useState('simulate');
+  const [accountStep, setAccountStep] = useState('entry');
+  const [accountSubmitting, setAccountSubmitting] = useState(false);
+  const [accountError, setAccountError] = useState('');
+  const [createdAccount, setCreatedAccount] = useState(null);
+  const [accountForm, setAccountForm] = useState({
+    bankName: 'HDFC BANK',
+    mobileNumber: '',
+    accountHolderName: '',
+    currency: 'INR',
+    tpin: '',
+    confirmTpin: ''
+  });
 
   useEffect(() => {
     const savedTheme = window.localStorage.getItem('dashboard-theme');
@@ -210,7 +226,7 @@ function Dashboard() {
 
   const handleQuickAction = (action) => {
     if (action === 'account') {
-      showToast(t('accountComing'));
+      openAccountFlow();
       return;
     }
     if (action === 'makePayment') {
@@ -236,6 +252,141 @@ function Dashboard() {
     setFormState(initialFormState);
     setScheduleDate('');
     setGroupSplit({ amount: '', members: '' });
+    setAccountError('');
+    setAccountSubmitting(false);
+    setAccountStep('entry');
+    setCreatedAccount(null);
+    setAccountForm({
+      bankName: 'HDFC BANK',
+      mobileNumber: '',
+      accountHolderName: '',
+      currency: 'INR',
+      tpin: '',
+      confirmTpin: ''
+    });
+  };
+
+  const openAccountFlow = () => {
+    setActiveModal('account');
+    setAccountMode('simulate');
+    setAccountStep('entry');
+    setCreatedAccount(null);
+    setAccountError('');
+    setAccountSubmitting(false);
+    setAccountForm({
+      bankName: 'HDFC BANK',
+      mobileNumber: '',
+      accountHolderName: '',
+      currency: 'INR',
+      tpin: '',
+      confirmTpin: ''
+    });
+  };
+
+  const handleAccountFormChange = (event) => {
+    const { name, value } = event.target;
+    setAccountForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const validateMobile = (mobileNumber) => /^\d{10}$/.test(String(mobileNumber || '').trim());
+
+  const submitAccountEntry = async () => {
+    setAccountError('');
+
+    if (!validateMobile(accountForm.mobileNumber)) {
+      setAccountError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+
+    setAccountSubmitting(true);
+    try {
+      if (accountMode === 'simulate') {
+        const payload = {
+          bank_name: accountForm.bankName,
+          mobile_number: accountForm.mobileNumber.trim(),
+          account_holder_name: accountForm.accountHolderName.trim() || undefined,
+          currency: accountForm.currency.trim() || 'INR'
+        };
+
+        const account = await apiRequest('/accounts/simulate', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+
+        setCreatedAccount(account);
+        setAccountStep('tpin');
+        showToast('Account simulated. Set TPIN now or skip.');
+        return;
+      }
+
+      if (!/^\d{6}$/.test(String(accountForm.tpin || '').trim())) {
+        setAccountError('TPIN must be exactly 6 digits.');
+        return;
+      }
+      if (String(accountForm.tpin || '').trim() !== String(accountForm.confirmTpin || '').trim()) {
+        setAccountError('TPIN and Confirm TPIN must match.');
+        return;
+      }
+
+      const activated = await apiRequest('/accounts/activate', {
+        method: 'POST',
+        body: JSON.stringify({
+          bank_name: accountForm.bankName,
+          mobile_number: accountForm.mobileNumber.trim(),
+          tpin: accountForm.tpin.trim(),
+          confirm_tpin: accountForm.confirmTpin.trim()
+        })
+      });
+
+      setCreatedAccount(activated);
+      setAccountStep('done');
+      showToast('Existing account activated successfully.');
+    } catch (err) {
+      setAccountError(err.message || 'Unable to process account request.');
+    } finally {
+      setAccountSubmitting(false);
+    }
+  };
+
+  const submitCreatedAccountTpin = async () => {
+    setAccountError('');
+
+    if (!createdAccount?.accountId) {
+      setAccountError('Missing account reference. Please retry.');
+      return;
+    }
+    if (!/^\d{6}$/.test(String(accountForm.tpin || '').trim())) {
+      setAccountError('TPIN must be exactly 6 digits.');
+      return;
+    }
+    if (String(accountForm.tpin || '').trim() !== String(accountForm.confirmTpin || '').trim()) {
+      setAccountError('TPIN and Confirm TPIN must match.');
+      return;
+    }
+
+    setAccountSubmitting(true);
+    try {
+      const updated = await apiRequest(`/accounts/${createdAccount.accountId}/tpin`, {
+        method: 'POST',
+        body: JSON.stringify({
+          tpin: accountForm.tpin.trim(),
+          confirm_tpin: accountForm.confirmTpin.trim()
+        })
+      });
+
+      setCreatedAccount(updated);
+      setAccountStep('done');
+      showToast('TPIN set. Account is now ACTIVE.');
+    } catch (err) {
+      setAccountError(err.message || 'Unable to set TPIN.');
+    } finally {
+      setAccountSubmitting(false);
+    }
+  };
+
+  const skipCreatedAccountTpin = () => {
+    setAccountStep('done');
+    showToast('TPIN skipped. Account remains INACTIVE.');
   };
 
   const handleFormChange = (event) => {
@@ -627,6 +778,180 @@ function Dashboard() {
               <div className="modal-actions">
                 <button className="secondary-btn" onClick={closeModal}>{t('close')}</button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeModal === 'account' && (
+          <div className="modal-overlay" onClick={closeModal}>
+            <div className="modal-card account-modal" onClick={(event) => event.stopPropagation()}>
+              <div className="card-title-row account-modal-head">
+                <h3>Add / Activate Account</h3>
+                <div className="account-mode-toggle">
+                  <button
+                    type="button"
+                    className={`mode-btn ${accountMode === 'simulate' ? 'active' : ''}`}
+                    onClick={() => {
+                      setAccountMode('simulate');
+                      setAccountError('');
+                      setAccountStep('entry');
+                    }}
+                  >
+                    Add New
+                  </button>
+                  <button
+                    type="button"
+                    className={`mode-btn ${accountMode === 'activate' ? 'active' : ''}`}
+                    onClick={() => {
+                      setAccountMode('activate');
+                      setAccountError('');
+                      setAccountStep('entry');
+                    }}
+                  >
+                    Activate Existing
+                  </button>
+                </div>
+              </div>
+
+              {accountStep === 'entry' && (
+                <>
+                  <div className="form-grid">
+                    <label className="field-col">
+                      <span>Bank</span>
+                      <select name="bankName" value={accountForm.bankName} onChange={handleAccountFormChange}>
+                        {supportedBanks.map((bank) => (
+                          <option key={bank} value={bank}>{bank}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="field-col">
+                      <span>Mobile Number</span>
+                      <input
+                        name="mobileNumber"
+                        placeholder="10-digit mobile"
+                        value={accountForm.mobileNumber}
+                        onChange={handleAccountFormChange}
+                      />
+                    </label>
+
+                    {accountMode === 'simulate' && (
+                      <>
+                        <label className="field-col">
+                          <span>Account Holder Name (Optional)</span>
+                          <input
+                            name="accountHolderName"
+                            placeholder="Full name"
+                            value={accountForm.accountHolderName}
+                            onChange={handleAccountFormChange}
+                          />
+                        </label>
+                        <label className="field-col">
+                          <span>Currency</span>
+                          <input
+                            name="currency"
+                            placeholder="INR"
+                            value={accountForm.currency}
+                            onChange={handleAccountFormChange}
+                          />
+                        </label>
+                      </>
+                    )}
+
+                    {accountMode === 'activate' && (
+                      <>
+                        <label className="field-col">
+                          <span>TPIN</span>
+                          <input
+                            name="tpin"
+                            type="password"
+                            placeholder="6-digit TPIN"
+                            value={accountForm.tpin}
+                            onChange={handleAccountFormChange}
+                          />
+                        </label>
+                        <label className="field-col">
+                          <span>Confirm TPIN</span>
+                          <input
+                            name="confirmTpin"
+                            type="password"
+                            placeholder="Re-enter TPIN"
+                            value={accountForm.confirmTpin}
+                            onChange={handleAccountFormChange}
+                          />
+                        </label>
+                      </>
+                    )}
+                  </div>
+
+                  {accountError && <p className="empty-note error-note">{accountError}</p>}
+
+                  <div className="modal-actions">
+                    <button className="secondary-btn" onClick={closeModal}>Cancel</button>
+                    <button className="primary-btn" onClick={submitAccountEntry} disabled={accountSubmitting}>
+                      {accountSubmitting ? 'Processing...' : accountMode === 'simulate' ? 'Create Simulated Account' : 'Activate Account'}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {accountStep === 'tpin' && (
+                <>
+                  <div className="account-created-summary">
+                    <div><strong>Account Number:</strong> {createdAccount?.accountNumber}</div>
+                    <div><strong>IFSC:</strong> {createdAccount?.ifscCode || 'N/A'}</div>
+                    <div><strong>Status:</strong> {createdAccount?.status || 'INACTIVE'}</div>
+                  </div>
+
+                  <div className="tpin-strip"><FiLock /> Set TPIN now to activate your account.</div>
+
+                  <div className="form-grid">
+                    <label className="field-col">
+                      <span>TPIN</span>
+                      <input
+                        name="tpin"
+                        type="password"
+                        placeholder="6-digit TPIN"
+                        value={accountForm.tpin}
+                        onChange={handleAccountFormChange}
+                      />
+                    </label>
+                    <label className="field-col">
+                      <span>Confirm TPIN</span>
+                      <input
+                        name="confirmTpin"
+                        type="password"
+                        placeholder="Re-enter TPIN"
+                        value={accountForm.confirmTpin}
+                        onChange={handleAccountFormChange}
+                      />
+                    </label>
+                  </div>
+
+                  {accountError && <p className="empty-note error-note">{accountError}</p>}
+
+                  <div className="modal-actions">
+                    <button className="secondary-btn" onClick={skipCreatedAccountTpin}>Skip For Now</button>
+                    <button className="primary-btn" onClick={submitCreatedAccountTpin} disabled={accountSubmitting}>
+                      {accountSubmitting ? 'Saving...' : 'Set TPIN & Activate'}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {accountStep === 'done' && (
+                <>
+                  <div className="account-created-summary done">
+                    <div><strong>Bank:</strong> {createdAccount?.bankName || accountForm.bankName}</div>
+                    <div><strong>Mobile:</strong> {createdAccount?.mobileNumber || accountForm.mobileNumber}</div>
+                    <div><strong>Account Number:</strong> {createdAccount?.accountNumber || 'N/A'}</div>
+                    <div><strong>IFSC:</strong> {createdAccount?.ifscCode || 'N/A'}</div>
+                    <div><strong>Status:</strong> {createdAccount?.status || 'INACTIVE'}</div>
+                  </div>
+                  <div className="modal-actions">
+                    <button className="primary-btn" onClick={closeModal}>Done</button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}

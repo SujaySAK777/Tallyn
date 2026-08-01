@@ -31,3 +31,20 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Frontend (React/Node) ###
+frontend/node_modules/
+frontend/build/
+frontend/.cache/
+frontend/.parcel-cache/
+frontend/.turbo/
+frontend/coverage/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
