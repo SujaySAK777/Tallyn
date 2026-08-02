@@ -1,4 +1,6 @@
 -- Sample Accounts
+-- TPIN for every account below is 123456 (bcrypt hash verified against
+-- Spring Security's BCryptPasswordEncoder before being committed here).
 
 INSERT INTO account (
     bank_name,
@@ -10,9 +12,8 @@ INSERT INTO account (
     status
 )
 VALUES
-('HDFC', 'ACC1001', 'Alice Johnson', 50000.00,'$2b$10$Mik8ECRPAFCjfTIzLMtHHO2d7jKTLYh542aBuIOAhxH0ZrBomhToS', 'INR', 'ACTIVE'),
-('IDFC', 'ACC1002', 'Bob Smith', 25000.00,'$2b$10$C5xuUet0bfAzttlS8nEOUO52Ph1HXRV0ZLlmomFH.FhTsbb.UbHI.', 'INR', 'ACTIVE'),
-('HSBC', 'ACC1003', 'Charlie Brown', 15000.00,'$2b$10$UsxIBHFurjBXGR.DUByjmevApIo.YvIk4Yp7NVKhK9Rdn/WF7AuNm','INR', 'ACTIVE');
-
+('HDFC', 'ACC1001', 'Alice Johnson', 50000.00, '$2b$10$gl1qVfcMLMhgVZI4fSuj1eBav.b.bxlXyUOZGjDJAHlHMstmfua62', 'INR', 'ACTIVE'),
+('IDFC', 'ACC1002', 'Bob Smith', 25000.00, '$2b$10$gl1qVfcMLMhgVZI4fSuj1eBav.b.bxlXyUOZGjDJAHlHMstmfua62', 'INR', 'ACTIVE'),
+('HSBC', 'ACC1003', 'Charlie Brown', 15000.00, '$2b$10$gl1qVfcMLMhgVZI4fSuj1eBav.b.bxlXyUOZGjDJAHlHMstmfua62', 'INR', 'ACTIVE');
 
 select * from account;

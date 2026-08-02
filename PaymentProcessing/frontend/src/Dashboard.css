@@ -604,6 +604,82 @@
   color: #0eaa55;
 }
 
+.sch-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.status-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  text-transform: capitalize;
+}
+
+.status-pending {
+  background: #fff4e0;
+  color: #b8710a;
+}
+
+.status-completed {
+  background: #e6f9ef;
+  color: #0e9f57;
+}
+
+.status-failed {
+  background: #fde9ec;
+  color: #d23a52;
+}
+
+.status-cancelled {
+  background: #f0f1f5;
+  color: #5c6479;
+}
+
+.cancel-btn {
+  border: 1px solid #f3c6cf;
+  background: #fff5f6;
+  color: #d23a52;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background-color 0.18s ease, opacity 0.18s ease;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  background: #fde9ec;
+}
+
+.cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.tpin-row {
+  margin-top: 10px;
+}
+
+.tpin-summary {
+  display: grid;
+  gap: 6px;
+  background: #f8f9fd;
+  border: 1px solid #e7ebf5;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 4px;
+}
+
+.tpin-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #7a849c;
+}
+
 .view-more {
   width: 100%;
   color: #4657f7;
@@ -1138,6 +1214,37 @@
 .modal-card h3 {
   margin: 0 0 14px;
   color: #1e2b50;
+}
+
+.payment-journey .journey-shell .modal-card {
+  width: 100%;
+  max-width: none;
+}
+
+.payment-journey .journey-shell .modal-card .form-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+/* Details step nests its own card chrome (.bank-form / .summary-card via
+   PaymentJourney.css), so the outer .modal-card should just be a plain,
+   unstyled layout wrapper here to avoid a double card-in-a-card look. */
+.payment-journey .journey-shell .modal-card.journey-panel {
+  box-shadow: none;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.payment-journey .journey-shell .bank-layout {
+  align-items: start;
+}
+
+.payment-journey .journey-shell .section-title {
+  margin: 22px 0 14px;
+}
+
+.payment-journey .journey-shell .section-title:first-child {
+  margin-top: 0;
 }
 
 .form-grid {

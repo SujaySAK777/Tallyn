@@ -5,8 +5,14 @@ CREATE TABLE scheduled_payment (
     amount DECIMAL(15,2) NOT NULL,
     currency CHAR(3) NOT NULL,
     remarks VARCHAR(255),
+    receiver_bank_name VARCHAR(100),
+    receiver_ifsc VARCHAR(20),
     scheduled_at DATETIME NOT NULL,
-    status ENUM('PENDING','COMPLETED','FAILED') NOT NULL DEFAULT 'PENDING',
+    execution_type ENUM('ONE_TIME','RECURRING') NOT NULL DEFAULT 'ONE_TIME',
+    recurrence_type ENUM('MONTHLY','CUSTOM_DAYS') NULL,
+    recurrence_interval_days INT NULL,
+    last_run_at DATETIME NULL,
+    status ENUM('PENDING','COMPLETED','FAILED','CANCELLED') NOT NULL DEFAULT 'PENDING',
     reference_number VARCHAR(100) NOT NULL UNIQUE,
     error_code VARCHAR(50),
     error_message VARCHAR(255),
@@ -19,5 +25,7 @@ CREATE TABLE scheduled_payment (
     CONSTRAINT chk_scheduled_amount
         CHECK (amount > 0),
     CONSTRAINT chk_scheduled_different_accounts
-        CHECK (source_account_id <> destination_account_id)
+        CHECK (source_account_id <> destination_account_id),
+    CONSTRAINT chk_recurrence_interval
+        CHECK (recurrence_interval_days IS NULL OR recurrence_interval_days > 0)
 );
