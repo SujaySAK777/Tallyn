@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { apiRequest } from '../services/api';
 
 export default function BankDetails({
   formData,
   setFormData,
   previousStep,
-  nextStep,
-  balance = 50000
+  nextStep
 }) {
+  const [lookupError, setLookupError] = useState('');
   const sourceId = String(formData.sourceAccountId || '').trim();
   const destinationId = String(formData.destinationAccountId || '').trim();
   const sourceIdValid = /^\d+$/.test(sourceId);
@@ -19,57 +20,59 @@ export default function BankDetails({
     });
   };
 
+  const lookupDestination = async () => {
+    const accountNumber = String(formData.destinationAccountNumber || '').trim();
+    if (!accountNumber) return;
+    try {
+      const account = await apiRequest(`/accounts/number/${encodeURIComponent(accountNumber)}`);
+      setFormData({ ...formData, destinationAccountId: String(account.accountId), accountHolder: account.accountHolderName, bankName: account.bankName, ifsc: account.ifscCode || '' });
+      setLookupError('');
+    } catch (error) {
+      setLookupError(error.message || 'Recipient account was not found.');
+    }
+  };
+
+  const transferAmount = Number(formData.amount);
   const isValid =
     sourceIdValid &&
     destinationIdValid &&
+    String(formData.destinationAccountNumber || '').trim() &&
     formData.accountHolder &&
-    formData.accountNumber &&
-    formData.confirmAccountNumber &&
-    formData.accountNumber === formData.confirmAccountNumber &&
-    formData.ifsc &&
     formData.bankName &&
-    formData.amount;
+    Number.isFinite(transferAmount) &&
+    transferAmount > 0;
 
   return (
     <div className="bank-container">
       <div className="section-title">
         <h2>Bank Transfer Details</h2>
-        <p>Enter account IDs and beneficiary details to continue.</p>
+          <p>Enter the recipient account number to fetch their bank details.</p>
       </div>
 
       <div className="bank-layout">
         <div className="bank-form">
-          <div className="details-tip">
-            Use valid source and destination account IDs from your backend account table.
-          </div>
-
           <div className="bank-form-grid">
             <div className="field-group">
-              <label>Source Account ID (Debited)</label>
+              <label>Recipient Account Number</label>
               <input
-                name="sourceAccountId"
-                value={formData.sourceAccountId || ''}
-                onChange={handleChange}
-                placeholder="1"
+                name="destinationAccountNumber"
+                value={formData.destinationAccountNumber || ''}
+                onChange={(event) => {
+                  handleChange(event);
+                  setFormData({
+                    ...formData,
+                    destinationAccountNumber: event.target.value,
+                    destinationAccountId: '',
+                    accountHolder: '',
+                    bankName: '',
+                    ifsc: ''
+                  });
+                  setLookupError('');
+                }}
+                onBlur={lookupDestination}
+                placeholder="Enter recipient account number"
               />
-              {sourceId && !sourceIdValid && (
-                <div className="error-msg">Enter numeric account ID only (example: 1).</div>
-              )}
-              <small>Example: your own active account ID</small>
-            </div>
-
-            <div className="field-group">
-              <label>Destination Account ID (Credited)</label>
-              <input
-                name="destinationAccountId"
-                value={formData.destinationAccountId || ''}
-                onChange={handleChange}
-                placeholder="2"
-              />
-              {destinationId && !destinationIdValid && (
-                <div className="error-msg">Enter numeric account ID only (example: 2).</div>
-              )}
-              <small>Must be different from Source Account ID</small>
+              {lookupError && <div className="error-msg">{lookupError}</div>}
             </div>
 
             <div className="field-group">
@@ -77,53 +80,24 @@ export default function BankDetails({
               <input
                 name="accountHolder"
                 value={formData.accountHolder || ''}
-                onChange={handleChange}
-                placeholder="John Smith"
+                placeholder=""
+                readOnly
               />
             </div>
 
             <div className="field-group">
-              <label>Account Number</label>
+              <label>Recipient Bank</label>
               <input
-                name="accountNumber"
-                value={formData.accountNumber || ''}
-                onChange={handleChange}
-                placeholder="123456789012"
+                name="bankName"
+                value={formData.bankName || ''}
+                placeholder=""
+                readOnly
               />
-            </div>
-
-            <div className="field-group">
-              <label>Confirm Account Number</label>
-              <input
-                name="confirmAccountNumber"
-                value={formData.confirmAccountNumber || ''}
-                onChange={handleChange}
-                placeholder="Re-enter account number"
-              />
-              {formData.confirmAccountNumber &&
-                formData.accountNumber !== formData.confirmAccountNumber && (
-                  <div className="error-msg">Account numbers do not match</div>
-                )}
             </div>
 
             <div className="field-group">
               <label>IFSC Code</label>
-              <input
-                name="ifsc"
-                value={formData.ifsc || ''}
-                onChange={handleChange}
-                placeholder="HDFC0001234"
-              />
-            </div>
-
-            <div className="field-group">
-              <label>Bank Name</label>
-              <input
-                name="bankName"
-                value={formData.bankName || ''}
-                onChange={handleChange}
-                placeholder="HSBC Bank"
-              />
+              <input name="ifsc" value={formData.ifsc || ''} placeholder="" readOnly />
             </div>
 
             <div className="field-group">
@@ -135,17 +109,6 @@ export default function BankDetails({
                 onChange={handleChange}
                 placeholder="1000"
               />
-            </div>
-
-            <div className="field-group">
-              <label>Reference</label>
-              <input
-                name="reference"
-                value={formData.reference || ''}
-                onChange={handleChange}
-                placeholder="REF20260730190001"
-              />
-              <small>Keep this unique for every payment</small>
             </div>
 
             <div className="field-group field-span-2">
@@ -161,38 +124,6 @@ export default function BankDetails({
           </div>
         </div>
 
-        <div className="summary-card">
-          <h3>Transfer Summary</h3>
-
-          <div className="summary-row">
-            <span>Available Balance</span>
-            <strong>INR {balance.toLocaleString()}</strong>
-          </div>
-
-          <div className="summary-row">
-            <span>Transfer Amount</span>
-            <strong>INR {formData.amount || 0}</strong>
-          </div>
-
-          <div className="summary-row">
-            <span>Processing Fee</span>
-            <strong>INR 0</strong>
-          </div>
-
-          <div className="summary-row">
-            <span>Transfer Type</span>
-            <strong>Bank Transfer</strong>
-          </div>
-
-          <div className="summary-row">
-            <span>Estimated Time</span>
-            <strong>Instant</strong>
-          </div>
-
-          <div className="security-note">
-            Protected with 256-bit encryption.
-          </div>
-        </div>
       </div>
 
       <div className="bottom-buttons">

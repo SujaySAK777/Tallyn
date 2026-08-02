@@ -407,6 +407,15 @@
   font-size: 14px;
 }
 
+.hero-head { margin-bottom: 26px; }
+
+.profile-details { display: grid; gap: 2px; }
+.profile-details p { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 0; padding: 13px 0; border-bottom: 1px solid #edf0f7; color: #66718d; font-size: 14px; }
+.profile-details p:last-child { border-bottom: 0; }
+.profile-details b { color: #25304b; }
+.profile-details span { color: #4d5dff; font-weight: 650; text-align: right; }
+.profile-details .link-btn { padding: 0; font-size: 14px; }
+
 .top-grid {
   display: grid;
   grid-template-columns: 1fr;

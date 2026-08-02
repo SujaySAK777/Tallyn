@@ -41,6 +41,11 @@ public class AccountController {
         return accountService.getAccount(accountId);
     }
 
+    @GetMapping("/number/{accountNumber}")
+    public AccountResponse lookup(@PathVariable String accountNumber) {
+        return accountService.getAccountByNumber(accountNumber);
+    }
+
     @PostMapping("/balance")
     public BalanceResponse checkBalance(@RequestBody CheckBalanceRequest request) {
         return accountService.checkBalance(request);

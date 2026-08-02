@@ -26,6 +26,9 @@ public class Account {
     @Column(name = "bank_name", nullable = false, length = 100)
     private String bankName;
 
+    @Column(name = "ifsc_code", length = 20)
+    private String ifscCode;
+
     @Column(name = "account_number", nullable = false, unique = true, length = 20)
     private String accountNumber;
 
@@ -69,6 +72,9 @@ public class Account {
     public void setBankName(String bankName) {
         this.bankName = bankName;
     }
+
+    public String getIfscCode() { return ifscCode; }
+    public void setIfscCode(String ifscCode) { this.ifscCode = ifscCode; }
 
     public String getAccountNumber() {
         return accountNumber;

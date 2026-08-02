@@ -68,7 +68,7 @@ function classifyTransaction(payment) {
   return { sign: '-', className: '' };
 }
 
-function Dashboard({ onLogout }) {
+function Dashboard({ session, onLogout }) {
   const supportedBanks = ['HDFC BANK', 'ICICI BANK', 'STATE BANK OF INDIA', 'AXIS BANK'];
 
   const [theme, setTheme] = useState('light');
@@ -95,6 +95,8 @@ function Dashboard({ onLogout }) {
   const [isSupportChatOpen, setIsSupportChatOpen] = useState(false);
   const [journeyPaymentId, setJourneyPaymentId] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const customerName = [session?.firstName, session?.lastName].filter(Boolean).join(' ') || session?.email || 'Account holder';
+  const customerInitials = customerName.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
   const [accountMode, setAccountMode] = useState('simulate');
   const [accountStep, setAccountStep] = useState('entry');
   const [accountSubmitting, setAccountSubmitting] = useState(false);
@@ -294,10 +296,19 @@ function Dashboard({ onLogout }) {
   }, [payments, selectedMonth]);
 
   const openPaymentJourney = () => {
+    const linkedAccount = accounts.find((account) => String(account.accountId) === String(session?.accountId))
+      || accounts.find((account) => account.accountNumber === session?.accountNumber)
+      || activeAccounts[0];
+
     setPaymentJourneyOpen(true);
     setPaymentJourneyStep('method');
     setPaymentJourneyMethod('bank');
     setJourneyPaymentId(null);
+    setFormState({
+      ...initialFormState,
+      sourceAccountId: String(session?.accountId || linkedAccount?.accountId || ''),
+      sourceAccountNumber: session?.accountNumber || linkedAccount?.accountNumber || ''
+    });
     setActiveModal('');
     setError('');
   };
@@ -747,10 +758,7 @@ function Dashboard({ onLogout }) {
           <button className="menu-item active">{t('dashboard')}</button>
           <button className="menu-item">{t('payments')}</button>
           <button className="menu-item">{t('transactions')}</button>
-          <button className="menu-item">{t('beneficiaries')}</button>
-          <button className="menu-item">Analytics</button>
-          <button className="menu-item">Rewards</button>
-          <button className="menu-item">Settings</button>
+          <button className="menu-item" onClick={() => setActiveModal('settings')}>Settings</button>
         </nav>
 
         <div className="invite-card">
@@ -1135,25 +1143,23 @@ function Dashboard({ onLogout }) {
                   ))}
                 </select>
                 <button className="profile profile-button" onClick={() => setProfileOpen((open) => !open)} aria-expanded={profileOpen}>
-                  <div className="avatar">SG</div>
+                  <div className="avatar">{customerInitials}</div>
                   <div>
-                    <div className="name">Soumitha G</div>
-                    <div className="plan">Premium Member</div>
+                    <div className="name">{customerName}</div>
                   </div>
                 </button>
                 {profileOpen && <div className="profile-menu">
-                  <div className="profile-menu-head"><strong>Soumitha G</strong><span>Premium member</span></div>
-                  <button onClick={() => showToast('Profile management is coming soon.')}>My profile</button>
+                  <div className="profile-menu-head"><strong>{customerName}</strong><span>{session?.email}</span></div>
+                  <button onClick={() => { setProfileOpen(false); setActiveModal('profile'); }}>My profile</button>
                   <button onClick={() => showToast('Notification preferences are saved automatically.')}>Notifications</button>
-                  <button onClick={() => showToast('Settings panel is coming soon.')}>Settings</button>
+                  <button onClick={() => { setProfileOpen(false); setActiveModal('settings'); }}>Settings</button>
                   <button className="logout-btn" onClick={onLogout}><FiLogOut /> Log out</button>
                 </div>}
               </div>
             </header>
 
             <section className="hero-head">
-              <h1>{t('greeting')}</h1>
-              <p>{t('greetingSub')}</p>
+              <h1>Good morning, {customerName}!</h1>
             </section>
 
             <section className="top-grid">
@@ -1325,6 +1331,16 @@ function Dashboard({ onLogout }) {
               <div className="modal-actions">
                 <button className="secondary-btn" onClick={closeModal}>{t('close')}</button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {(activeModal === 'profile' || activeModal === 'settings') && (
+          <div className="modal-overlay" onClick={closeModal}>
+            <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+              <h3>{activeModal === 'profile' ? 'My profile' : 'Settings'}</h3>
+              {activeModal === 'profile' ? <div className="profile-details"><p><b>Name</b><span>{customerName}</span></p><p><b>Email</b><span>{session?.email}</span></p><p><b>Account status</b><span>Active</span></p></div> : <div className="profile-details"><p><b>Theme</b><button className="link-btn" onClick={toggleTheme}>Switch to {theme === 'light' ? 'dark' : 'light'} mode</button></p><p><b>Language</b><span>{languageOptions.find((option) => option.code === language)?.label}</span></p><p><b>Notifications</b><span>Enabled</span></p></div>}
+              <div className="modal-actions"><button className="primary-btn" onClick={closeModal}>Done</button></div>
             </div>
           </div>
         )}

@@ -264,7 +264,9 @@ function PaymentJourney({
 
   const mapBankFormData = {
     sourceAccountId: formState.sourceAccountId || '',
+    sourceAccountNumber: formState.sourceAccountNumber || '',
     destinationAccountId: formState.destinationAccountId || '',
+    destinationAccountNumber: formState.destinationAccountNumber || '',
     accountHolder: formState.accountHolder || formState.recipientName || '',
     accountNumber: formState.accountNumber || '',
     confirmAccountNumber: formState.confirmAccountNumber || '',

@@ -60,6 +60,13 @@ public class AccountService {
     }
 
     @Transactional(readOnly = true)
+    public AccountResponse getAccountByNumber(String accountNumber) {
+        Account account = accountRepository.findByAccountNumber(accountNumber.trim())
+                .orElseThrow(() -> new ApiException("ACCOUNT_NOT_FOUND", "Account not found", HttpStatus.NOT_FOUND));
+        return AccountResponse.fromEntity(account);
+    }
+
+    @Transactional(readOnly = true)
     public BalanceResponse checkBalance(CheckBalanceRequest request) {
         if (request == null
                 || request.getAccountNumber() == null
