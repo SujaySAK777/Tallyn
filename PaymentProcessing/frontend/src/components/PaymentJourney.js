@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   FiArrowLeft,
   FiChevronRight
@@ -12,7 +12,6 @@ import * as ProcessingPaymentModule from './ProcessingPayment';
 import * as ReviewPaymentModule from './ReviewPayment';
 import * as SuccessPageModule from './SuccessPage';
 import * as TransactionDetailsModule from './TransactionDetails';
-import * as TransactionHistoryModule from './TransactionHistory';
 
 const createMissingComponent = (name) => function MissingComponent() {
   return <div className="error-msg">{name} component is unavailable.</div>;
@@ -37,7 +36,6 @@ const ProcessingPayment = resolveComponent(ProcessingPaymentModule, 'ProcessingP
 const ReviewPayment = resolveComponent(ReviewPaymentModule, 'ReviewPayment');
 const SuccessPage = resolveComponent(SuccessPageModule, 'SuccessPage');
 const TransactionDetails = resolveComponent(TransactionDetailsModule, 'TransactionDetails');
-const TransactionHistory = resolveComponent(TransactionHistoryModule, 'TransactionHistory');
 
 function PaymentJourney({
   step,
@@ -54,7 +52,6 @@ function PaymentJourney({
   onSettle,
   submitting,
   errorMessage,
-  payments,
   selectedDestination,
   selectedAmount,
   onStepChange
@@ -62,11 +59,6 @@ function PaymentJourney({
   const [authenticating, setAuthenticating] = useState(false);
   const [processingStage, setProcessingStage] = useState(0);
   const [completedView, setCompletedView] = useState('processing');
-  const [historyQuery, setHistoryQuery] = useState('');
-  const [historyStatus, setHistoryStatus] = useState('All');
-  const [historyMethod, setHistoryMethod] = useState('All');
-  const [historyDate, setHistoryDate] = useState('');
-  const [historyAmount, setHistoryAmount] = useState('');
 
   const flowSteps = [
     { id: 'method', label: 'Method' },
@@ -157,7 +149,7 @@ function PaymentJourney({
       onStepChange('authorize');
       return;
     }
-    if (step === 'transaction' || step === 'history') {
+    if (step === 'transaction') {
       onStepChange('completed');
       return;
     }
@@ -198,33 +190,10 @@ function PaymentJourney({
     }
   };
 
-  const filteredHistory = useMemo(() => {
-    const query = historyQuery.trim().toLowerCase();
-    const minAmount = Number(historyAmount || 0);
-
-    return payments.filter((payment) => {
-      const dateText = payment.createdAt ? new Date(payment.createdAt).toISOString().slice(0, 10) : '';
-      const status = String(payment.status || 'Created').toUpperCase();
-      const methodLabel = 'BANK TRANSFER';
-      const amount = Number(payment.amount || 0);
-      const haystack = `${payment.paymentId} ${payment.referenceNumber || ''} ${payment.destinationAccountId || ''} ${payment.remarks || ''}`.toLowerCase();
-
-      const matchesQuery = !query || haystack.includes(query);
-      const matchesStatus = historyStatus === 'All' || status === historyStatus.toUpperCase();
-      const matchesMethod = historyMethod === 'All' || methodLabel === historyMethod.toUpperCase();
-      const matchesDate = !historyDate || dateText === historyDate;
-      const matchesAmount = !minAmount || amount >= minAmount;
-
-      return matchesQuery && matchesStatus && matchesMethod && matchesDate && matchesAmount;
-    });
-  }, [historyAmount, historyDate, historyMethod, historyQuery, historyStatus, payments]);
-
   const renderBreadcrumb = () => {
     const items = ['Dashboard', 'Make Payment'];
     if (step === 'transaction') {
       items.push('Transaction Details');
-    } else if (step === 'history') {
-      items.push('Transaction History');
     }
 
     return (
@@ -363,24 +332,6 @@ function PaymentJourney({
     />
   );
 
-  const renderHistoryPage = () => (
-    <TransactionHistory
-      historyQuery={historyQuery}
-      setHistoryQuery={setHistoryQuery}
-      historyStatus={historyStatus}
-      setHistoryStatus={setHistoryStatus}
-      historyMethod={historyMethod}
-      setHistoryMethod={setHistoryMethod}
-      historyDate={historyDate}
-      setHistoryDate={setHistoryDate}
-      historyAmount={historyAmount}
-      setHistoryAmount={setHistoryAmount}
-      filteredHistory={filteredHistory}
-      currency={currency}
-      onStepChange={onStepChange}
-    />
-  );
-
   const renderFailedPage = () => (
     <FailedPayment
       errorMessage={errorMessage}
@@ -395,7 +346,6 @@ function PaymentJourney({
     if (step === 'authorize' || step === 'processing') return renderAuthorizePage();
     if (step === 'completed') return renderCompletedPage();
     if (step === 'transaction') return renderTransactionPage();
-    if (step === 'history') return renderHistoryPage();
     if (step === 'failed') return renderFailedPage();
     return renderMethodPage();
   };
