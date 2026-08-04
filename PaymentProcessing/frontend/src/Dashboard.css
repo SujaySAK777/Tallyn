@@ -409,6 +409,36 @@
 
 .hero-head { margin-bottom: 26px; }
 
+/* Recent transactions filter buttons */
+.recent-filter {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.filter-btn {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid #dfe6fb;
+  background: #fff;
+  color: #25304b;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.14s ease, color 0.14s ease, box-shadow 0.14s ease, transform 0.08s ease;
+}
+
+.filter-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(41, 58, 141, 0.06); }
+
+.filter-btn.active {
+  background: #eef2ff;
+  border-color: #d6dfff;
+  color: #3548d9;
+  box-shadow: 0 8px 20px rgba(69, 87, 255, 0.12);
+}
+
+.card-title-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+
 .profile-details { display: grid; gap: 2px; }
 .profile-details p { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 0; padding: 13px 0; border-bottom: 1px solid #edf0f7; color: #66718d; font-size: 14px; }
 .profile-details p:last-child { border-bottom: 0; }
@@ -1311,6 +1341,94 @@
   margin-top: 0;
 }
 
+/* Schedule payment details step: always 2 boxes per row. */
+.schedule-compact .form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.schedule-compact .section-title.compact-heading {
+  margin: 16px 0 10px;
+}
+
+.schedule-compact .section-title.compact-heading:first-child {
+  margin-top: 0;
+}
+
+.schedule-compact .section-title.compact-heading h2 {
+  font-size: 15px;
+}
+
+.field-col-span2 {
+  grid-column: span 2;
+}
+
+.recipient-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -2px 0 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #eef4ff;
+  border: 1px solid #dbe6ff;
+  color: #2a3a66;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.recipient-chip svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  color: #4b5cff;
+}
+
+.recipient-chip-name {
+  color: #16234a;
+}
+
+.recipient-chip-dot {
+  color: #9aa8cf;
+  font-weight: 400;
+}
+
+.schedule-type-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 4px;
+  border-radius: 12px;
+  background: #f2f4fb;
+}
+
+.schedule-type-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #4a5578;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+}
+
+.schedule-type-option svg {
+  width: 15px;
+  height: 15px;
+}
+
+.schedule-type-option.selected {
+  background: #fff;
+  border-color: #dfe6fa;
+  color: #2b3a66;
+  box-shadow: 0 6px 16px rgba(43, 65, 120, 0.12);
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1807,6 +1925,30 @@
   background: #26304a;
   border-color: #344163;
   color: #b7c2e7;
+}
+
+.smartpay-app.dark-theme .recipient-chip {
+  background: #1c2742;
+  border-color: #314163;
+  color: #d9e3ff;
+}
+
+.smartpay-app.dark-theme .recipient-chip-name {
+  color: #f1f4ff;
+}
+
+.smartpay-app.dark-theme .schedule-type-toggle {
+  background: #1a2338;
+}
+
+.smartpay-app.dark-theme .schedule-type-option {
+  color: #b7c2e7;
+}
+
+.smartpay-app.dark-theme .schedule-type-option.selected {
+  background: #253455;
+  border-color: #4f68ff;
+  color: #f1f4ff;
 }
 
 .smartpay-app.dark-theme .card,

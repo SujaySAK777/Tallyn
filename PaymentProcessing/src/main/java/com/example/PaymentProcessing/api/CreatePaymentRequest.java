@@ -8,6 +8,7 @@ public class CreatePaymentRequest {
     private BigDecimal amount;
     private String currency;
     private String referenceNumber;
+    private String category;
     private String remarks;
 
     private String tpin;
@@ -52,6 +53,14 @@ public class CreatePaymentRequest {
 
     public void setReferenceNumber(String referenceNumber) {
         this.referenceNumber = referenceNumber;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
     }
 
     public String getRemarks() {

@@ -11,9 +11,11 @@ public class GroupSplitNotificationResponse {
     private String currency;
     private String createdByName;
     private LocalDateTime createdAt;
+    private boolean seen;
+    private boolean paid;
 
     public static GroupSplitNotificationResponse of(Long groupSplitId, String description, BigDecimal totalAmount,
-            BigDecimal shareAmount, String currency, String createdByName, LocalDateTime createdAt) {
+            BigDecimal shareAmount, String currency, String createdByName, LocalDateTime createdAt, boolean seen, boolean paid) {
         GroupSplitNotificationResponse response = new GroupSplitNotificationResponse();
         response.groupSplitId = groupSplitId;
         response.description = description;
@@ -22,6 +24,8 @@ public class GroupSplitNotificationResponse {
         response.currency = currency;
         response.createdByName = createdByName;
         response.createdAt = createdAt;
+        response.seen = seen;
+        response.paid = paid;
         return response;
     }
 
@@ -45,4 +49,10 @@ public class GroupSplitNotificationResponse {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public boolean isSeen() { return seen; }
+    public void setSeen(boolean seen) { this.seen = seen; }
+
+    public boolean isPaid() { return paid; }
+    public void setPaid(boolean paid) { this.paid = paid; }
 }

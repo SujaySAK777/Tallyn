@@ -106,7 +106,7 @@ function getPaymentCategory(payment) {
   if (text.includes('bill')) return 'Bill Payments';
   if (text.includes('shop') || text.includes('amazon') || text.includes('purchase')) return 'Shopping';
   if (text.includes('movie') || text.includes('netflix') || text.includes('entertain')) return 'Entertainment';
-  return 'UPI Payments';
+  return 'Others';
 }
 
 function classifyTransaction(payment) {
@@ -127,6 +127,7 @@ function Dashboard({ session, onLogout }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchText, setSearchText] = useState('');
+  const [recentFilter, setRecentFilter] = useState('ALL');
   const [selectedMonth, setSelectedMonth] = useState('This Month');
   const [activeModal, setActiveModal] = useState('');
   const [activeSection, setActiveSection] = useState('dashboard');
@@ -174,6 +175,13 @@ function Dashboard({ session, onLogout }) {
   const [groupSplitError, setGroupSplitError] = useState('');
   const [groupSplitSubmitting, setGroupSplitSubmitting] = useState(false);
   const [groupSplitNotifications, setGroupSplitNotifications] = useState([]);
+  const [groupSplitHistory, setGroupSplitHistory] = useState([]);
+  const [groupSplitCreated, setGroupSplitCreated] = useState([]);
+  const [splitPromptQueue, setSplitPromptQueue] = useState([]);
+  const [payingSplitId, setPayingSplitId] = useState(null);
+  const [paySplitTpin, setPaySplitTpin] = useState('');
+  const [paySplitError, setPaySplitError] = useState('');
+  const [paySplitSubmitting, setPaySplitSubmitting] = useState(false);
   const [toast, setToast] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [isSupportChatOpen, setIsSupportChatOpen] = useState(false);
@@ -218,6 +226,8 @@ function Dashboard({ session, onLogout }) {
     loadAccounts();
     loadGroupSplitNotifications();
     loadBeneficiaries();
+    loadGroupSplitHistory();
+    loadGroupSplitCreated();
 
     const pollInterval = window.setInterval(() => {
       loadPayments({ silent: true });
@@ -262,6 +272,8 @@ function Dashboard({ session, onLogout }) {
       showToast(t('splitCreated'));
       setGroupSplit({ amount: '', description: '', splitType: 'EQUAL', members: [{ accountNumber: '', amount: '' }, { accountNumber: '', amount: '' }] });
       closeModal();
+      loadGroupSplitHistory();
+      loadGroupSplitCreated();
     } catch (err) {
       setGroupSplitError(err.message || 'Unable to create split');
     } finally {
@@ -361,13 +373,66 @@ function Dashboard({ session, onLogout }) {
       const data = await apiRequest('/group-splits/notifications');
       const list = Array.isArray(data) ? data : [];
       setGroupSplitNotifications(list);
-      list.forEach((notification) => {
-        showToast(
-          `${notification.createdByName} added you to "${notification.description}" — your share: ${currency(notification.shareAmount)}`
-        );
-      });
+      if (list.length > 0) {
+        setSplitPromptQueue((prev) => [...prev, ...list]);
+      }
     } catch (err) {
       // silent — notifications shouldn't block the dashboard from loading
+    }
+  };
+
+  const loadGroupSplitHistory = async () => {
+    try {
+      const data = await apiRequest('/group-splits/mine');
+      setGroupSplitHistory(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setGroupSplitHistory([]);
+    }
+  };
+
+  const loadGroupSplitCreated = async () => {
+    try {
+      const data = await apiRequest('/group-splits/created');
+      setGroupSplitCreated(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setGroupSplitCreated([]);
+    }
+  };
+
+  const openPaySplit = (groupSplitId) => {
+    setPayingSplitId(groupSplitId);
+    setPaySplitTpin('');
+    setPaySplitError('');
+    setActiveModal('paySplit');
+  };
+
+  const closePaySplit = () => {
+    setPayingSplitId(null);
+    setPaySplitTpin('');
+    setPaySplitError('');
+    setActiveModal('');
+  };
+
+  const skipSplitPrompt = () => {
+    setSplitPromptQueue((prev) => prev.slice(1));
+  };
+
+  const submitPaySplit = async () => {
+    setPaySplitError('');
+    setPaySplitSubmitting(true);
+    try {
+      await apiRequest(`/group-splits/${payingSplitId}/pay`, {
+        method: 'POST',
+        body: JSON.stringify({ tpin: paySplitTpin })
+      });
+      showToast('Split settled');
+      setSplitPromptQueue((prev) => prev.filter((item) => item.groupSplitId !== payingSplitId));
+      closePaySplit();
+      loadGroupSplitHistory();
+    } catch (err) {
+      setPaySplitError(err.message || 'Unable to settle your share');
+    } finally {
+      setPaySplitSubmitting(false);
     }
   };
 
@@ -388,6 +453,7 @@ function Dashboard({ session, onLogout }) {
     loadPayments();
     loadScheduledPayments();
     loadAccounts();
+    loadGroupSplitNotifications();
 
     const pollInterval = window.setInterval(() => {
       loadPayments({ silent: true });
@@ -396,6 +462,7 @@ function Dashboard({ session, onLogout }) {
     }, 15000);
 
     return () => window.clearInterval(pollInterval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -550,10 +617,18 @@ function Dashboard({ session, onLogout }) {
   }, [allTransactions, searchText]);
 
   const recentPayments = useMemo(() => {
-    return [...searchedPayments]
+    const filtered = [...searchedPayments].filter((payment) => {
+      const status = String(payment.status || '').toUpperCase();
+      if (recentFilter === 'ALL') return true;
+      if (recentFilter === 'COMPLETED') return status === 'COMPLETED';
+      if (recentFilter === 'FAILED') return status === 'FAILED' || status === 'CREATED';
+      return true;
+    });
+
+    return filtered
       .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
       .slice(0, 5);
-  }, [searchedPayments]);
+  }, [searchedPayments, recentFilter]);
 
   const upcomingPayments = useMemo(() => {
     return scheduledPayments
@@ -569,23 +644,34 @@ function Dashboard({ session, onLogout }) {
 
     const activeMonth = selectedMonth === 'Last Month' ? previousMonth : currentMonth;
     const filtered = payments.filter((payment) => {
+      const status = String(payment.status || '').toUpperCase();
+      if (status !== 'COMPLETED') return false;
       const date = new Date(payment.createdAt || Date.now());
       return date.getMonth() === activeMonth;
     });
 
     const categoryTotals = {
-      'UPI Payments': 0,
       'Bill Payments': 0,
       Shopping: 0,
       Entertainment: 0,
+      Food: 0,
       Others: 0
     };
 
     for (const payment of filtered) {
       const amount = Number(payment.amount || 0);
-      const category = getPaymentCategory(payment);
-      if (categoryTotals[category] !== undefined) {
-        categoryTotals[category] += amount;
+      const CATEGORY_LABELS = {
+        UPI_PAYMENTS: 'Others',
+        BILL_PAYMENTS: 'Bill Payments',
+        SHOPPING: 'Shopping',
+        ENTERTAINMENT: 'Entertainment',
+        FOOD: 'Food',
+        OTHERS: 'Others'
+      };
+
+      const label = payment.category ? (CATEGORY_LABELS[payment.category] || 'Others') : getPaymentCategory(payment);
+      if (categoryTotals[label] !== undefined) {
+        categoryTotals[label] += amount;
       } else {
         categoryTotals.Others += amount;
       }
@@ -597,11 +683,11 @@ function Dashboard({ session, onLogout }) {
     return {
       total,
       items: [
-        { label: 'UPI Payments', amount: categoryTotals['UPI Payments'], pct: Math.round((categoryTotals['UPI Payments'] / baseline) * 100) },
-        { label: 'Bill Payments', amount: categoryTotals['Bill Payments'], pct: Math.round((categoryTotals['Bill Payments'] / baseline) * 100) },
-        { label: 'Shopping', amount: categoryTotals.Shopping, pct: Math.round((categoryTotals.Shopping / baseline) * 100) },
-        { label: 'Entertainment', amount: categoryTotals.Entertainment, pct: Math.round((categoryTotals.Entertainment / baseline) * 100) },
-        { label: 'Others', amount: categoryTotals.Others, pct: Math.round((categoryTotals.Others / baseline) * 100) }
+          { label: 'Bill Payments', amount: categoryTotals['Bill Payments'], pct: Math.round((categoryTotals['Bill Payments'] / baseline) * 100) },
+          { label: 'Shopping', amount: categoryTotals.Shopping, pct: Math.round((categoryTotals.Shopping / baseline) * 100) },
+          { label: 'Entertainment', amount: categoryTotals.Entertainment, pct: Math.round((categoryTotals.Entertainment / baseline) * 100) },
+          { label: 'Food', amount: categoryTotals.Food, pct: Math.round((categoryTotals.Food / baseline) * 100) },
+          { label: 'Others', amount: categoryTotals.Others, pct: Math.round((categoryTotals.Others / baseline) * 100) }
       ]
     };
   }, [payments, selectedMonth]);
@@ -683,7 +769,7 @@ function Dashboard({ session, onLogout }) {
     setScheduleDate('');
     setScheduleStep('details');
     setScheduledReceipt(null);
-    setGroupSplit({ amount: '', members: '' });
+    setGroupSplit({ amount: '', description: '', splitType: 'EQUAL', members: [{ accountNumber: '', amount: '' }, { accountNumber: '', amount: '' }] });
     setError('');
     setScheduleLookupError('');
     setAccountError('');
@@ -880,24 +966,24 @@ function Dashboard({ session, onLogout }) {
     showToast('TPIN skipped. Account remains INACTIVE.');
   };
 
-  const goToTpinStep = () => {
+  const goToTimingStep = () => {
     if (!formState.sourceAccountId) {
       setError('Please select a source account.');
       return;
     }
 
     if (!formState.scheduleDestinationAccountNumber?.trim()) {
-      setError('Please enter a destination account number.');
+      setError('Please enter a recipient account number.');
       return;
     }
 
     if (!formState.scheduleDestinationAccountId) {
-      setError('Destination account number not found.');
+      setError('Recipient account number not found.');
       return;
     }
 
     if (String(formState.scheduleDestinationAccountId) === String(formState.sourceAccountId)) {
-      setError('Source and destination accounts must be different.');
+      setError('Source and recipient accounts must be different.');
       return;
     }
 
@@ -908,6 +994,11 @@ function Dashboard({ session, onLogout }) {
       return;
     }
 
+    setError('');
+    setScheduleStep('timing');
+  };
+
+  const goToTpinStep = () => {
     if (!scheduleDate) {
       setError('Please choose a date and time for the scheduled payment.');
       return;
@@ -1012,6 +1103,7 @@ function Dashboard({ session, onLogout }) {
           amount,
           currency: formState.currency || 'INR',
           remarks: formState.remarks,
+          category: formState.category || 'OTHERS',
           receiverBankName: formState.receiverBankName || null,
           receiverIfsc: formState.receiverIfsc || null,
           scheduledAt: scheduleDate,
@@ -1056,6 +1148,7 @@ function Dashboard({ session, onLogout }) {
         currency: formState.currency || 'INR',
         referenceNumber,
         remarks: formState.remarks,
+        category: formState.category || 'OTHERS',
         tpin: pin
       };
 
@@ -1217,24 +1310,27 @@ function Dashboard({ session, onLogout }) {
             <div className="journey-shell premium-shell">
               {scheduleStep !== 'success' && (
                 <div className="stepper premium-stepper">
-                  {[{ id: 'details', label: t('details') }, { id: 'tpin', label: t('tpin') }].map((item, index) => (
-                    <div
-                      key={item.id}
-                      className={`stepper-item ${scheduleStep === item.id ? 'active' : ''} ${scheduleStep === 'tpin' && item.id === 'details' ? 'completed' : ''}`}
-                    >
-                      <span>{index + 1}</span>
-                      <small>{item.label}</small>
-                    </div>
-                  ))}
+                  {[{ id: 'details', label: t('details') }, { id: 'timing', label: t('timing') }, { id: 'tpin', label: t('tpin') }].map((item, index) => {
+                    const order = ['details', 'timing', 'tpin'];
+                    const completed = order.indexOf(scheduleStep) > order.indexOf(item.id);
+                    return (
+                      <div
+                        key={item.id}
+                        className={`stepper-item ${scheduleStep === item.id ? 'active' : ''} ${completed ? 'completed' : ''}`}
+                      >
+                        <span>{index + 1}</span>
+                        <small>{item.label}</small>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
               {scheduleStep === 'details' && (
                 <div className="modal-card journey-panel">
-                  <div className="bank-form">
-                    <div className="section-title">
+                  <div className="bank-form schedule-compact">
+                    <div className="section-title compact-heading">
                       <h2><FiFileText /> {t('paymentDetailsHeading')}</h2>
-                      <p>{t('paymentDetailsSub')}</p>
                     </div>
                     <div className="form-grid">
                       <label className="field-col">
@@ -1260,7 +1356,7 @@ function Dashboard({ session, onLogout }) {
                         {scheduleLookupError && <div className="error-msg">{scheduleLookupError}</div>}
                       </label>
                       <label className="field-col">
-                        <span><FiUser /> Account Holder Name</span>
+                        <span><FiUser /> {t('accountHolderName')}</span>
                         <input name="accountHolder" value={formState.accountHolder} readOnly />
                       </label>
                       <label className="field-col">
@@ -1269,7 +1365,8 @@ function Dashboard({ session, onLogout }) {
                           name="receiverBankName"
                           placeholder={t('receiverBankNamePlaceholder')}
                           value={formState.receiverBankName}
-                          readOnly
+                          onChange={handleFormChange}
+                          readOnly={Boolean(formState.scheduleDestinationAccountId)}
                         />
                       </label>
                       <label className="field-col">
@@ -1278,7 +1375,8 @@ function Dashboard({ session, onLogout }) {
                           name="receiverIfsc"
                           placeholder={t('receiverIfscPlaceholder')}
                           value={formState.receiverIfsc}
-                          readOnly
+                          onChange={handleFormChange}
+                          readOnly={Boolean(formState.scheduleDestinationAccountId)}
                         />
                       </label>
                       <label className="field-col">
@@ -1289,15 +1387,28 @@ function Dashboard({ session, onLogout }) {
                         <span>{t('currency')}</span>
                         <input name="currency" placeholder={t('currency')} value={formState.currency} onChange={handleFormChange} />
                       </label>
-                      <label className="field-col">
+                      <label className="field-col field-col-span2">
                         <span><FiFileText /> {t('description')}</span>
                         <input name="remarks" placeholder={t('description')} value={formState.remarks} onChange={handleFormChange} />
                       </label>
                     </div>
 
-                    <div className="section-title">
+                    {error && <p className="empty-note error-note">{error}</p>}
+                    <div className="modal-actions">
+                      <button className="secondary-btn" onClick={closeModal}>{t('reset')}</button>
+                      <button className="primary-btn" onClick={goToTimingStep}>
+                        {t('continueToTpin')} <FiChevronRight />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {scheduleStep === 'timing' && (
+                <div className="modal-card journey-panel">
+                  <div className="bank-form schedule-compact">
+                    <div className="section-title compact-heading">
                       <h2><FiCalendar /> {t('scheduleHeading')}</h2>
-                      <p>{t('scheduleSub')}</p>
                     </div>
                     <div className="form-grid">
                       <label className="field-col">
@@ -1321,41 +1432,28 @@ function Dashboard({ session, onLogout }) {
                       </label>
                     </div>
 
-                    <div className="section-title">
+                    <div className="section-title compact-heading">
                       <h2><FiRepeat /> {t('paymentTypeHeading')}</h2>
-                      <p>{t('paymentTypeSub')}</p>
                     </div>
-                    <div className="payment-method-grid">
+                    <div className="schedule-type-toggle">
                       <button
                         type="button"
-                        className={`payment-method-card ${formState.executionType === 'ONE_TIME' ? 'selected' : ''}`}
+                        className={`schedule-type-option ${formState.executionType === 'ONE_TIME' ? 'selected' : ''}`}
                         onClick={() => setFormState((prev) => ({ ...prev, executionType: 'ONE_TIME' }))}
                       >
-                        <div className="method-card-body">
-                          <span className="method-icon tone-indigo"><FiCreditCard /></span>
-                          <div className="method-copy">
-                            <strong>{t('oneTime')}</strong>
-                            <p>{t('scheduledSuccessOneTimeSub')}</p>
-                          </div>
-                        </div>
+                        <FiCreditCard /> {t('oneTime')}
                       </button>
                       <button
                         type="button"
-                        className={`payment-method-card ${formState.executionType === 'RECURRING' ? 'selected' : ''}`}
+                        className={`schedule-type-option ${formState.executionType === 'RECURRING' ? 'selected' : ''}`}
                         onClick={() => setFormState((prev) => ({ ...prev, executionType: 'RECURRING' }))}
                       >
-                        <div className="method-card-body">
-                          <span className="method-icon tone-violet"><FiRepeat /></span>
-                          <div className="method-copy">
-                            <strong>{t('recurring')}</strong>
-                            <p>{t('scheduledSuccessRecurringSub')}</p>
-                          </div>
-                        </div>
+                        <FiRepeat /> {t('recurring')}
                       </button>
                     </div>
 
                     {formState.executionType === 'RECURRING' && (
-                      <div className="form-grid" style={{ marginTop: '14px' }}>
+                      <div className="form-grid" style={{ marginTop: '10px' }}>
                         <label className="field-col">
                           <span><FiRepeat /> {t('frequency')}</span>
                           <select
@@ -1386,7 +1484,9 @@ function Dashboard({ session, onLogout }) {
 
                     {error && <p className="empty-note error-note">{error}</p>}
                     <div className="modal-actions">
-                      <button className="secondary-btn" onClick={closeModal}>{t('reset')}</button>
+                      <button className="secondary-btn" onClick={() => { setScheduleStep('details'); setError(''); }}>
+                        {t('back')}
+                      </button>
                       <button className="primary-btn" onClick={goToTpinStep}>
                         <FiCheckCircle /> {t('done')}
                       </button>
@@ -1397,65 +1497,115 @@ function Dashboard({ session, onLogout }) {
 
               {scheduleStep === 'tpin' && (
                 <div className="modal-card journey-panel">
-                  <div className="bank-form">
-                    <div className="section-title">
-                      <h2><FiFileText /> {t('reviewHeading')}</h2>
+                  <div className="page-heading premium-heading">
+                    <div className="heading-copy">
+                      <h2>{t('verifyTpinHeading')}</h2>
+                      <span className="authorize-subcopy">{t('tpinHint')}</span>
                     </div>
-                    <div className="tpin-summary">
-                      <div className="info-row"><span>{t('sourceAccount')}</span><strong>{getAccountLabel(formState.sourceAccountId)}</strong></div>
-                      <div className="info-row"><span>{t('destinationAccount')}</span><strong>{formState.scheduleDestinationAccountNumber || '-'}</strong></div>
-                      <div className="info-row"><span>{t('receiverBankName')}</span><strong>{formState.receiverBankName || '-'}</strong></div>
-                      <div className="info-row"><span>{t('receiverIfsc')}</span><strong>{formState.receiverIfsc || '-'}</strong></div>
-                      <div className="info-row"><span>{t('amount')}</span><strong>{currency(formState.amount)}</strong></div>
-                      <div className="info-row"><span>{t('scheduleDateTime')}</span><strong>{formatDateTime(scheduleDate)}</strong></div>
-                      <div className="info-row">
-                        <span>{t('executionType')}</span>
-                        <strong>
-                          {formState.executionType === 'RECURRING'
-                            ? `${t('recurring')} — ${formState.recurrenceType === 'CUSTOM_DAYS'
-                                ? `${t('repeatEveryDays')}: ${formState.recurrenceIntervalDays || '-'}`
-                                : t('monthly')}`
-                            : t('oneTime')}
-                        </strong>
+                    <div className="status-chip"><FiLock /> Authorization Required</div>
+                  </div>
+
+                  <div className="review-layout authorize-layout">
+                    <div className="premium-card authorize-main-card">
+                      <div className="authorize-tabs" role="tablist" aria-label="Authorization methods">
+                        <button type="button" className="authorize-tab active" role="tab" aria-selected="true">{t('tpin')}</button>
+                      </div>
+
+                      <div className="authorize-pin-card">
+                        <div className="authorize-pin-title">{t('verifyTpinHeading')}</div>
+                        <span className="authorize-pin-hint">{t('tpinHint')}</span>
+
+                        <input
+                          name="tpin"
+                          className="authorize-pin-input"
+                          type="password"
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          maxLength={6}
+                          autoFocus
+                          value={formState.tpin}
+                          onChange={(event) => {
+                            const digitsOnly = event.target.value.replace(/\D/g, '').slice(0, 6);
+                            setFormState((prev) => ({ ...prev, tpin: digitsOnly }));
+                          }}
+                          aria-label="Enter 6 digit transaction PIN"
+                        />
+
+                        <div className="authorize-pin-grid" aria-hidden="true">
+                          {Array.from({ length: 6 }).map((_, index) => {
+                            const tpinValue = formState.tpin || '';
+                            const filled = index < tpinValue.length;
+                            const active = index === tpinValue.length && tpinValue.length < 6;
+                            return (
+                              <div key={index} className={`pin-cell ${active ? 'pin-cell-active' : ''}`}>
+                                {filled ? '●' : active ? '|' : ''}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="authorize-secure-note"><FiShield /> Your payment is secured with 256-bit encryption.</div>
+
+                      {error && <p className="empty-note error-note">{error}</p>}
+
+                      <div className="journey-actions premium-actions authorize-actions-row">
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={() => {
+                            setScheduleStep('timing');
+                            setError('');
+                            setFormState((prev) => ({ ...prev, tpin: '' }));
+                          }}
+                          disabled={submitting}
+                        >
+                          {t('back')}
+                        </button>
+                        <button
+                          type="button"
+                          className="primary-btn"
+                          disabled={submitting || !/^\d{6}$/.test(formState.tpin || '')}
+                          onClick={async () => {
+                            const ok = await createPayment('schedule');
+                            if (ok) {
+                              setScheduleStep('success');
+                            }
+                          }}
+                        >
+                          {submitting ? t('processing') : t('verifyAndSchedule')}
+                        </button>
                       </div>
                     </div>
 
-                    <div className="section-title">
-                      <h2><FiShield /> {t('verifyTpinHeading')}</h2>
-                      <p>{t('tpinHint')}</p>
-                    </div>
-                    <div className="form-grid tpin-row">
-                      <input
-                        name="tpin"
-                        placeholder={t('tpin')}
-                        type="password"
-                        inputMode="numeric"
-                        maxLength={6}
-                        autoFocus
-                        value={formState.tpin}
-                        onChange={(event) => {
-                          const digitsOnly = event.target.value.replace(/\D/g, '').slice(0, 6);
-                          setFormState((prev) => ({ ...prev, tpin: digitsOnly }));
-                        }}
-                      />
-                    </div>
-                    {error && <p className="empty-note error-note">{error}</p>}
-                    <div className="modal-actions">
-                      <button className="secondary-btn" onClick={() => { setScheduleStep('details'); setError(''); }} disabled={submitting}>
-                        {t('back')}
-                      </button>
-                      <button
-                        className="primary-btn"
-                        disabled={submitting || !/^\d{6}$/.test(formState.tpin || '')}
-                        onClick={async () => {
-                          const ok = await createPayment('schedule');
-                          if (ok) {
-                            setScheduleStep('success');
-                          }
-                        }}
-                      >
-                        <FiShield /> {submitting ? t('processing') : t('verifyAndSchedule')}
-                      </button>
+                    <div className="summary-panel">
+                      <div className="payment-summary-box premium-card authorize-summary-card">
+                        <div className="section-label">{t('reviewHeading')}</div>
+                        <div className="info-row"><span>{t('sourceAccount')}</span><strong>{getAccountLabel(formState.sourceAccountId)}</strong></div>
+                        <div className="info-row"><span>{t('destinationAccount')}</span><strong>{formState.scheduleDestinationAccountNumber || '-'}</strong></div>
+                        <div className="info-row"><span>{t('receiverBankName')}</span><strong>{formState.receiverBankName || '-'}</strong></div>
+                        <div className="info-row"><span>{t('receiverIfsc')}</span><strong>{formState.receiverIfsc || '-'}</strong></div>
+                        <div className="info-row"><span>{t('amount')}</span><strong>{currency(formState.amount)}</strong></div>
+                        <div className="info-row"><span>{t('scheduleDateTime')}</span><strong>{formatDateTime(scheduleDate)}</strong></div>
+                        <div className="info-row">
+                          <span>{t('executionType')}</span>
+                          <strong>
+                            {formState.executionType === 'RECURRING'
+                              ? `${t('recurring')} — ${formState.recurrenceType === 'CUSTOM_DAYS'
+                                  ? `${t('repeatEveryDays')}: ${formState.recurrenceIntervalDays || '-'}`
+                                  : t('monthly')}`
+                              : t('oneTime')}
+                          </strong>
+                        </div>
+                        <div className="info-row total"><span>{t('amount')}</span><strong>{currency(formState.amount)}</strong></div>
+                      </div>
+
+                      <div className="premium-card authorize-safe-card">
+                        <div className="section-label">Safe &amp; Secure</div>
+                        <div className="authorize-safe-item">Bank-grade security</div>
+                        <div className="authorize-safe-item">PIN is never stored</div>
+                        <div className="authorize-safe-item">You are in a secure environment</div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1638,7 +1788,23 @@ function Dashboard({ session, onLogout }) {
               <article className="card">
                 <div className="card-title-row">
                   <h3>{t('recentTransactions')}</h3>
-                  <button className="link-btn">{t('viewAll')}</button>
+                  <div className="recent-filter">
+                    <button
+                      type="button"
+                      className={`filter-btn ${recentFilter === 'ALL' ? 'active' : ''}`}
+                      onClick={() => setRecentFilter('ALL')}
+                    >All</button>
+                    <button
+                      type="button"
+                      className={`filter-btn ${recentFilter === 'COMPLETED' ? 'active' : ''}`}
+                      onClick={() => setRecentFilter('COMPLETED')}
+                    >Completed</button>
+                    <button
+                      type="button"
+                      className={`filter-btn ${recentFilter === 'FAILED' ? 'active' : ''}`}
+                      onClick={() => setRecentFilter('FAILED')}
+                    >Failed</button>
+                  </div>
                 </div>
 
                 {loading && <p className="empty-note">{t('loadingPayments')}</p>}
@@ -1743,6 +1909,62 @@ function Dashboard({ session, onLogout }) {
                 <h3>{t('sendMoney')}</h3>
                 <p>{t('sendMoneySub')}</p>
                 <button onClick={openPaymentJourney}>{t('payNow')} →</button>
+              </article>
+            </section>
+
+            <section className="bottom-grid">
+              <article className="card">
+                <div className="card-title-row">
+                  <h3>{t('groupSplit')}</h3>
+                </div>
+                {groupSplitHistory.length === 0 && <p className="empty-note">No group splits yet.</p>}
+                {groupSplitHistory.map((split) => (
+                  <div className="tx-row" key={split.groupSplitId}>
+                    <span>
+                      {split.description}
+                      <br />
+                      <small>By {split.createdByName} • {formatDateTime(split.createdAt)}{!split.seen ? ' • New' : ''}</small>
+                    </span>
+                    <span className="sch-right">
+                      <strong>{currency(split.shareAmount)}</strong>
+                      {split.paid ? (
+                        <span className="status-pill status-completed">Paid</span>
+                      ) : (
+                        <button className="cancel-btn" onClick={() => openPaySplit(split.groupSplitId)}>Pay Now</button>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </article>
+
+              <article className="card">
+                <div className="card-title-row">
+                  <h3>Splits you created</h3>
+                </div>
+                {groupSplitCreated.length === 0 && <p className="empty-note">You haven't created any splits yet.</p>}
+                {groupSplitCreated.map((split) => {
+                  const settledCount = split.members.filter((member) => member.paid).length;
+                  return (
+                    <div key={split.groupSplitId} className="tx-row" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                      <span>
+                        {split.description}
+                        <br />
+                        <small>{formatDateTime(split.createdAt)} • {settledCount}/{split.members.length} settled</small>
+                      </span>
+                      {split.members.map((member) => (
+                        <div className="tx-row" key={member.accountNumber}>
+                          <span>{member.accountHolderName || member.accountNumber}</span>
+                          <span className="sch-right">
+                            <strong>{currency(member.shareAmount)}</strong>
+                            <span className={`status-pill ${member.paid ? 'status-completed' : 'status-pending'}`}>
+                              {member.paid ? 'Paid' : 'Pending'}
+                            </span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
               </article>
             </section>
           </>
@@ -1886,6 +2108,44 @@ function Dashboard({ session, onLogout }) {
                 <button className="primary-btn" onClick={submitGroupSplit} disabled={groupSplitSubmitting}>
                   {t('createSplit')}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeModal === 'paySplit' && (
+          <div className="modal-overlay" onClick={closePaySplit}>
+            <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+              <h3>Settle your share</h3>
+              <input
+                type="password"
+                placeholder="TPIN"
+                maxLength={6}
+                value={paySplitTpin}
+                onChange={(event) => setPaySplitTpin(event.target.value.replace(/\D/g, '').slice(0, 6))}
+              />
+              {paySplitError && <p className="form-error">{paySplitError}</p>}
+              <div className="modal-actions">
+                <button className="secondary-btn" onClick={closePaySplit}>{t('close')}</button>
+                <button className="primary-btn" onClick={submitPaySplit} disabled={paySplitSubmitting || paySplitTpin.length < 4}>
+                  {paySplitSubmitting ? '...' : 'Pay Now'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {splitPromptQueue[0] && activeModal !== 'paySplit' && (
+          <div className="modal-overlay">
+            <div className="modal-card">
+              <h3>You've been added to a split</h3>
+              <p>
+                {splitPromptQueue[0].createdByName} added you to "{splitPromptQueue[0].description}" — your share:{' '}
+                {currency(splitPromptQueue[0].shareAmount)}
+              </p>
+              <div className="modal-actions">
+                <button className="secondary-btn" onClick={skipSplitPrompt}>Skip</button>
+                <button className="primary-btn" onClick={() => openPaySplit(splitPromptQueue[0].groupSplitId)}>Pay Now</button>
               </div>
             </div>
           </div>

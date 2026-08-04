@@ -7,13 +7,15 @@ public class GroupSplitMemberResponse {
     private String accountHolderName;
     private BigDecimal shareAmount;
     private boolean seen;
+    private boolean paid;
 
-    public static GroupSplitMemberResponse of(String accountNumber, String accountHolderName, BigDecimal shareAmount, boolean seen) {
+    public static GroupSplitMemberResponse of(String accountNumber, String accountHolderName, BigDecimal shareAmount, boolean seen, boolean paid) {
         GroupSplitMemberResponse response = new GroupSplitMemberResponse();
         response.accountNumber = accountNumber;
         response.accountHolderName = accountHolderName;
         response.shareAmount = shareAmount;
         response.seen = seen;
+        response.paid = paid;
         return response;
     }
 
@@ -28,4 +30,7 @@ public class GroupSplitMemberResponse {
 
     public boolean isSeen() { return seen; }
     public void setSeen(boolean seen) { this.seen = seen; }
+
+    public boolean isPaid() { return paid; }
+    public void setPaid(boolean paid) { this.paid = paid; }
 }

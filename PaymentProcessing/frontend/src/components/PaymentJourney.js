@@ -286,6 +286,7 @@ function PaymentJourney({
     ifsc: formState.ifsc || formState.ifscCode || '',
     bankName: formState.bankName || '',
     amount: formState.amount || '',
+    category: formState.category || 'OTHERS',
     reference: formState.reference || formState.referenceNumber || '',
     remarks: formState.remarks || ''
   };

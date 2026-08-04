@@ -1,6 +1,7 @@
 package com.example.PaymentProcessing.service;
 
 import com.example.PaymentProcessing.api.CreateGroupSplitRequest;
+import com.example.PaymentProcessing.api.CreatePaymentRequest;
 import com.example.PaymentProcessing.api.GroupSplitMemberRequest;
 import com.example.PaymentProcessing.api.GroupSplitMemberResponse;
 import com.example.PaymentProcessing.api.GroupSplitNotificationResponse;
@@ -31,16 +32,19 @@ public class GroupSplitService {
     private final GroupSplitMemberRepository groupSplitMemberRepository;
     private final AccountRepository accountRepository;
     private final CustomerRepository customerRepository;
+    private final PaymentService paymentService;
 
     public GroupSplitService(
             GroupSplitRepository groupSplitRepository,
             GroupSplitMemberRepository groupSplitMemberRepository,
             AccountRepository accountRepository,
-            CustomerRepository customerRepository) {
+            CustomerRepository customerRepository,
+            PaymentService paymentService) {
         this.groupSplitRepository = groupSplitRepository;
         this.groupSplitMemberRepository = groupSplitMemberRepository;
         this.accountRepository = accountRepository;
         this.customerRepository = customerRepository;
+        this.paymentService = paymentService;
     }
 
     @Transactional
@@ -65,9 +69,18 @@ public class GroupSplitService {
 
         List<BigDecimal> shareAmounts = computeShares(splitType, totalAmount, memberRequests);
 
+        // Members settle by paying into this account, so fall back to the
+        // creator's own account when the request didn't specify one.
+        Long sourceAccountId = request.getSourceAccountId();
+        if (sourceAccountId == null) {
+            sourceAccountId = accountRepository.findFirstByCustomerId(creatorCustomerId)
+                    .map(Account::getAccountId)
+                    .orElse(null);
+        }
+
         GroupSplit groupSplit = new GroupSplit();
         groupSplit.setCreatedByCustomerId(creatorCustomerId);
-        groupSplit.setSourceAccountId(request.getSourceAccountId());
+        groupSplit.setSourceAccountId(sourceAccountId);
         groupSplit.setTotalAmount(totalAmount);
         groupSplit.setCurrency((request.getCurrency() == null || request.getCurrency().isBlank())
                 ? "INR" : request.getCurrency().toUpperCase());
@@ -91,7 +104,7 @@ public class GroupSplitService {
             groupSplitMemberRepository.save(member);
 
             memberResponses.add(GroupSplitMemberResponse.of(
-                    account.getAccountNumber(), account.getAccountHolderName(), shareAmounts.get(i), false));
+                    account.getAccountNumber(), account.getAccountHolderName(), shareAmounts.get(i), false, false));
         }
 
         return GroupSplitResponse.fromEntity(savedSplit, memberResponses);
@@ -123,13 +136,129 @@ public class GroupSplitService {
                     member.getShareAmount(),
                     split.getCurrency(),
                     creatorName,
-                    split.getCreatedAt()));
+                    split.getCreatedAt(),
+                    false,
+                    member.isPaid()));
 
             member.setSeen(true);
             groupSplitMemberRepository.save(member);
         }
 
         return notifications;
+    }
+
+    /**
+     * Returns every group split a customer is a member of (persisted view,
+     * not toast/one-shot) without mutating the seen flag. This is what the
+     * dashboard's group-split history list reads from, so a member can
+     * always come back and see splits they were added to.
+     */
+    @Transactional(readOnly = true)
+    public List<GroupSplitNotificationResponse> getMySplits(Long customerId) {
+        List<GroupSplitMember> memberships = groupSplitMemberRepository.findByCustomerIdOrderByGroupSplitMemberIdDesc(customerId);
+        List<GroupSplitNotificationResponse> splits = new ArrayList<>();
+
+        for (GroupSplitMember member : memberships) {
+            GroupSplit split = groupSplitRepository.findById(member.getGroupSplitId()).orElse(null);
+            if (split == null) {
+                continue;
+            }
+            String creatorName = customerRepository.findById(split.getCreatedByCustomerId())
+                    .map(this::displayName)
+                    .orElse("A Tallyn user");
+
+            splits.add(GroupSplitNotificationResponse.of(
+                    split.getGroupSplitId(),
+                    split.getDescription(),
+                    split.getTotalAmount(),
+                    member.getShareAmount(),
+                    split.getCurrency(),
+                    creatorName,
+                    split.getCreatedAt(),
+                    member.isSeen(),
+                    member.isPaid()));
+        }
+
+        return splits;
+    }
+
+    /**
+     * Splits the customer created, with each member's paid/seen status —
+     * the creator's "view and track settlement" screen.
+     */
+    @Transactional(readOnly = true)
+    public List<GroupSplitResponse> getCreatedSplits(Long customerId) {
+        List<GroupSplit> created = groupSplitRepository.findByCreatedByCustomerIdOrderByGroupSplitIdDesc(customerId);
+        List<GroupSplitResponse> responses = new ArrayList<>();
+
+        for (GroupSplit split : created) {
+            List<GroupSplitMemberResponse> memberResponses = new ArrayList<>();
+            for (GroupSplitMember member : groupSplitMemberRepository.findByGroupSplitId(split.getGroupSplitId())) {
+                memberResponses.add(GroupSplitMemberResponse.of(
+                        member.getAccountNumber(),
+                        accountRepository.findById(member.getAccountId()).map(Account::getAccountHolderName).orElse(null),
+                        member.getShareAmount(),
+                        member.isSeen(),
+                        member.isPaid()));
+            }
+            responses.add(GroupSplitResponse.fromEntity(split, memberResponses));
+        }
+
+        return responses;
+    }
+
+    /**
+     * Lets a member settle their own share — creates a real payment from
+     * their account into the split's source account and marks their
+     * membership row paid.
+     */
+    @Transactional
+    public GroupSplitNotificationResponse paySplitShare(Long groupSplitId, Long customerId, String tpin) {
+        GroupSplitMember member = groupSplitMemberRepository.findByGroupSplitIdAndCustomerId(groupSplitId, customerId)
+                .orElseThrow(() -> new ApiException(
+                        "NOT_A_MEMBER", "You are not part of this split", HttpStatus.FORBIDDEN));
+
+        if (member.isPaid()) {
+            throw new ApiException("ALREADY_PAID", "You've already settled your share of this split", HttpStatus.CONFLICT);
+        }
+
+        GroupSplit split = groupSplitRepository.findById(groupSplitId)
+                .orElseThrow(() -> new ApiException("SPLIT_NOT_FOUND", "Split not found", HttpStatus.NOT_FOUND));
+
+        if (split.getSourceAccountId() == null) {
+            throw new ApiException(
+                    "NO_DESTINATION_ACCOUNT", "This split has no destination account to settle into", HttpStatus.CONFLICT);
+        }
+
+        CreatePaymentRequest paymentRequest = new CreatePaymentRequest();
+        paymentRequest.setSourceAccountId(member.getAccountId());
+        paymentRequest.setDestinationAccountId(split.getSourceAccountId());
+        paymentRequest.setAmount(member.getShareAmount());
+        paymentRequest.setCurrency(split.getCurrency());
+        paymentRequest.setReferenceNumber("SPLIT-PAY-" + UUID.randomUUID());
+        paymentRequest.setRemarks("Settling split: " + split.getDescription());
+        paymentRequest.setTpin(tpin);
+
+        paymentService.createPayment(paymentRequest, customerId);
+
+        member.setPaid(true);
+        member.setSeen(true);
+        groupSplitMemberRepository.save(member);
+
+        String creatorName = customerRepository.findById(split.getCreatedByCustomerId())
+                .map(this::displayName)
+                .orElse("A Tallyn user");
+
+        return GroupSplitNotificationResponse.of(
+                split.getGroupSplitId(),
+                split.getDescription(),
+                split.getTotalAmount(),
+                member.getShareAmount(),
+                split.getCurrency(),
+                creatorName,
+                split.getCreatedAt(),
+                true,
+                true);
     }
 
     private String displayName(Customer customer) {

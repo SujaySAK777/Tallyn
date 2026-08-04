@@ -11,6 +11,7 @@ import com.example.PaymentProcessing.exception.ApiException;
 import com.example.PaymentProcessing.model.Account;
 import com.example.PaymentProcessing.model.AccountStatus;
 import com.example.PaymentProcessing.model.Payment;
+import com.example.PaymentProcessing.model.PaymentCategory;
 import com.example.PaymentProcessing.model.PaymentHistory;
 import com.example.PaymentProcessing.model.PaymentStatus;
 import com.example.PaymentProcessing.repository.AccountRepository;
@@ -132,6 +133,16 @@ public class PaymentService {
         payment.setStatus(PaymentStatus.CREATED);
         payment.setReferenceNumber(request.getReferenceNumber());
         payment.setRemarks(request.getRemarks());
+        // set category from request if provided, otherwise default to OTHERS
+        if (request.getCategory() != null) {
+            try {
+                payment.setCategory(PaymentCategory.valueOf(request.getCategory()));
+            } catch (IllegalArgumentException ex) {
+                payment.setCategory(PaymentCategory.OTHERS);
+            }
+        } else {
+            payment.setCategory(PaymentCategory.OTHERS);
+        }
 
         Payment saved = paymentRepository.save(payment);
         saveHistory(saved, null, PaymentStatus.CREATED, request.getRemarks());
