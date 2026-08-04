@@ -11,3 +11,8 @@ CREATE TABLE account (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ON UPDATE CURRENT_TIMESTAMP
 );
+
+-- Upadated on 4th Aug
+ALTER TABLE account
+    ADD COLUMN mobile_number VARCHAR(15) NULL AFTER account_holder_name,
+    ADD KEY idx_account_mobile (mobile_number);

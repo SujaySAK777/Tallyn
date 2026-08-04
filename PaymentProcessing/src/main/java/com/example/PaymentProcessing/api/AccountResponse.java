@@ -12,6 +12,7 @@ public class AccountResponse {
     private String ifscCode;
     private String accountNumber;
     private String accountHolderName;
+    private String mobileNumber;
     private BigDecimal balance;
     private String currency;
     private AccountStatus status;
@@ -25,6 +26,7 @@ public class AccountResponse {
         response.setIfscCode(account.getIfscCode());
         response.setAccountNumber(account.getAccountNumber());
         response.setAccountHolderName(account.getAccountHolderName());
+        response.setMobileNumber(account.getMobileNumber());
         response.setBalance(account.getBalance());
         response.setCurrency(account.getCurrency());
         response.setStatus(account.getStatus());
@@ -107,4 +109,7 @@ public class AccountResponse {
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
+
+    public String getMobileNumber() { return mobileNumber; }
+    public void setMobileNumber(String mobileNumber) { this.mobileNumber = mobileNumber; }
 }

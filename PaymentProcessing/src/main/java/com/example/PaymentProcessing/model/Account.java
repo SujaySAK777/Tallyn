@@ -35,6 +35,12 @@ public class Account {
     @Column(name = "account_holder_name", nullable = false, length = 100)
     private String accountHolderName;
 
+    @Column(name = "mobile_number", length = 15)
+    private String mobileNumber;
+
+    public String getMobileNumber() { return mobileNumber; }
+    public void setMobileNumber(String mobileNumber) { this.mobileNumber = mobileNumber; }
+
     @Column(name = "balance", nullable = false, precision = 15, scale = 2)
     private BigDecimal balance;
 
@@ -73,9 +79,6 @@ public class Account {
         this.bankName = bankName;
     }
 
-    public String getIfscCode() { return ifscCode; }
-    public void setIfscCode(String ifscCode) { this.ifscCode = ifscCode; }
-
     public String getAccountNumber() {
         return accountNumber;
     }
@@ -91,6 +94,9 @@ public class Account {
     public void setAccountHolderName(String accountHolderName) {
         this.accountHolderName = accountHolderName;
     }
+
+    public String getIfscCode() { return ifscCode; }
+    public void setIfscCode(String ifscCode) { this.ifscCode = ifscCode; }
 
     public BigDecimal getBalance() {
         return balance;

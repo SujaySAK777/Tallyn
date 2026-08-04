@@ -61,14 +61,12 @@ public class AccountService {
     @Transactional
     public AccountResponse simulateAccount(SimulateAccountRequest request, Long authenticatedCustomerId) {
         validateSimulateRequest(request);
-        // customerId always comes from the verified JWT, never the request
-        // body — otherwise any caller could link a simulated account to
-        // someone else's customer ID.
         Account saved = provisionSimulatedAccount(
                 request.getBankName(),
                 request.getAccountHolderName(),
                 request.getCurrency(),
-                authenticatedCustomerId
+                authenticatedCustomerId,
+                request.getMobileNumber()
         );
         return AccountResponse.fromEntity(saved);
     }
@@ -80,9 +78,14 @@ public class AccountService {
     // fetching that account's IFSC, account number, and pre-existing balance
     // instead of asking the customer to type them in.
     @Transactional
-    public Account provisionSimulatedAccount(String bankName, String accountHolderName, String currency, Long customerId) {
+    public Account provisionSimulatedAccount(String bankName, String accountHolderName, String currency, Long customerId, String mobileNumber) {
         String name = (bankName == null || bankName.isBlank()) ? "Unknown Bank" : bankName.trim();
         String prefix = BANK_IFSC_PREFIXES.getOrDefault(name.toUpperCase(), "SIML0");
+        String normalizedMobile = mobileNumber == null ? null : mobileNumber.trim();
+
+        if (normalizedMobile != null && !normalizedMobile.isBlank()) {
+            ensureMobileNumberAvailable(normalizedMobile, customerId);
+        }
 
         Account account = new Account();
         account.setBankName(name);
@@ -91,11 +94,10 @@ public class AccountService {
         account.setAccountHolderName(
                 accountHolderName != null && !accountHolderName.isBlank() ? accountHolderName.trim() : "Account Holder"
         );
+        account.setMobileNumber(normalizedMobile);
         account.setBalance(randomBalance());
         account.setCurrency(currency == null || currency.isBlank() ? "INR" : currency.trim().toUpperCase());
         account.setStatus(AccountStatus.INACTIVE);
-        // Placeholder until the customer sets a real TPIN; account stays
-        // INACTIVE (unusable for payments) until then.
         account.setTpinHash(PASSWORD_ENCODER.encode(randomDigits(6)));
         if (customerId != null) {
             account.setCustomerId(customerId);
@@ -103,6 +105,17 @@ public class AccountService {
         return accountRepository.save(account);
     }
 
+    private void ensureMobileNumberAvailable(String mobileNumber, Long customerId) {
+        accountRepository.findByMobileNumber(mobileNumber).ifPresent(existing -> {
+            if (existing.getCustomerId() == null || !existing.getCustomerId().equals(customerId)) {
+                throw new ApiException(
+                        "MOBILE_NUMBER_ALREADY_USED",
+                        "This mobile number is already linked to another customer's account",
+                        HttpStatus.CONFLICT);
+            }
+        });
+    }
+    
     @Transactional
     public AccountResponse setTpin(Long accountId, SetTpinRequest request) {
         if (request == null || request.getTpin() == null || !request.getTpin().matches("\\d{6}")) {

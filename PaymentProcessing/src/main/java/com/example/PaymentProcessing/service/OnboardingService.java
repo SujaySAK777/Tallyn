@@ -43,8 +43,14 @@ public class OnboardingService {
         Customer c = customer(id);
         String phone = required(body, "phoneNumber");
         if (!phone.matches("\\d{10}")) throw new ApiException("VALIDATION_FAILED", "phoneNumber must be a valid 10-digit mobile number", HttpStatus.BAD_REQUEST);
+        customers.findByPhoneNumber(phone).ifPresent(existing -> {
+            if (!existing.getCustomerId().equals(id)) {
+                throw new ApiException("PHONE_ALREADY_USED", "This phone number is already registered with another account", HttpStatus.CONFLICT);
+            }
+        });
         c.setFirstName(required(body,"firstName")); c.setLastName(required(body,"lastName")); c.setPhoneNumber(phone); c.setOnboardingStatus("PROFILE_COMPLETE"); return response(c);
     }
+
     @Transactional public Map<String,Object> linkAccount(Long id, Map<String,String> body) {
         Customer c = customer(id);
         if (accounts.findFirstByCustomerId(id).isPresent()) {
@@ -56,7 +62,7 @@ public class OnboardingService {
         // This is a payment gateway, not a bank: the customer already has an
         // existing account. We simulate fetching its IFSC, account number,
         // and pre-existing balance instead of asking them to type in a fake one.
-        Account a = accountService.provisionSimulatedAccount(bankName, holderName.isBlank() ? null : holderName, "INR", id);
+        Account a = accountService.provisionSimulatedAccount(bankName, holderName.isBlank() ? null : holderName, "INR", id, c.getPhoneNumber());
 
         c.setOnboardingStatus("ACCOUNT_LINKED");
         String otp = String.valueOf(ThreadLocalRandom.current().nextInt(100000, 1000000));

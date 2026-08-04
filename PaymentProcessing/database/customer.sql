@@ -23,3 +23,6 @@ CREATE TABLE IF NOT EXISTS customer (
     PRIMARY KEY (customer_id),
     UNIQUE KEY uq_customer_email (email)
 );
+
+-- Updated on 4th Aug
+ALTER TABLE customer ADD CONSTRAINT uq_customer_phone UNIQUE (phone_number);
