@@ -13,7 +13,8 @@ function ReviewPayment({
   authenticating,
   submitting,
   onBack,
-  onConfirm
+  onConfirm,
+  isSelfTransfer = false
 }) {
   const recipientName = formState.recipientName || formState.accountHolder || 'Recipient';
   const accountNumber = String(formState.destinationAccountNumber || formState.accountNumber || '');
@@ -31,8 +32,8 @@ function ReviewPayment({
     <div className="journey-page review-page">
       <div className="page-heading premium-heading">
         <div className="heading-copy">
-          <h2>Review your payment</h2>
-          <span className="review-subcopy">Check the recipient and payment impact before authorizing.</span>
+          <h2>{isSelfTransfer ? 'Review your transfer' : 'Review your payment'}</h2>
+          <span className="review-subcopy">{isSelfTransfer ? 'Check both accounts and the transfer impact before authorizing.' : 'Check the recipient and payment impact before authorizing.'}</span>
         </div>
         <div className="status-chip review-status"><FiShield /> Verified details</div>
       </div>
@@ -41,7 +42,7 @@ function ReviewPayment({
         <main className="review-main-card premium-card review-clean-card">
           <section className="review-section review-beneficiary">
             <div className="review-section-head">
-              <div className="review-section-title">Paying to</div>
+              <div className="review-section-title">{isSelfTransfer ? 'Transferring to' : 'Paying to'}</div>
               <button type="button" className="table-action" onClick={onBack}><FiEdit3 /> Edit</button>
             </div>
             <div className="recipient-row">
@@ -56,15 +57,22 @@ function ReviewPayment({
           </section>
 
           <section className="review-section review-payment-amount">
-            <span className="review-kv-label">You are paying</span>
+            <span className="review-kv-label">{isSelfTransfer ? 'You are transferring' : 'You are paying'}</span>
             <strong className="review-amount">{currency(amountValue)}</strong>
             <span className="review-reference">Reference: {referenceNumber}</span>
           </section>
 
           <section className="review-section review-detail-list">
             <div><span>From</span><strong>{formState.sourceAccountNumber ? `Account ending ${String(formState.sourceAccountNumber).slice(-4)}` : 'Linked account'}</strong></div>
-            <div><span>Transfer type</span><strong>Immediate bank transfer</strong></div>
+            <div><span>Transfer type</span><strong>{isSelfTransfer ? 'Self account transfer' : 'Immediate bank transfer'}</strong></div>
             <div><span>Remarks</span><strong>{formState.remarks || '—'}</strong></div>
+          </section>
+
+          <section className="review-section review-actions-row">
+            <button type="button" className="secondary-btn" onClick={onBack}>Back</button>
+            <button type="button" className="primary-btn" onClick={onConfirm} disabled={authenticating || submitting}>
+              Continue to authorize
+            </button>
           </section>
         </main>
 
@@ -77,9 +85,9 @@ function ReviewPayment({
           </div>
 
           <div className="payment-summary-box premium-card budget-card">
-            <div className="budget-heading"><div><span className="section-label">Monthly payment budget</span><strong className={spendingState.class}><FiTrendingUp /> {spendingState.label}</strong></div><input aria-label="Monthly payment budget" type="number" min="0" value={monthlyBudget} onChange={(event) => onBudgetChange(event.target.value)} /></div>
+            <div className="budget-heading"><div><span className="section-label">Monthly payment budget</span><strong className={spendingState.className}><FiTrendingUp /> {spendingState.label}</strong></div><input aria-label="Monthly payment budget" type="number" min="0" value={monthlyBudget} onChange={(event) => onBudgetChange(event.target.value)} /></div>
             <div className="budget-amounts"><span>Spent after this payment</span><strong>{currency(projectedSpend)} / {currency(monthlyBudget)}</strong></div>
-            <div className="budget-track"><span className={spendingState.class} style={{ width: `${budgetPercent}%` }} /></div>
+            <div className="budget-track"><span className={spendingState.className} style={{ width: `${budgetPercent}%` }} /></div>
             <small>{currency(amountValue)} will be added to this month’s outgoing payments.</small>
           </div>
 
@@ -88,13 +96,6 @@ function ReviewPayment({
             <small>No transfer fee</small>
           </div>
         </aside>
-      </div>
-
-      <div className="journey-actions premium-actions review-actions-row">
-        <button type="button" className="secondary-btn" onClick={onBack}>Back</button>
-        <button type="button" className="primary-btn" onClick={onConfirm} disabled={authenticating || submitting}>
-          Continue to authorize
-        </button>
       </div>
     </div>
   );

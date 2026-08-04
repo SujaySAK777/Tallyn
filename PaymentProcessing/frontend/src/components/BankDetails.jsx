@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { FiCheckCircle, FiLoader } from 'react-icons/fi';
 import { apiRequest } from '../services/api';
 
 export default function BankDetails({
@@ -10,6 +11,7 @@ export default function BankDetails({
   accounts = []
 }) {
   const [lookupError, setLookupError] = useState('');
+  const [isLookingUp, setIsLookingUp] = useState(false);
   const sourceId = String(formData.sourceAccountId || '').trim();
   const destinationId = String(formData.destinationAccountId || '').trim();
   const sourceIdValid = /^\d+$/.test(sourceId);
@@ -35,12 +37,15 @@ export default function BankDetails({
   const lookupDestination = async () => {
     const accountNumber = String(formData.destinationAccountNumber || '').trim();
     if (!accountNumber) return;
+    setIsLookingUp(true);
     try {
       const account = await apiRequest(`/accounts/number/${encodeURIComponent(accountNumber)}`);
       setFormData({ ...formData, destinationAccountId: String(account.accountId), accountHolder: account.accountHolderName, bankName: account.bankName, ifsc: account.ifscCode || '' });
       setLookupError('');
     } catch (error) {
       setLookupError(error.message || 'Recipient account was not found.');
+    } finally {
+      setIsLookingUp(false);
     }
   };
 
@@ -97,8 +102,22 @@ export default function BankDetails({
                 onBlur={lookupDestination}
                 placeholder="Enter recipient account number"
               />
+              {isLookingUp && <div className="lookup-status"><FiLoader className="spin-icon" /> Verifying account...</div>}
               {lookupError && <div className="error-msg">{lookupError}</div>}
             </div>
+
+            {formData.accountHolder && !lookupError && !isLookingUp && (
+              <div className="field-group field-span-2">
+                <div className="recipient-found-banner">
+                  <span className="recipient-found-avatar">{String(formData.accountHolder).slice(0, 2).toUpperCase()}</span>
+                  <div className="recipient-found-meta">
+                    <strong>{formData.accountHolder}</strong>
+                    <span>{formData.bankName || 'Bank details unavailable'} · {formData.ifsc || 'IFSC unavailable'}</span>
+                  </div>
+                  <span className="recipient-found-check"><FiCheckCircle /> Verified</span>
+                </div>
+              </div>
+            )}
 
             <div className="field-group">
               <label>Account Holder Name</label>
