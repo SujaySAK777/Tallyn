@@ -209,20 +209,6 @@ function Dashboard({ session, onLogout }) {
     }
   }, []);
 
-  useEffect(() => {
-    loadPayments();
-    loadScheduledPayments();
-    loadAccounts();
-    loadGroupSplitNotifications();
-
-    const pollInterval = window.setInterval(() => {
-      loadPayments({ silent: true });
-      loadScheduledPayments();
-    }, 15000);
-
-    return () => window.clearInterval(pollInterval);
-  }, []);
-
   const updateGroupSplitMember = (index, field, value) => {
     setGroupSplit((prev) => {
       const members = [...prev.members];
@@ -356,6 +342,7 @@ function Dashboard({ session, onLogout }) {
     loadPayments();
     loadScheduledPayments();
     loadAccounts();
+    loadGroupSplitNotifications();
 
     const pollInterval = window.setInterval(() => {
       loadPayments({ silent: true });
@@ -364,6 +351,7 @@ function Dashboard({ session, onLogout }) {
     }, 15000);
 
     return () => window.clearInterval(pollInterval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -848,24 +836,24 @@ function Dashboard({ session, onLogout }) {
     showToast('TPIN skipped. Account remains INACTIVE.');
   };
 
-  const goToTpinStep = () => {
+  const goToTimingStep = () => {
     if (!formState.sourceAccountId) {
       setError('Please select a source account.');
       return;
     }
 
     if (!formState.scheduleDestinationAccountNumber?.trim()) {
-      setError('Please enter a destination account number.');
+      setError('Please enter a recipient account number.');
       return;
     }
 
     if (!formState.scheduleDestinationAccountId) {
-      setError('Destination account number not found.');
+      setError('Recipient account number not found.');
       return;
     }
 
     if (String(formState.scheduleDestinationAccountId) === String(formState.sourceAccountId)) {
-      setError('Source and destination accounts must be different.');
+      setError('Source and recipient accounts must be different.');
       return;
     }
 
@@ -876,6 +864,11 @@ function Dashboard({ session, onLogout }) {
       return;
     }
 
+    setError('');
+    setScheduleStep('timing');
+  };
+
+  const goToTpinStep = () => {
     if (!scheduleDate) {
       setError('Please choose a date and time for the scheduled payment.');
       return;
@@ -1185,24 +1178,27 @@ function Dashboard({ session, onLogout }) {
             <div className="journey-shell premium-shell">
               {scheduleStep !== 'success' && (
                 <div className="stepper premium-stepper">
-                  {[{ id: 'details', label: t('details') }, { id: 'tpin', label: t('tpin') }].map((item, index) => (
-                    <div
-                      key={item.id}
-                      className={`stepper-item ${scheduleStep === item.id ? 'active' : ''} ${scheduleStep === 'tpin' && item.id === 'details' ? 'completed' : ''}`}
-                    >
-                      <span>{index + 1}</span>
-                      <small>{item.label}</small>
-                    </div>
-                  ))}
+                  {[{ id: 'details', label: t('details') }, { id: 'timing', label: t('timing') }, { id: 'tpin', label: t('tpin') }].map((item, index) => {
+                    const order = ['details', 'timing', 'tpin'];
+                    const completed = order.indexOf(scheduleStep) > order.indexOf(item.id);
+                    return (
+                      <div
+                        key={item.id}
+                        className={`stepper-item ${scheduleStep === item.id ? 'active' : ''} ${completed ? 'completed' : ''}`}
+                      >
+                        <span>{index + 1}</span>
+                        <small>{item.label}</small>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
               {scheduleStep === 'details' && (
                 <div className="modal-card journey-panel">
-                  <div className="bank-form">
-                    <div className="section-title">
+                  <div className="bank-form schedule-compact">
+                    <div className="section-title compact-heading">
                       <h2><FiFileText /> {t('paymentDetailsHeading')}</h2>
-                      <p>{t('paymentDetailsSub')}</p>
                     </div>
                     <div className="form-grid">
                       <label className="field-col">
@@ -1228,7 +1224,7 @@ function Dashboard({ session, onLogout }) {
                         {scheduleLookupError && <div className="error-msg">{scheduleLookupError}</div>}
                       </label>
                       <label className="field-col">
-                        <span><FiUser /> Account Holder Name</span>
+                        <span><FiUser /> {t('accountHolderName')}</span>
                         <input name="accountHolder" value={formState.accountHolder} readOnly />
                       </label>
                       <label className="field-col">
@@ -1237,7 +1233,8 @@ function Dashboard({ session, onLogout }) {
                           name="receiverBankName"
                           placeholder={t('receiverBankNamePlaceholder')}
                           value={formState.receiverBankName}
-                          readOnly
+                          onChange={handleFormChange}
+                          readOnly={Boolean(formState.scheduleDestinationAccountId)}
                         />
                       </label>
                       <label className="field-col">
@@ -1246,7 +1243,8 @@ function Dashboard({ session, onLogout }) {
                           name="receiverIfsc"
                           placeholder={t('receiverIfscPlaceholder')}
                           value={formState.receiverIfsc}
-                          readOnly
+                          onChange={handleFormChange}
+                          readOnly={Boolean(formState.scheduleDestinationAccountId)}
                         />
                       </label>
                       <label className="field-col">
@@ -1257,15 +1255,28 @@ function Dashboard({ session, onLogout }) {
                         <span>{t('currency')}</span>
                         <input name="currency" placeholder={t('currency')} value={formState.currency} onChange={handleFormChange} />
                       </label>
-                      <label className="field-col">
+                      <label className="field-col field-col-span2">
                         <span><FiFileText /> {t('description')}</span>
                         <input name="remarks" placeholder={t('description')} value={formState.remarks} onChange={handleFormChange} />
                       </label>
                     </div>
 
-                    <div className="section-title">
+                    {error && <p className="empty-note error-note">{error}</p>}
+                    <div className="modal-actions">
+                      <button className="secondary-btn" onClick={closeModal}>{t('reset')}</button>
+                      <button className="primary-btn" onClick={goToTimingStep}>
+                        {t('continueToTpin')} <FiChevronRight />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {scheduleStep === 'timing' && (
+                <div className="modal-card journey-panel">
+                  <div className="bank-form schedule-compact">
+                    <div className="section-title compact-heading">
                       <h2><FiCalendar /> {t('scheduleHeading')}</h2>
-                      <p>{t('scheduleSub')}</p>
                     </div>
                     <div className="form-grid">
                       <label className="field-col">
@@ -1289,41 +1300,28 @@ function Dashboard({ session, onLogout }) {
                       </label>
                     </div>
 
-                    <div className="section-title">
+                    <div className="section-title compact-heading">
                       <h2><FiRepeat /> {t('paymentTypeHeading')}</h2>
-                      <p>{t('paymentTypeSub')}</p>
                     </div>
-                    <div className="payment-method-grid">
+                    <div className="schedule-type-toggle">
                       <button
                         type="button"
-                        className={`payment-method-card ${formState.executionType === 'ONE_TIME' ? 'selected' : ''}`}
+                        className={`schedule-type-option ${formState.executionType === 'ONE_TIME' ? 'selected' : ''}`}
                         onClick={() => setFormState((prev) => ({ ...prev, executionType: 'ONE_TIME' }))}
                       >
-                        <div className="method-card-body">
-                          <span className="method-icon tone-indigo"><FiCreditCard /></span>
-                          <div className="method-copy">
-                            <strong>{t('oneTime')}</strong>
-                            <p>{t('scheduledSuccessOneTimeSub')}</p>
-                          </div>
-                        </div>
+                        <FiCreditCard /> {t('oneTime')}
                       </button>
                       <button
                         type="button"
-                        className={`payment-method-card ${formState.executionType === 'RECURRING' ? 'selected' : ''}`}
+                        className={`schedule-type-option ${formState.executionType === 'RECURRING' ? 'selected' : ''}`}
                         onClick={() => setFormState((prev) => ({ ...prev, executionType: 'RECURRING' }))}
                       >
-                        <div className="method-card-body">
-                          <span className="method-icon tone-violet"><FiRepeat /></span>
-                          <div className="method-copy">
-                            <strong>{t('recurring')}</strong>
-                            <p>{t('scheduledSuccessRecurringSub')}</p>
-                          </div>
-                        </div>
+                        <FiRepeat /> {t('recurring')}
                       </button>
                     </div>
 
                     {formState.executionType === 'RECURRING' && (
-                      <div className="form-grid" style={{ marginTop: '14px' }}>
+                      <div className="form-grid" style={{ marginTop: '10px' }}>
                         <label className="field-col">
                           <span><FiRepeat /> {t('frequency')}</span>
                           <select
@@ -1354,7 +1352,9 @@ function Dashboard({ session, onLogout }) {
 
                     {error && <p className="empty-note error-note">{error}</p>}
                     <div className="modal-actions">
-                      <button className="secondary-btn" onClick={closeModal}>{t('reset')}</button>
+                      <button className="secondary-btn" onClick={() => { setScheduleStep('details'); setError(''); }}>
+                        {t('back')}
+                      </button>
                       <button className="primary-btn" onClick={goToTpinStep}>
                         <FiCheckCircle /> {t('done')}
                       </button>
@@ -1365,65 +1365,115 @@ function Dashboard({ session, onLogout }) {
 
               {scheduleStep === 'tpin' && (
                 <div className="modal-card journey-panel">
-                  <div className="bank-form">
-                    <div className="section-title">
-                      <h2><FiFileText /> {t('reviewHeading')}</h2>
+                  <div className="page-heading premium-heading">
+                    <div className="heading-copy">
+                      <h2>{t('verifyTpinHeading')}</h2>
+                      <span className="authorize-subcopy">{t('tpinHint')}</span>
                     </div>
-                    <div className="tpin-summary">
-                      <div className="info-row"><span>{t('sourceAccount')}</span><strong>{getAccountLabel(formState.sourceAccountId)}</strong></div>
-                      <div className="info-row"><span>{t('destinationAccount')}</span><strong>{formState.scheduleDestinationAccountNumber || '-'}</strong></div>
-                      <div className="info-row"><span>{t('receiverBankName')}</span><strong>{formState.receiverBankName || '-'}</strong></div>
-                      <div className="info-row"><span>{t('receiverIfsc')}</span><strong>{formState.receiverIfsc || '-'}</strong></div>
-                      <div className="info-row"><span>{t('amount')}</span><strong>{currency(formState.amount)}</strong></div>
-                      <div className="info-row"><span>{t('scheduleDateTime')}</span><strong>{formatDateTime(scheduleDate)}</strong></div>
-                      <div className="info-row">
-                        <span>{t('executionType')}</span>
-                        <strong>
-                          {formState.executionType === 'RECURRING'
-                            ? `${t('recurring')} — ${formState.recurrenceType === 'CUSTOM_DAYS'
-                                ? `${t('repeatEveryDays')}: ${formState.recurrenceIntervalDays || '-'}`
-                                : t('monthly')}`
-                            : t('oneTime')}
-                        </strong>
+                    <div className="status-chip"><FiLock /> Authorization Required</div>
+                  </div>
+
+                  <div className="review-layout authorize-layout">
+                    <div className="premium-card authorize-main-card">
+                      <div className="authorize-tabs" role="tablist" aria-label="Authorization methods">
+                        <button type="button" className="authorize-tab active" role="tab" aria-selected="true">{t('tpin')}</button>
+                      </div>
+
+                      <div className="authorize-pin-card">
+                        <div className="authorize-pin-title">{t('verifyTpinHeading')}</div>
+                        <span className="authorize-pin-hint">{t('tpinHint')}</span>
+
+                        <input
+                          name="tpin"
+                          className="authorize-pin-input"
+                          type="password"
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          maxLength={6}
+                          autoFocus
+                          value={formState.tpin}
+                          onChange={(event) => {
+                            const digitsOnly = event.target.value.replace(/\D/g, '').slice(0, 6);
+                            setFormState((prev) => ({ ...prev, tpin: digitsOnly }));
+                          }}
+                          aria-label="Enter 6 digit transaction PIN"
+                        />
+
+                        <div className="authorize-pin-grid" aria-hidden="true">
+                          {Array.from({ length: 6 }).map((_, index) => {
+                            const tpinValue = formState.tpin || '';
+                            const filled = index < tpinValue.length;
+                            const active = index === tpinValue.length && tpinValue.length < 6;
+                            return (
+                              <div key={index} className={`pin-cell ${active ? 'pin-cell-active' : ''}`}>
+                                {filled ? '●' : active ? '|' : ''}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="authorize-secure-note"><FiShield /> Your payment is secured with 256-bit encryption.</div>
+
+                      {error && <p className="empty-note error-note">{error}</p>}
+
+                      <div className="journey-actions premium-actions authorize-actions-row">
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={() => {
+                            setScheduleStep('timing');
+                            setError('');
+                            setFormState((prev) => ({ ...prev, tpin: '' }));
+                          }}
+                          disabled={submitting}
+                        >
+                          {t('back')}
+                        </button>
+                        <button
+                          type="button"
+                          className="primary-btn"
+                          disabled={submitting || !/^\d{6}$/.test(formState.tpin || '')}
+                          onClick={async () => {
+                            const ok = await createPayment('schedule');
+                            if (ok) {
+                              setScheduleStep('success');
+                            }
+                          }}
+                        >
+                          {submitting ? t('processing') : t('verifyAndSchedule')}
+                        </button>
                       </div>
                     </div>
 
-                    <div className="section-title">
-                      <h2><FiShield /> {t('verifyTpinHeading')}</h2>
-                      <p>{t('tpinHint')}</p>
-                    </div>
-                    <div className="form-grid tpin-row">
-                      <input
-                        name="tpin"
-                        placeholder={t('tpin')}
-                        type="password"
-                        inputMode="numeric"
-                        maxLength={6}
-                        autoFocus
-                        value={formState.tpin}
-                        onChange={(event) => {
-                          const digitsOnly = event.target.value.replace(/\D/g, '').slice(0, 6);
-                          setFormState((prev) => ({ ...prev, tpin: digitsOnly }));
-                        }}
-                      />
-                    </div>
-                    {error && <p className="empty-note error-note">{error}</p>}
-                    <div className="modal-actions">
-                      <button className="secondary-btn" onClick={() => { setScheduleStep('details'); setError(''); }} disabled={submitting}>
-                        {t('back')}
-                      </button>
-                      <button
-                        className="primary-btn"
-                        disabled={submitting || !/^\d{6}$/.test(formState.tpin || '')}
-                        onClick={async () => {
-                          const ok = await createPayment('schedule');
-                          if (ok) {
-                            setScheduleStep('success');
-                          }
-                        }}
-                      >
-                        <FiShield /> {submitting ? t('processing') : t('verifyAndSchedule')}
-                      </button>
+                    <div className="summary-panel">
+                      <div className="payment-summary-box premium-card authorize-summary-card">
+                        <div className="section-label">{t('reviewHeading')}</div>
+                        <div className="info-row"><span>{t('sourceAccount')}</span><strong>{getAccountLabel(formState.sourceAccountId)}</strong></div>
+                        <div className="info-row"><span>{t('destinationAccount')}</span><strong>{formState.scheduleDestinationAccountNumber || '-'}</strong></div>
+                        <div className="info-row"><span>{t('receiverBankName')}</span><strong>{formState.receiverBankName || '-'}</strong></div>
+                        <div className="info-row"><span>{t('receiverIfsc')}</span><strong>{formState.receiverIfsc || '-'}</strong></div>
+                        <div className="info-row"><span>{t('amount')}</span><strong>{currency(formState.amount)}</strong></div>
+                        <div className="info-row"><span>{t('scheduleDateTime')}</span><strong>{formatDateTime(scheduleDate)}</strong></div>
+                        <div className="info-row">
+                          <span>{t('executionType')}</span>
+                          <strong>
+                            {formState.executionType === 'RECURRING'
+                              ? `${t('recurring')} — ${formState.recurrenceType === 'CUSTOM_DAYS'
+                                  ? `${t('repeatEveryDays')}: ${formState.recurrenceIntervalDays || '-'}`
+                                  : t('monthly')}`
+                              : t('oneTime')}
+                          </strong>
+                        </div>
+                        <div className="info-row total"><span>{t('amount')}</span><strong>{currency(formState.amount)}</strong></div>
+                      </div>
+
+                      <div className="premium-card authorize-safe-card">
+                        <div className="section-label">Safe &amp; Secure</div>
+                        <div className="authorize-safe-item">Bank-grade security</div>
+                        <div className="authorize-safe-item">PIN is never stored</div>
+                        <div className="authorize-safe-item">You are in a secure environment</div>
+                      </div>
                     </div>
                   </div>
                 </div>

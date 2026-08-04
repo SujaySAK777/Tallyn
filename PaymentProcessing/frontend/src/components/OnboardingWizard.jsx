@@ -176,6 +176,9 @@ export default function OnboardingWizard({ onLogin }) {
               Skip for now — add a bank account later from Home
             </button>
           )}
+          {step === 4 && phoneHint && (
+            <small className="dev-otp">Verification code sent to {phoneHint}</small>
+          )}
           {step === 4 && developmentOtp && (
             <small className="dev-otp">SMS delivery isn't available right now — use this code: <strong>{developmentOtp}</strong></small>
           )}
