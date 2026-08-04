@@ -29,3 +29,18 @@ CREATE TABLE scheduled_payment (
     CONSTRAINT chk_recurrence_interval
         CHECK (recurrence_interval_days IS NULL OR recurrence_interval_days > 0)
 );
+
+-- Updated on 4th Aug(2026)
+ALTER TABLE scheduled_payment
+  ADD COLUMN execution_type ENUM('ONE_TIME','RECURRING') NOT NULL DEFAULT 'ONE_TIME'
+  AFTER scheduled_at;
+
+
+ALTER TABLE scheduled_payment
+  ADD COLUMN receiver_bank_name VARCHAR(100) AFTER remarks,
+  ADD COLUMN receiver_ifsc VARCHAR(20) AFTER receiver_bank_name,
+  ADD COLUMN recurrence_type ENUM('MONTHLY','CUSTOM_DAYS') NULL AFTER execution_type,
+  ADD COLUMN recurrence_interval_days INT NULL AFTER recurrence_type,
+  ADD COLUMN last_run_at DATETIME NULL AFTER recurrence_interval_days,
+  ADD CONSTRAINT chk_recurrence_interval
+    CHECK (recurrence_interval_days IS NULL OR recurrence_interval_days > 0);
