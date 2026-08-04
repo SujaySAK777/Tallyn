@@ -1,25 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FiAlertCircle, FiCalendar, FiCheckCircle, FiClock, FiDownload, FiPrinter, FiShare2 } from 'react-icons/fi';
+import { FiArrowRight, FiCalendar, FiCheck, FiCheckCircle, FiClock, FiCopy, FiDownload, FiPrinter, FiShare2, FiShield } from 'react-icons/fi';
 import { downloadReceiptPdf } from '../services/receipt';
 import { apiRequest } from '../services/api';
 
-function TransactionDetails({
-  paymentId,
-  formState,
-  referenceNumber,
-  selectedDestination,
-  goBack
-}) {
+function TransactionDetails({ paymentId, formState, accounts = [], referenceNumber, selectedDestination, goBack }) {
   const [receipt, setReceipt] = useState(null);
   const [loadingReceipt, setLoadingReceipt] = useState(false);
   const [receiptError, setReceiptError] = useState('');
   const [shareStatus, setShareStatus] = useState('');
-
+  const [copiedReference, setCopiedReference] = useState(false);
   const resolvedPaymentId = paymentId || formState.paymentId || null;
 
   useEffect(() => {
     let ignore = false;
-
     const loadReceipt = async () => {
       if (!resolvedPaymentId) return;
       setLoadingReceipt(true);
@@ -33,60 +26,62 @@ function TransactionDetails({
         if (!ignore) setLoadingReceipt(false);
       }
     };
-
     loadReceipt();
-    return () => {
-      ignore = true;
-    };
+    return () => { ignore = true; };
   }, [resolvedPaymentId]);
 
-  const formatDate = (value) => {
-    if (!value) return '--';
-    return new Date(value).toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    });
-  };
-
-  const formatTime = (value) => {
-    if (!value) return '--';
-    return new Date(value).toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
-  };
-
+  const formatDate = (value) => value ? new Date(value).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '--';
+  const formatTime = (value) => value ? new Date(value).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--';
+  const formatTimelineTime = (value) => value ? new Date(value).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--';
   const statusLabel = String(receipt?.status || 'COMPLETED').replace(/_/g, ' ').toLowerCase().replace(/(^|\s)\S/g, (ch) => ch.toUpperCase());
   const amountValue = Number(receipt?.amount ?? formState.amount ?? 0);
   const currencyCode = receipt?.currency || formState.currency || 'INR';
-  const amountText = Number.isFinite(amountValue)
-    ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: currencyCode }).format(amountValue)
-    : '--';
+  const amountText = Number.isFinite(amountValue) ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: currencyCode }).format(amountValue) : '--';
+  const resolveAccountNumber = (value) => {
+    const normalized = String(value ?? '').trim();
+    return normalized || '';
+  };
 
-  const senderMask = receipt?.sourceAccountId
-    ? `A/C ${receipt.sourceAccountId}`
-    : (formState.sourceAccountNumber ? `•••• ${String(formState.sourceAccountNumber).slice(-4)}` : 'Source account');
+  const getAccountById = (accountId) => accounts.find((account) => String(account.accountId) === String(accountId));
 
-  const recipientName = selectedDestination || receipt?.destinationAccountHolderName || formState.recipientName || formState.accountHolder || 'Recipient';
-  const recipientMask = formState.destinationAccountNumber
-    ? `•••• ${String(formState.destinationAccountNumber).slice(-4)}`
-    : (receipt?.destinationAccountId ? `A/C ${receipt.destinationAccountId}` : 'Account pending');
+  const sourceAccountByReceiptId = getAccountById(receipt?.sourceAccountId);
+  const destinationAccountByReceiptId = getAccountById(receipt?.destinationAccountId);
+
+  const senderName = receipt?.sourceAccountHolderName || formState.sourceAccountHolder || sourceAccountByReceiptId?.accountHolderName || 'Your account';
+  const sourceAccountNumber = resolveAccountNumber(
+    formState.sourceAccountNumber
+    || sourceAccountByReceiptId?.accountNumber
+    || (formState.sourceAccountId ? getAccountById(formState.sourceAccountId)?.accountNumber : '')
+  );
+  const senderMask = sourceAccountNumber ? `A/C ending ${sourceAccountNumber.slice(-4)}` : 'Account number unavailable';
+  const recipientName = receipt?.destinationAccountHolderName || formState.recipientName || formState.accountHolder || selectedDestination || 'Recipient';
+  const destinationAccountNumber = resolveAccountNumber(
+    formState.destinationAccountNumber
+    || destinationAccountByReceiptId?.accountNumber
+    || (formState.destinationAccountId ? getAccountById(formState.destinationAccountId)?.accountNumber : '')
+  );
+  const recipientMask = destinationAccountNumber ? `A/C ending ${destinationAccountNumber.slice(-4)}` : 'Account number unavailable';
+
   const timelineEntries = useMemo(() => {
-    const created = receipt?.createdAt ? new Date(receipt.createdAt) : new Date();
-    const rawUpdated = receipt?.updatedAt ? new Date(receipt.updatedAt) : null;
-    const completed = rawUpdated && rawUpdated > created ? rawUpdated : new Date(created.getTime() + 120000);
-    const span = Math.max(60000, completed.getTime() - created.getTime());
-    const validated = new Date(created.getTime() + Math.round(span * 0.25));
-    const sent = new Date(created.getTime() + Math.round(span * 0.7));
-
+    const suppliedCreated = receipt?.createdAt ? new Date(receipt.createdAt).getTime() : Number.NaN;
+    const createdTime = Number.isFinite(suppliedCreated) ? suppliedCreated : Date.now();
+    const suppliedCompleted = receipt?.updatedAt ? new Date(receipt.updatedAt).getTime() : Number.NaN;
+    const completedTime = Number.isFinite(suppliedCompleted) && suppliedCompleted > createdTime ? suppliedCompleted : createdTime + 120000;
+    const span = completedTime - createdTime;
     return [
-      { label: 'Created', detail: 'Payment instruction captured', when: created, state: 'done' },
-      { label: 'Validated', detail: 'Details and limits verified', when: validated, state: 'done' },
-      { label: 'Sent to bank', detail: 'Transfer forwarded securely', when: sent, state: 'done' },
-      { label: 'Completed', detail: 'Funds settled successfully', when: completed, state: 'done' }
+      { label: 'Created', when: new Date(createdTime) },
+      { label: 'Validated', when: new Date(createdTime + Math.round(span * 0.25)) },
+      { label: 'Sent', when: new Date(createdTime + Math.round(span * 0.7)) },
+      { label: 'Completed', when: new Date(completedTime) }
     ];
+  }, [receipt?.createdAt, receipt?.updatedAt]);
+
+  const settlementDurationText = useMemo(() => {
+    if (!receipt?.createdAt || !receipt?.updatedAt) return 'Approx. 2 mins';
+    const seconds = Math.max(1, Math.round((new Date(receipt.updatedAt) - new Date(receipt.createdAt)) / 1000));
+    if (!Number.isFinite(seconds) || seconds <= 0) return 'Approx. 2 mins';
+    if (seconds < 60) return `${seconds} sec`;
+    return `${Math.floor(seconds / 60)} min${seconds % 60 ? ` ${seconds % 60} sec` : ''}`;
   }, [receipt?.createdAt, receipt?.updatedAt]);
 
   const handleShare = async () => {
@@ -95,75 +90,71 @@ function TransactionDetails({
       if (navigator.share) {
         await navigator.share({ title: 'Tallyn Transaction', text });
         setShareStatus('Transaction details shared.');
-        return;
+      } else {
+        await navigator.clipboard.writeText(text);
+        setShareStatus('Transaction summary copied to clipboard.');
       }
-      await navigator.clipboard.writeText(text);
-      setShareStatus('Transaction summary copied to clipboard.');
     } catch {
       setShareStatus('Unable to share right now.');
     }
   };
 
-  const handleDownloadReceipt = async () => {
+  const handleCopyReference = async () => {
     try {
-      await downloadReceiptPdf(resolvedPaymentId);
-    } catch (error) {
-      window.alert(error.message || 'Unable to download receipt.');
+      await navigator.clipboard.writeText(referenceNumber || '');
+      setCopiedReference(true);
+      window.setTimeout(() => setCopiedReference(false), 1800);
+    } catch {
+      setShareStatus('Unable to copy the reference number right now.');
     }
   };
 
   return (
-    <div className="journey-page transaction-page enhanced-transaction-page">
-      <div className="transaction-hero-card premium-card">
-        <div className="heading-copy">
-          <span className="eyebrow">Transaction Details</span>
-          <h2>Transfer Completed</h2>
-          <p>Professional summary, timeline, and downloadable proof for this payment.</p>
-        </div>
-        <div className="transaction-hero-right">
-          <div className="status-chip success-chip"><FiCheckCircle /> {statusLabel}</div>
-          <div className="transaction-amount-pill">{amountText}</div>
-        </div>
-      </div>
+    <div className="journey-page receipt-page">
+      <article className="payment-receipt premium-card" aria-label="Payment receipt">
+        <header className="receipt-header">
+          <div className="receipt-success-icon"><FiCheckCircle /></div>
+          <span className="receipt-status"><FiCheck /> {statusLabel}</span>
+          <h2>Payment successful</h2>
+          <p>{amountText}</p>
+          <span>Settled in {settlementDurationText}</span>
+        </header>
 
-      <div className="review-layout">
-        <div className="review-grid premium-review-grid transaction-overview-grid">
-          <div className="summary-card premium-card"><small>Payment ID</small><strong>{receipt?.paymentId || resolvedPaymentId || referenceNumber}</strong><span>Internal tracking identifier</span></div>
-          <div className="summary-card premium-card"><small>Reference Number</small><strong>{referenceNumber}</strong><span>Bank reference for the transaction</span></div>
-          <div className="summary-card premium-card"><small>Sender</small><strong>{senderMask}</strong><span>Your bank account</span></div>
-          <div className="summary-card premium-card"><small>Recipient</small><strong>{recipientName}</strong><span>{recipientMask}</span></div>
-          <div className="summary-card premium-card"><small><FiCalendar /> Date</small><strong>{formatDate(receipt?.updatedAt || receipt?.createdAt)}</strong><span>Settlement date</span></div>
-          <div className="summary-card premium-card"><small><FiClock /> Time</small><strong>{formatTime(receipt?.updatedAt || receipt?.createdAt)}</strong><span>Settlement time</span></div>
-        </div>
+        <section className="receipt-route" aria-label="Transfer route">
+          <div><small>From</small><strong>{senderName}</strong><em>{senderMask}</em></div>
+          <span className="receipt-route-arrow"><FiArrowRight /></span>
+          <div><small>To</small><strong>{recipientName}</strong><em>{recipientMask}</em></div>
+        </section>
 
-        <div className="summary-panel">
-          <div className="transaction-summary-card premium-card transaction-timeline-card">
-            <div className="section-label">Timeline</div>
-            {timelineEntries.map((item) => (
-              <div key={item.label} className={`timeline-item ${item.state}`}>
-                <span className="timeline-dot"><FiCheckCircle /></span>
-                <div className="timeline-copy"><strong>{item.label}</strong><small>{item.detail}</small></div>
-                <div className="timeline-meta"><span><FiCalendar /> {formatDate(item.when)}</span><span><FiClock /> {formatTime(item.when)}</span></div>
-              </div>
-            ))}
-            {loadingReceipt && <p className="timeline-loading">Loading exact receipt timestamps...</p>}
-            {receiptError && <p className="error-msg">{receiptError}</p>}
+        <section className="receipt-timeline" aria-label="Payment timeline">
+          <div className="receipt-section-title">Payment progress</div>
+          <div className="receipt-timeline-track">
+            {timelineEntries.map((item) => <div key={item.label} className="receipt-timeline-step"><span><FiCheck /></span><strong>{item.label}</strong><small>{formatTimelineTime(item.when)}</small></div>)}
           </div>
+          {loadingReceipt && <p className="timeline-loading">Loading exact receipt timestamps...</p>}
+          {receiptError && <p className="error-msg">{receiptError}</p>}
+        </section>
 
-          <div className="receipt-card premium-card">
-            <div className="section-label">Actions</div>
-            <div className="receipt-actions vertical-actions">
-              <button type="button" onClick={handleDownloadReceipt} disabled={!resolvedPaymentId}><FiDownload /> Download PDF</button>
-              <button type="button" onClick={handleShare}><FiShare2 /> Share</button>
-              <button type="button" onClick={() => window.print()}><FiPrinter /> Print</button>
-              <button type="button"><FiAlertCircle /> Report Issue</button>
-            </div>
-            {shareStatus && <p className="timeline-loading">{shareStatus}</p>}
+        <section className="receipt-details" aria-label="Transaction information">
+          <div><span>Reference number</span><strong>{referenceNumber}<button type="button" onClick={handleCopyReference} aria-label="Copy reference number"><FiCopy /></button></strong></div>
+          <div><span>Recipient account</span><strong>{recipientMask}</strong></div>
+          <div><span>Status</span><strong><FiCheckCircle /> {statusLabel}</strong></div>
+          <div><span>Completed on</span><strong><FiCalendar /> {formatDate(receipt?.updatedAt || receipt?.createdAt)} <FiClock /> {formatTime(receipt?.updatedAt || receipt?.createdAt)}</strong></div>
+        </section>
+
+        <footer className="receipt-footer">
+          <div className="receipt-actions">
+            <button type="button" onClick={() => downloadReceiptPdf(resolvedPaymentId).catch((error) => window.alert(error.message || 'Unable to download receipt.'))} disabled={!resolvedPaymentId}><FiDownload /> Download PDF</button>
+            <button type="button" onClick={handleShare}><FiShare2 /> Share</button>
+            <button type="button" onClick={() => window.print()}><FiPrinter /> Print</button>
           </div>
-        </div>
-      </div>
+          <p className="receipt-secure-note"><FiShield /> Verified transaction record</p>
+          {copiedReference && <p className="timeline-loading" role="status">Reference number copied.</p>}
+          {shareStatus && <p className="timeline-loading" role="status">{shareStatus}</p>}
+        </footer>
+      </article>
 
-      <div className="journey-actions premium-actions"><button type="button" className="secondary-btn" onClick={goBack}>Back</button></div>
+      <div className="journey-actions premium-actions receipt-back-action"><button type="button" className="secondary-btn" onClick={goBack}>Back</button></div>
     </div>
   );
 }
