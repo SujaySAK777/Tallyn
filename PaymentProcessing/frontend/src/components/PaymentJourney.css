@@ -290,6 +290,7 @@
 }
 
 .payment-journey .bank-form input,
+.payment-journey .bank-form select,
 .payment-journey .bank-form textarea,
 .payment-journey .history-search input,
 .payment-journey .history-filters input,
@@ -307,6 +308,7 @@
 }
 
 .payment-journey .bank-form input:focus,
+.payment-journey .bank-form select:focus,
 .payment-journey .bank-form textarea:focus {
   outline: none;
   border-color: #93c5fd;

@@ -33,7 +33,7 @@ function AuthorizePayment({
       setShowDuplicateWarning(true);
       return;
     }
-    onAuthorize?.();
+    onAuthorize?.(pin);
   };
 
   const focusPinInput = () => {

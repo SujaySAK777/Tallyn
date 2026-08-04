@@ -22,6 +22,16 @@ export default function BankDetails({
     });
   };
 
+  const handleSourceAccountChange = (event) => {
+    const nextSourceAccountId = event.target.value;
+    const nextSourceAccount = accounts.find((account) => String(account.accountId) === String(nextSourceAccountId));
+    setFormData({
+      ...formData,
+      sourceAccountId: nextSourceAccountId,
+      sourceAccountNumber: nextSourceAccount?.accountNumber || ''
+    });
+  };
+
   const lookupDestination = async () => {
     const accountNumber = String(formData.destinationAccountNumber || '').trim();
     if (!accountNumber) return;
@@ -57,11 +67,11 @@ export default function BankDetails({
           <div className="bank-form-grid">
             <div className="field-group">
               <label>Pay From</label>
-              <select name="sourceAccountId" value={formData.sourceAccountId || ''} onChange={handleChange}>
+              <select name="sourceAccountId" value={formData.sourceAccountId || ''} onChange={handleSourceAccountChange}>
                 <option value="">Select an account</option>
                 {accounts.map((account) => (
                   <option key={account.accountId} value={account.accountId}>
-                    {account.accountNumber} — {account.bankName} ({account.accountHolderName})
+                    {account.accountNumber} — {account.bankName}
                   </option>
                 ))}
               </select>
