@@ -5,8 +5,10 @@ import {
   FiCalendar,
   FiCheckCircle,
   FiClock,
+  FiDownload,
   FiEye,
   FiFilter,
+  FiFileText,
   FiSearch,
   FiSlash,
   FiXCircle
@@ -17,9 +19,13 @@ function getAccount(accounts, accountId) {
   return (accounts || []).find((account) => String(account.accountId) === String(accountId));
 }
 
-function getAccountLabel(accounts, accountId) {
+function getAccountNumberLabel(accounts, accountId, accountNumber) {
+  const explicitNumber = String(accountNumber || '').trim();
+  if (explicitNumber) {
+    return explicitNumber;
+  }
   const match = getAccount(accounts, accountId);
-  return match ? `${match.accountHolderName} (${match.accountNumber})` : accountId || 'Recipient';
+  return match?.accountNumber || 'Account unavailable';
 }
 
 function isCancelledRow(payment) {
@@ -44,6 +50,36 @@ function formatDateShort(value) {
     return '';
   }
   return new Date(`${value}T00:00:00`).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+}
+
+function formatDateOnly(value) {
+  if (!value) {
+    return 'N/A';
+  }
+  return new Date(value).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  });
+}
+
+function toDateOnlyValue(value) {
+  if (!value) {
+    return '';
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return '';
+  }
+  return parsed.toISOString().slice(0, 10);
+}
+
+function escapeCsvCell(value) {
+  const text = String(value ?? '');
+  if (/[",\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
 }
 
 const STAT_TILES = [
@@ -92,6 +128,12 @@ function TransactionHistory({
   const [dateOpen, setDateOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [dateMode, setDateMode] = useState(historyFromDate && historyFromDate === historyToDate ? 'single' : 'range');
+  const [statementOpen, setStatementOpen] = useState(false);
+  const [statementAccountId, setStatementAccountId] = useState(historySenderAccountId || 'All');
+  const [statementFromDate, setStatementFromDate] = useState(historyFromDate || '');
+  const [statementToDate, setStatementToDate] = useState(historyToDate || '');
+  const [statementStatus, setStatementStatus] = useState(historyStatusFilter || 'ALL');
+  const [statementMessage, setStatementMessage] = useState('');
 
   const pageNumbers = Array.from({ length: pagination.totalPages }, (_, index) => index);
   const activeExtraFilters = [historySenderAccountId !== 'All', Boolean(historyMinAmount), Boolean(historyMaxAmount)].filter(Boolean).length;
@@ -136,6 +178,75 @@ function TransactionHistory({
   const handleToggleAmountSort = (checked) => {
     setHistorySortAmountEnabled(checked);
     if (checked) setHistorySortPrimary('amount');
+  };
+
+  const statementRows = results.filter((payment) => {
+    if (statementAccountId !== 'All' && String(payment.sourceAccountId) !== String(statementAccountId)) {
+      return false;
+    }
+
+    if (statementStatus !== 'ALL' && String(payment.status || '').toUpperCase() !== statementStatus) {
+      return false;
+    }
+
+    const paymentDateValue = toDateOnlyValue(payment.createdAt);
+    if (statementFromDate && paymentDateValue && paymentDateValue < statementFromDate) {
+      return false;
+    }
+    if (statementToDate && paymentDateValue && paymentDateValue > statementToDate) {
+      return false;
+    }
+
+    return true;
+  });
+
+  const handleOpenStatement = () => {
+    setStatementAccountId(historySenderAccountId || 'All');
+    setStatementFromDate(historyFromDate || '');
+    setStatementToDate(historyToDate || '');
+    setStatementStatus(historyStatusFilter || 'ALL');
+    setStatementMessage('');
+    setStatementOpen((open) => !open);
+    setDateOpen(false);
+    setFilterOpen(false);
+  };
+
+  const downloadStatementCsv = () => {
+    if (statementRows.length === 0) {
+      setStatementMessage('No matching records for the selected statement filters.');
+      return;
+    }
+
+    const dataHeader = ['Date & Time', 'Reference ID', 'Sender Account Number', 'Receiver Account Number', 'Amount Deducted', 'Status'];
+    const dataRows = statementRows.map((payment) => [
+      formatDateTime(payment.createdAt),
+      payment.referenceNumber || '—',
+      getAccountNumberLabel(accounts, payment.sourceAccountId, payment.sourceAccountNumber),
+      getAccountNumberLabel(accounts, payment.destinationAccountId, payment.destinationAccountNumber),
+      currency(payment.amount),
+      payment.status || 'Created'
+    ]);
+
+    const csvContent = [dataHeader, ...dataRows]
+      .map((row) => row.map(escapeCsvCell).join(','))
+      .join('\n');
+
+    const statementAccount = statementAccountId === 'All'
+      ? 'all-accounts'
+      : String(getAccount(accounts, statementAccountId)?.accountNumber || statementAccountId);
+    const fileName = `Tallyn-Account-Statement-${statementAccount}-${new Date().toISOString().slice(0, 10)}.csv`;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = objectUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(objectUrl);
+
+    setStatementMessage(`Statement downloaded (${statementRows.length} records).`);
   };
 
   return (
@@ -213,7 +324,7 @@ function TransactionHistory({
                     <option value="All">All Accounts</option>
                     {(accounts || []).map((account) => (
                       <option key={account.accountId} value={account.accountId}>
-                        {account.accountHolderName} ({account.accountNumber})
+                        {account.bankName || 'Unknown Bank'}
                       </option>
                     ))}
                   </select>
@@ -263,6 +374,54 @@ function TransactionHistory({
               </button>
             )}
           </div>
+
+          <div className="history-popover-wrap">
+            <button type="button" className={`toolbar-btn ${statementOpen ? 'active' : ''}`} onClick={handleOpenStatement}>
+              <FiFileText /> Account Statement
+            </button>
+            {statementOpen && (
+              <>
+                <div className="statement-modal-backdrop" onClick={() => setStatementOpen(false)} />
+                <div
+                  className="history-popover statement-popover"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="Account Statement"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <label>
+                    Account
+                    <select value={statementAccountId} onChange={(event) => setStatementAccountId(event.target.value)}>
+                      <option value="All">All Accounts</option>
+                      {(accounts || []).map((account) => (
+                        <option key={account.accountId} value={account.accountId}>
+                          {account.bankName || 'Unknown Bank'}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>From date<input type="date" value={statementFromDate} onChange={(event) => setStatementFromDate(event.target.value)} /></label>
+                  <label>To date<input type="date" value={statementToDate} onChange={(event) => setStatementToDate(event.target.value)} /></label>
+                  <label>
+                    Status
+                    <select value={statementStatus} onChange={(event) => setStatementStatus(event.target.value)}>
+                      <option value="ALL">All</option>
+                      <option value="COMPLETED">Completed</option>
+                      <option value="FAILED">Failed</option>
+                      <option value="PENDING">Pending</option>
+                      <option value="CANCELLED">Cancelled</option>
+                    </select>
+                  </label>
+                  <div className="popover-actions statement-actions">
+                    <button type="button" className="popover-done statement-download-btn" onClick={downloadStatementCsv}>
+                      <FiDownload /> Download CSV
+                    </button>
+                  </div>
+                  {statementMessage && <p className="statement-message">{statementMessage}</p>}
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="history-table-wrap">
@@ -290,9 +449,9 @@ function TransactionHistory({
                 const cancelledRow = isCancelledRow(payment);
                 return (
                   <tr key={payment.paymentId}>
-                    <td>{formatDateTime(payment.createdAt)}</td>
-                    <td>{getAccountLabel(accounts, payment.sourceAccountId)}</td>
-                    <td>{getAccountLabel(accounts, payment.destinationAccountId)}</td>
+                    <td>{formatDateTime(payment.createdAt)}<small className="history-date-inline">{formatDateOnly(payment.createdAt)}</small></td>
+                    <td>{getAccountNumberLabel(accounts, payment.sourceAccountId, payment.sourceAccountNumber)}</td>
+                    <td>{getAccountNumberLabel(accounts, payment.destinationAccountId, payment.destinationAccountNumber)}</td>
                     <td>
                       <div className="method-cell">
                         <RiBankLine />

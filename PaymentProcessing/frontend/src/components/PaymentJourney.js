@@ -194,7 +194,7 @@ function PaymentJourney({
       return;
     }
     if (step === 'transaction') {
-      onStepChange('completed');
+      onClose();
       return;
     }
     onClose();

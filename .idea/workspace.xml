@@ -7,11 +7,11 @@
     <list default="true" id="c05d6212-cc28-40ef-8b40-fc6a3fd721b7" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/PaymentProcessing/frontend/src/Dashboard.css" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/frontend/src/Dashboard.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PaymentProcessing/frontend/src/components/BankDetails.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/frontend/src/components/BankDetails.jsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PaymentProcessing/frontend/src/components/PaymentJourney.css" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/frontend/src/components/PaymentJourney.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PaymentProcessing/frontend/src/components/SuccessPage.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/frontend/src/components/SuccessPage.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PaymentProcessing/frontend/src/components/PaymentJourney.js" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/frontend/src/components/PaymentJourney.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/PaymentProcessing/frontend/src/components/TransactionDetails.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/frontend/src/components/TransactionDetails.jsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PaymentProcessing/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/src/main/resources/application.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PaymentProcessing/frontend/src/components/TransactionHistory.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/frontend/src/components/TransactionHistory.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PaymentProcessing/src/main/java/com/example/PaymentProcessing/api/PaymentReceiptResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/src/main/java/com/example/PaymentProcessing/api/PaymentReceiptResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PaymentProcessing/src/main/java/com/example/PaymentProcessing/api/PaymentResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/src/main/java/com/example/PaymentProcessing/api/PaymentResponse.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -35,7 +35,7 @@
     &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;payment-history&quot;,
     &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
     &quot;last_opened_file_path&quot;: &quot;C:/Users/Administrator/Downloads/Tallyn&quot;
   }

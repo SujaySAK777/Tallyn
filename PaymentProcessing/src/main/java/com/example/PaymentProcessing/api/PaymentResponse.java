@@ -8,7 +8,13 @@ import java.time.LocalDateTime;
 public class PaymentResponse {
     private Long paymentId;
     private Long sourceAccountId;
+    private String sourceAccountNumber;
+    private String sourceBankName;
+    private String sourceAccountHolderName;
     private Long destinationAccountId;
+    private String destinationAccountNumber;
+    private String destinationBankName;
+    private String destinationAccountHolderName;
     private BigDecimal amount;
     private String currency;
     private PaymentStatus status;
@@ -24,7 +30,13 @@ public class PaymentResponse {
         PaymentResponse response = new PaymentResponse();
         response.setPaymentId(payment.getPaymentId());
         response.setSourceAccountId(payment.getSourceAccount().getAccountId());
+        response.setSourceAccountNumber(payment.getSourceAccount().getAccountNumber());
+        response.setSourceBankName(payment.getSourceAccount().getBankName());
+        response.setSourceAccountHolderName(payment.getSourceAccount().getAccountHolderName());
         response.setDestinationAccountId(payment.getDestinationAccount().getAccountId());
+        response.setDestinationAccountNumber(payment.getDestinationAccount().getAccountNumber());
+        response.setDestinationBankName(payment.getDestinationAccount().getBankName());
+        response.setDestinationAccountHolderName(payment.getDestinationAccount().getAccountHolderName());
         response.setAmount(payment.getAmount());
         response.setCurrency(payment.getCurrency());
         response.setStatus(payment.getStatus());
@@ -54,12 +66,60 @@ public class PaymentResponse {
         this.sourceAccountId = sourceAccountId;
     }
 
+    public String getSourceAccountNumber() {
+        return sourceAccountNumber;
+    }
+
+    public void setSourceAccountNumber(String sourceAccountNumber) {
+        this.sourceAccountNumber = sourceAccountNumber;
+    }
+
+    public String getSourceBankName() {
+        return sourceBankName;
+    }
+
+    public void setSourceBankName(String sourceBankName) {
+        this.sourceBankName = sourceBankName;
+    }
+
+    public String getSourceAccountHolderName() {
+        return sourceAccountHolderName;
+    }
+
+    public void setSourceAccountHolderName(String sourceAccountHolderName) {
+        this.sourceAccountHolderName = sourceAccountHolderName;
+    }
+
     public Long getDestinationAccountId() {
         return destinationAccountId;
     }
 
     public void setDestinationAccountId(Long destinationAccountId) {
         this.destinationAccountId = destinationAccountId;
+    }
+
+    public String getDestinationAccountNumber() {
+        return destinationAccountNumber;
+    }
+
+    public void setDestinationAccountNumber(String destinationAccountNumber) {
+        this.destinationAccountNumber = destinationAccountNumber;
+    }
+
+    public String getDestinationBankName() {
+        return destinationBankName;
+    }
+
+    public void setDestinationBankName(String destinationBankName) {
+        this.destinationBankName = destinationBankName;
+    }
+
+    public String getDestinationAccountHolderName() {
+        return destinationAccountHolderName;
+    }
+
+    public void setDestinationAccountHolderName(String destinationAccountHolderName) {
+        this.destinationAccountHolderName = destinationAccountHolderName;
     }
 
     public BigDecimal getAmount() {

@@ -2982,6 +2982,25 @@
   box-shadow: 0 20px 40px rgba(20, 30, 70, 0.14);
 }
 
+.statement-popover {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 330px;
+  width: min(720px, calc(100vw - 28px));
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  z-index: 40;
+}
+
+.statement-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.32);
+  z-index: 35;
+}
+
 .history-popover label {
   display: grid;
   gap: 6px;
@@ -3031,6 +3050,129 @@
 
 .popover-done:hover {
   box-shadow: 0 10px 20px rgba(75, 92, 255, 0.25);
+}
+
+.statement-preview {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #e2e8f7;
+  border-radius: 12px;
+  background: #f8fbff;
+}
+
+.statement-preview div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #587097;
+}
+
+.statement-preview strong {
+  color: #253763;
+}
+
+.statement-actions {
+  align-items: center;
+}
+
+.statement-download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.statement-message {
+  margin: 0;
+  font-size: 12px;
+  color: #2f45ea;
+  font-weight: 700;
+}
+
+.statement-preview-table-wrap {
+  overflow: auto;
+  border: 1px solid #e2e8f7;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.statement-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 320px;
+}
+
+.statement-preview-table th,
+.statement-preview-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid #eef2fb;
+  font-size: 12px;
+}
+
+.statement-preview-table th {
+  background: #f8faff;
+  color: #334064;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.statement-preview-table tr:last-child td {
+  border-bottom: none;
+}
+
+.statement-pagination-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.statement-page-size {
+  font-size: 12px;
+}
+
+.statement-page-size select {
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.statement-pagination {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.statement-pagination button,
+.history-pagination button {
+  min-width: 30px;
+  height: 30px;
+  border: 1px solid #d8dfef;
+  background: #ffffff;
+  color: #42506f;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.statement-pagination button.active,
+.history-pagination button.active {
+  border-color: #4b5cff;
+  background: #4b5cff;
+  color: #ffffff;
+}
+
+.history-pagination.statement-pagination button {
+  flex: 0 0 auto;
 }
 
 .method-cell {
@@ -3085,6 +3227,13 @@
 
 .history-table td {
   color: #42506f;
+}
+
+.history-date-inline {
+  display: block;
+  margin-top: 2px;
+  color: #7e8aa8;
+  font-size: 11px;
 }
 
 .status-pill {
