@@ -31,6 +31,9 @@ public class GroupSplitMember {
     @Column(name = "seen", nullable = false)
     private boolean seen;
 
+    @Column(name = "paid", nullable = false)
+    private boolean paid;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -54,6 +57,9 @@ public class GroupSplitMember {
 
     public boolean isSeen() { return seen; }
     public void setSeen(boolean seen) { this.seen = seen; }
+
+    public boolean isPaid() { return paid; }
+    public void setPaid(boolean paid) { this.paid = paid; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
