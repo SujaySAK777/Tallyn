@@ -34,6 +34,7 @@ export default function BankDetails({
   };
 
   const transferAmount = Number(formData.amount);
+  const balanceAfterPayment = sourceBalance - (Number.isFinite(transferAmount) ? transferAmount : 0);
   const isValid =
     sourceIdValid &&
     destinationIdValid &&
@@ -122,6 +123,12 @@ export default function BankDetails({
                 onChange={handleChange}
                 placeholder="1000"
               />
+              {Number.isFinite(transferAmount) && transferAmount > 0 && (
+                <div className={`live-balance-preview ${balanceAfterPayment < 0 ? 'insufficient' : ''}`}>
+                  <span>Balance after payment</span>
+                  <strong>INR {balanceAfterPayment.toLocaleString('en-IN')}</strong>
+                </div>
+              )}
             </div>
 
             <div className="field-group field-span-2">

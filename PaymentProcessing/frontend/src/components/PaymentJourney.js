@@ -12,7 +12,6 @@ import * as ProcessingPaymentModule from './ProcessingPayment';
 import * as ReviewPaymentModule from './ReviewPayment';
 import * as SuccessPageModule from './SuccessPage';
 import * as TransactionDetailsModule from './TransactionDetails';
-import * as TransactionHistoryModule from './TransactionHistory';
 
 
 
@@ -39,7 +38,6 @@ const ProcessingPayment = resolveComponent(ProcessingPaymentModule, 'ProcessingP
 const ReviewPayment = resolveComponent(ReviewPaymentModule, 'ReviewPayment');
 const SuccessPage = resolveComponent(SuccessPageModule, 'SuccessPage');
 const TransactionDetails = resolveComponent(TransactionDetailsModule, 'TransactionDetails');
-const TransactionHistory = resolveComponent(TransactionHistoryModule, 'TransactionHistory');
 
 function PaymentJourney({
   step,
@@ -60,16 +58,16 @@ function PaymentJourney({
   payments,
   selectedDestination,
   selectedAmount,
+  sourceBalance = 0,
   onStepChange
 }) {
   const [authenticating, setAuthenticating] = useState(false);
   const [processingStage, setProcessingStage] = useState(0);
   const [completedView, setCompletedView] = useState('processing');
-  const [historyQuery, setHistoryQuery] = useState('');
-  const [historyStatus, setHistoryStatus] = useState('All');
-  const [historyMethod, setHistoryMethod] = useState('All');
-  const [historyDate, setHistoryDate] = useState('');
-  const [historyAmount, setHistoryAmount] = useState('');
+  const [monthlyBudget, setMonthlyBudget] = useState(() => {
+    const savedBudget = Number(window.localStorage.getItem('tallyn-monthly-payment-budget'));
+    return Number.isFinite(savedBudget) && savedBudget > 0 ? savedBudget : 50000;
+  });
 
   const flowSteps = [
     { id: 'method', label: 'Method' },
@@ -85,6 +83,36 @@ function PaymentJourney({
   const amountValue = Number(formState.amount || selectedAmount || 0);
   const grandTotal = amountValue;
   const referenceNumber = formState.referenceNumber || formState.reference || `REF${Date.now()}`;
+  const monthlySpent = useMemo(() => {
+    const now = new Date();
+    return payments
+      .filter((payment) => {
+        const createdAt = new Date(payment.createdAt || 0);
+        const status = String(payment.status || '').toUpperCase();
+        return createdAt.getFullYear() === now.getFullYear()
+          && createdAt.getMonth() === now.getMonth()
+          && status !== 'FAILED'
+          && status !== 'CANCELLED';
+      })
+      .reduce((total, payment) => total + Number(payment.amount || 0), 0);
+  }, [payments]);
+
+  const updateMonthlyBudget = (value) => {
+    const nextBudget = Number(value);
+    if (!Number.isFinite(nextBudget) || nextBudget < 0) return;
+    setMonthlyBudget(nextBudget);
+    window.localStorage.setItem('tallyn-monthly-payment-budget', String(nextBudget));
+  };
+
+  const duplicatePayment = useMemo(() => {
+    const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+    return payments.find((payment) => (
+      String(payment.destinationAccountId) === String(formState.destinationAccountId)
+      && Number(payment.amount) === amountValue
+      && new Date(payment.createdAt || 0).getTime() >= fiveMinutesAgo
+      && !['FAILED', 'CANCELLED'].includes(String(payment.status || '').toUpperCase())
+    ));
+  }, [amountValue, formState.destinationAccountId, payments]);
 
   useEffect(() => {
     if (step !== 'completed') {
@@ -160,7 +188,7 @@ function PaymentJourney({
       onStepChange('authorize');
       return;
     }
-    if (step === 'transaction' || step === 'history') {
+    if (step === 'transaction') {
       onStepChange('completed');
       return;
     }
@@ -201,33 +229,10 @@ function PaymentJourney({
     }
   };
 
-  const filteredHistory = useMemo(() => {
-    const query = historyQuery.trim().toLowerCase();
-    const minAmount = Number(historyAmount || 0);
-
-    return payments.filter((payment) => {
-      const dateText = payment.createdAt ? new Date(payment.createdAt).toISOString().slice(0, 10) : '';
-      const status = String(payment.status || 'Created').toUpperCase();
-      const methodLabel = 'BANK TRANSFER';
-      const amount = Number(payment.amount || 0);
-      const haystack = `${payment.paymentId} ${payment.referenceNumber || ''} ${payment.destinationAccountId || ''} ${payment.remarks || ''}`.toLowerCase();
-
-      const matchesQuery = !query || haystack.includes(query);
-      const matchesStatus = historyStatus === 'All' || status === historyStatus.toUpperCase();
-      const matchesMethod = historyMethod === 'All' || methodLabel === historyMethod.toUpperCase();
-      const matchesDate = !historyDate || dateText === historyDate;
-      const matchesAmount = !minAmount || amount >= minAmount;
-
-      return matchesQuery && matchesStatus && matchesMethod && matchesDate && matchesAmount;
-    });
-  }, [historyAmount, historyDate, historyMethod, historyQuery, historyStatus, payments]);
-
   const renderBreadcrumb = () => {
     const items = ['Dashboard', 'Make Payment'];
     if (step === 'transaction') {
       items.push('Transaction Details');
-    } else if (step === 'history') {
-      items.push('Transaction History');
     }
 
     return (
@@ -296,8 +301,7 @@ function PaymentJourney({
       setFormData={setBankFormData}
       previousStep={goBack}
       nextStep={goNext}
-      balance={1250000}
-      accounts={accounts}
+      sourceBalance={sourceBalance}
     />
   );
 
@@ -311,6 +315,10 @@ function PaymentJourney({
       currency={currency}
       authenticating={authenticating}
       submitting={submitting}
+      sourceBalance={sourceBalance}
+      monthlySpent={monthlySpent}
+      monthlyBudget={monthlyBudget}
+      onBudgetChange={updateMonthlyBudget}
       onBack={goBack}
       onConfirm={goNext}
     />
@@ -325,6 +333,7 @@ function PaymentJourney({
       currency={currency}
       authenticating={authenticating}
       submitting={submitting}
+      duplicatePayment={duplicatePayment}
       onBack={goBack}
       onAuthorize={handleAuthorize}
     />
@@ -367,24 +376,6 @@ function PaymentJourney({
     />
   );
 
-  const renderHistoryPage = () => (
-    <TransactionHistory
-      historyQuery={historyQuery}
-      setHistoryQuery={setHistoryQuery}
-      historyStatus={historyStatus}
-      setHistoryStatus={setHistoryStatus}
-      historyMethod={historyMethod}
-      setHistoryMethod={setHistoryMethod}
-      historyDate={historyDate}
-      setHistoryDate={setHistoryDate}
-      historyAmount={historyAmount}
-      setHistoryAmount={setHistoryAmount}
-      filteredHistory={filteredHistory}
-      currency={currency}
-      onStepChange={onStepChange}
-    />
-  );
-
   const renderFailedPage = () => (
     <FailedPayment
       errorMessage={errorMessage}
@@ -399,7 +390,6 @@ function PaymentJourney({
     if (step === 'authorize' || step === 'processing') return renderAuthorizePage();
     if (step === 'completed') return renderCompletedPage();
     if (step === 'transaction') return renderTransactionPage();
-    if (step === 'history') return renderHistoryPage();
     if (step === 'failed') return renderFailedPage();
     return renderMethodPage();
   };

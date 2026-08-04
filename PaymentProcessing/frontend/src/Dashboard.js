@@ -25,9 +25,16 @@ import {
 import { MdOutlinePayments } from 'react-icons/md';
 import './Dashboard.css';
 import PaymentJourney from './components/PaymentJourney';
+import TransactionHistory from './components/TransactionHistory';
 import { apiRequest } from './services/api';
 import SupportChatbot from './SupportChatbot';
 import { initialFormState, languageOptions, translations } from './dashboardContent';
+
+const HISTORY_STATUS_GROUPS = {
+  COMPLETED: ['COMPLETED'],
+  FAILED: ['FAILED'],
+  PENDING: ['CREATED', 'VALIDATED', 'PROCESSING']
+};
 
 function currency(amount) {
   const value = Number(amount || 0);
@@ -50,6 +57,46 @@ function formatDateTime(input) {
     hour: '2-digit',
     minute: '2-digit'
   });
+}
+
+function getCancelledTransactionMatches(scheduledPayments, accounts, filters) {
+  const { query, fromDate, toDate, minAmount, maxAmount, senderAccountId } = filters;
+  const from = fromDate ? new Date(`${fromDate}T00:00:00`) : null;
+  const to = toDate ? new Date(`${toDate}T23:59:59`) : null;
+  const min = minAmount ? Number(minAmount) : null;
+  const max = maxAmount ? Number(maxAmount) : null;
+
+  return scheduledPayments
+    .filter((payment) => String(payment.status || '').toUpperCase() === 'CANCELLED')
+    .map((payment) => ({
+      paymentId: `sch-${payment.scheduledPaymentId}`,
+      referenceNumber: payment.referenceNumber,
+      status: 'CANCELLED',
+      amount: payment.amount,
+      currency: payment.currency,
+      remarks: payment.remarks,
+      sourceAccountId: payment.sourceAccountId,
+      destinationAccountId: payment.destinationAccountId,
+      createdAt: payment.updatedAt || payment.createdAt || payment.scheduledAt
+    }))
+    .filter((payment) => {
+      const amount = Number(payment.amount || 0);
+      const createdAt = payment.createdAt ? new Date(payment.createdAt) : null;
+
+      if (query) {
+        const receiver = accounts.find((account) => String(account.accountId) === String(payment.destinationAccountId));
+        const haystack = `${payment.referenceNumber || ''} ${payment.remarks || ''} ${amount} ${receiver?.accountHolderName || ''}`.toLowerCase();
+        if (!haystack.includes(query)) return false;
+      }
+      if (from && (!createdAt || createdAt < from)) return false;
+      if (to && (!createdAt || createdAt > to)) return false;
+      if (min !== null && amount < min) return false;
+      if (max !== null && amount > max) return false;
+      if (senderAccountId && senderAccountId !== 'All') {
+        if (String(payment.sourceAccountId) !== String(senderAccountId)) return false;
+      }
+      return true;
+    });
 }
 
 function getPaymentCategory(payment) {
@@ -80,6 +127,28 @@ function Dashboard({ session, onLogout }) {
   const [searchText, setSearchText] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('This Month');
   const [activeModal, setActiveModal] = useState('');
+  const [activeSection, setActiveSection] = useState('dashboard');
+  const [historyQuery, setHistoryQuery] = useState('');
+  const [historyStatusFilter, setHistoryStatusFilter] = useState(null);
+  const [historyFromDate, setHistoryFromDate] = useState('');
+  const [historyToDate, setHistoryToDate] = useState('');
+  const [historyMinAmount, setHistoryMinAmount] = useState('');
+  const [historyMaxAmount, setHistoryMaxAmount] = useState('');
+  const [historySenderAccountId, setHistorySenderAccountId] = useState('All');
+  const [historySortDateEnabled, setHistorySortDateEnabled] = useState(true);
+  const [historySortDateDir, setHistorySortDateDir] = useState('desc');
+  const [historySortAmountEnabled, setHistorySortAmountEnabled] = useState(false);
+  const [historySortAmountDir, setHistorySortAmountDir] = useState('desc');
+  const [historySortPrimary, setHistorySortPrimary] = useState('date');
+  const [historyPage, setHistoryPage] = useState(0);
+  const [historyPageSize, setHistoryPageSize] = useState(10);
+  const [historyRefreshTick, setHistoryRefreshTick] = useState(0);
+  const [historyResults, setHistoryResults] = useState([]);
+  const [historyPagination, setHistoryPagination] = useState({ page: 0, size: 10, totalElements: 0, totalPages: 0 });
+  const [historySummary, setHistorySummary] = useState({
+    total: 0, completed: 0, failed: 0, pending: 0, cancelled: 0,
+    totalAmount: 0, completedAmount: 0, failedAmount: 0, pendingAmount: 0, cancelledAmount: 0
+  });
   const [scheduleStep, setScheduleStep] = useState('details');
   const [cancellingId, setCancellingId] = useState(null);
   const [paymentJourneyOpen, setPaymentJourneyOpen] = useState(false);
@@ -288,10 +357,131 @@ function Dashboard({ session, onLogout }) {
     const pollInterval = window.setInterval(() => {
       loadPayments({ silent: true });
       loadScheduledPayments();
+      setHistoryRefreshTick((tick) => tick + 1);
     }, 15000);
 
     return () => window.clearInterval(pollInterval);
   }, []);
+
+  useEffect(() => {
+    setHistoryPage(0);
+  }, [historyQuery, historyStatusFilter, historyFromDate, historyToDate, historyMinAmount, historyMaxAmount, historySenderAccountId, historySortDateEnabled, historySortDateDir, historySortAmountEnabled, historySortAmountDir, historySortPrimary, historyPageSize]);
+
+  useEffect(() => {
+    if (activeSection !== 'transactions') {
+      return;
+    }
+
+    let cancelled = false;
+    const debounce = window.setTimeout(async () => {
+      const baseParams = new URLSearchParams();
+      if (historyFromDate) baseParams.set('fromDate', historyFromDate);
+      if (historyToDate) baseParams.set('toDate', historyToDate);
+      if (historyMinAmount) baseParams.set('minAmount', historyMinAmount);
+      if (historyMaxAmount) baseParams.set('maxAmount', historyMaxAmount);
+      if (historySenderAccountId && historySenderAccountId !== 'All') baseParams.set('senderAccountId', historySenderAccountId);
+      if (historyQuery.trim()) baseParams.set('search', historyQuery.trim());
+
+      const searchParams = new URLSearchParams(baseParams);
+      (HISTORY_STATUS_GROUPS[historyStatusFilter] || []).forEach((value) => searchParams.append('status', value));
+      if (historySortDateEnabled) searchParams.set('sortDateDir', historySortDateDir);
+      if (historySortAmountEnabled) searchParams.set('sortAmountDir', historySortAmountDir);
+      searchParams.set('sortPrimary', historySortPrimary);
+      searchParams.set('page', String(historyPage));
+      searchParams.set('size', String(historyPageSize));
+
+      const [searchOutcome, summaryOutcome] = await Promise.allSettled([
+        apiRequest(`/payments/search?${searchParams.toString()}`),
+        apiRequest(`/payments/summary?${baseParams.toString()}`)
+      ]);
+      if (cancelled) return;
+
+      const cancelledMatches = getCancelledTransactionMatches(scheduledPayments, accounts, {
+        query: historyQuery.trim().toLowerCase(),
+        fromDate: historyFromDate,
+        toDate: historyToDate,
+        minAmount: historyMinAmount,
+        maxAmount: historyMaxAmount,
+        senderAccountId: historySenderAccountId
+      });
+      const cancelledCount = cancelledMatches.length;
+      const cancelledAmount = cancelledMatches.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+
+      const compareDate = (a, b) => {
+        const direction = historySortDateDir === 'asc' ? 1 : -1;
+        return (new Date(a.createdAt || 0) - new Date(b.createdAt || 0)) * direction;
+      };
+      const compareAmount = (a, b) => {
+        const direction = historySortAmountDir === 'asc' ? 1 : -1;
+        return (Number(a.amount || 0) - Number(b.amount || 0)) * direction;
+      };
+      const comparators = historySortPrimary === 'amount'
+        ? [historySortAmountEnabled && compareAmount, historySortDateEnabled && compareDate]
+        : [historySortDateEnabled && compareDate, historySortAmountEnabled && compareAmount];
+      const activeComparators = comparators.filter(Boolean);
+      const sortMerged = (items) => [...items].sort((a, b) => {
+        for (const compare of activeComparators) {
+          const diff = compare(a, b);
+          if (diff !== 0) return diff;
+        }
+        return activeComparators.length === 0 ? new Date(b.createdAt || 0) - new Date(a.createdAt || 0) : 0;
+      });
+
+      if (historyStatusFilter === 'CANCELLED') {
+        const sortedCancelled = sortMerged(cancelledMatches);
+        const start = historyPage * historyPageSize;
+        setHistoryResults(sortedCancelled.slice(start, start + historyPageSize));
+        setHistoryPagination({
+          page: historyPage,
+          size: historyPageSize,
+          totalElements: cancelledCount,
+          totalPages: Math.ceil(cancelledCount / historyPageSize) || 0
+        });
+      } else if (searchOutcome.status === 'fulfilled') {
+        const searchData = searchOutcome.value;
+        const realItems = Array.isArray(searchData?.items) ? searchData.items : [];
+        const includeCancelled = historyStatusFilter === null;
+        const merged = sortMerged([...realItems, ...(includeCancelled ? cancelledMatches : [])]);
+
+        setHistoryResults(merged);
+        setHistoryPagination({
+          page: searchData?.page ?? 0,
+          size: searchData?.size ?? historyPageSize,
+          totalElements: searchData?.totalElements ?? 0,
+          totalPages: searchData?.totalPages ?? 0
+        });
+      } else {
+        setHistoryResults([]);
+        setHistoryPagination({ page: 0, size: historyPageSize, totalElements: 0, totalPages: 0 });
+      }
+
+      if (summaryOutcome.status === 'fulfilled') {
+        const summaryData = summaryOutcome.value;
+        setHistorySummary({
+          total: summaryData?.total ?? 0,
+          completed: summaryData?.completed ?? 0,
+          failed: summaryData?.failed ?? 0,
+          pending: summaryData?.pending ?? 0,
+          cancelled: cancelledCount,
+          totalAmount: summaryData?.totalAmount ?? 0,
+          completedAmount: summaryData?.completedAmount ?? 0,
+          failedAmount: summaryData?.failedAmount ?? 0,
+          pendingAmount: summaryData?.pendingAmount ?? 0,
+          cancelledAmount
+        });
+      } else {
+        setHistorySummary({
+          total: 0, completed: 0, failed: 0, pending: 0, cancelled: cancelledCount,
+          totalAmount: 0, completedAmount: 0, failedAmount: 0, pendingAmount: 0, cancelledAmount
+        });
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(debounce);
+    };
+  }, [activeSection, historyQuery, historyStatusFilter, historyFromDate, historyToDate, historyMinAmount, historyMaxAmount, historySenderAccountId, historySortDateEnabled, historySortDateDir, historySortAmountEnabled, historySortAmountDir, historySortPrimary, historyPage, historyPageSize, historyRefreshTick, scheduledPayments, accounts]);
 
   const cancelledScheduledAsTransactions = useMemo(() => {
     return scheduledPayments
@@ -381,6 +571,12 @@ function Dashboard({ session, onLogout }) {
     };
   }, [payments, selectedMonth]);
 
+  const goToSection = (section) => {
+    setActiveSection(section);
+    setActiveModal('');
+    setPaymentJourneyOpen(false);
+  };
+
   const openPaymentJourney = () => {
     const linkedAccount = accounts.find((account) => String(account.accountId) === String(session?.accountId))
       || accounts.find((account) => account.accountNumber === session?.accountNumber)
@@ -463,13 +659,6 @@ function Dashboard({ session, onLogout }) {
     setBalanceSubmitting(false);
   };
 
-  const goToUpcomingPayments = () => {
-    closeModal();
-    window.setTimeout(() => {
-      document.getElementById('upcoming-payments-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 150);
-  };
-
   const openAccountFlow = () => {
     setActiveModal('account');
     setAccountMode('simulate');
@@ -534,6 +723,47 @@ function Dashboard({ session, onLogout }) {
   const handleAccountFormChange = (event) => {
     const { name, value } = event.target;
     setAccountForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleCheckBalanceFormChange = (event) => {
+    const { name, value } = event.target;
+    setCheckBalanceForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const submitCheckBalance = async () => {
+    const accountNumber = String(checkBalanceForm.accountNumber || '').trim();
+    const tpin = String(checkBalanceForm.tpin || '').trim();
+
+    setCheckBalanceError('');
+    setCheckBalanceResult(null);
+
+    if (!accountNumber) {
+      setCheckBalanceError('Account number is required.');
+      return;
+    }
+
+    if (!/^\d{6}$/.test(tpin)) {
+      setCheckBalanceError('TPIN must be exactly 6 digits.');
+      return;
+    }
+
+    setCheckBalanceSubmitting(true);
+    try {
+      const response = await apiRequest('/accounts/balance', {
+        method: 'POST',
+        body: JSON.stringify({
+          account_number: accountNumber,
+          tpin
+        })
+      });
+
+      setCheckBalanceResult(response);
+      setCheckBalanceForm((prev) => ({ ...prev, tpin: '' }));
+    } catch (err) {
+      setCheckBalanceError(err.message || 'Unable to fetch balance.');
+    } finally {
+      setCheckBalanceSubmitting(false);
+    }
   };
 
   const validateMobile = (mobileNumber) => /^\d{10}$/.test(String(mobileNumber || '').trim());
@@ -899,6 +1129,8 @@ function Dashboard({ session, onLogout }) {
       .filter((account) => String(account.status || '').toUpperCase() === 'ACTIVE')
       .sort((a, b) => (a.accountNumber || '').localeCompare(b.accountNumber || ''));
   }, [accounts]);
+  const journeySourceAccount = accounts.find((account) => String(account.accountId) === String(formState.sourceAccountId));
+  const journeySourceBalance = Number(journeySourceAccount?.balance || 0);
 
   const getAccountLabel = (accountId) => {
     const match = accounts.find((account) => String(account.accountId) === String(accountId));
@@ -920,9 +1152,12 @@ function Dashboard({ session, onLogout }) {
         </div>
 
         <nav className="menu">
-          <button className="menu-item active">{t('dashboard')}</button>
+          <button className={`menu-item ${activeSection === 'dashboard' ? 'active' : ''}`} onClick={() => goToSection('dashboard')}>{t('dashboard')}</button>
           <button className="menu-item">{t('payments')}</button>
-          <button className="menu-item">{t('transactions')}</button>
+          <button className={`menu-item ${activeSection === 'transactions' ? 'active' : ''}`} onClick={() => goToSection('transactions')}>Payment History</button>
+          <button className="menu-item">{t('beneficiaries')}</button>
+          <button className="menu-item">Analytics</button>
+          <button className="menu-item">Rewards</button>
           <button className="menu-item" onClick={() => setActiveModal('settings')}>Settings</button>
         </nav>
 
@@ -1288,13 +1523,15 @@ function Dashboard({ session, onLogout }) {
             t={t}
             errorMessage={error}
             payments={payments}
+            accounts={accounts}
             selectedDestination={formState.destinationAccountId || 'Not added yet'}
             selectedAmount={formState.amount || '0'}
+            sourceBalance={journeySourceBalance}
             onStepChange={setPaymentJourneyStep}
           />
         )}
 
-        {!paymentJourneyOpen && activeModal !== 'schedule' && (
+        {activeSection === 'dashboard' && !paymentJourneyOpen && activeModal !== 'schedule' && (
           <>
             <header className="topbar">
               <div className="search-wrap">
@@ -1478,6 +1715,49 @@ function Dashboard({ session, onLogout }) {
           </>
         )}
 
+        {activeSection === 'transactions' && !paymentJourneyOpen && activeModal !== 'schedule' && (
+          <section className="payment-journey">
+            <div className="journey-breadcrumb">
+              <span>{t('dashboard')}<FiChevronRight /></span>
+              <span className="current">Payments History</span>
+            </div>
+            <TransactionHistory
+              summary={historySummary}
+              historyStatusFilter={historyStatusFilter}
+              setHistoryStatusFilter={setHistoryStatusFilter}
+              historyQuery={historyQuery}
+              setHistoryQuery={setHistoryQuery}
+              historyFromDate={historyFromDate}
+              setHistoryFromDate={setHistoryFromDate}
+              historyToDate={historyToDate}
+              setHistoryToDate={setHistoryToDate}
+              historyMinAmount={historyMinAmount}
+              setHistoryMinAmount={setHistoryMinAmount}
+              historyMaxAmount={historyMaxAmount}
+              setHistoryMaxAmount={setHistoryMaxAmount}
+              historySenderAccountId={historySenderAccountId}
+              setHistorySenderAccountId={setHistorySenderAccountId}
+              historySortDateEnabled={historySortDateEnabled}
+              setHistorySortDateEnabled={setHistorySortDateEnabled}
+              historySortDateDir={historySortDateDir}
+              setHistorySortDateDir={setHistorySortDateDir}
+              historySortAmountEnabled={historySortAmountEnabled}
+              setHistorySortAmountEnabled={setHistorySortAmountEnabled}
+              historySortAmountDir={historySortAmountDir}
+              setHistorySortAmountDir={setHistorySortAmountDir}
+              historySortPrimary={historySortPrimary}
+              setHistorySortPrimary={setHistorySortPrimary}
+              historyPageSize={historyPageSize}
+              setHistoryPageSize={setHistoryPageSize}
+              accounts={accounts}
+              results={historyResults}
+              pagination={historyPagination}
+              onPageChange={setHistoryPage}
+              currency={currency}
+            />
+          </section>
+        )}
+
         {toast && <div className="toast-msg">{toast}</div>}
 
         {activeModal === 'groupSplit' && (
@@ -1559,16 +1839,6 @@ function Dashboard({ session, onLogout }) {
                   {t('createSplit')}
                 </button>
               </div>
-            </div>
-          </div>
-        )}
-
-        {(activeModal === 'profile' || activeModal === 'settings') && (
-          <div className="modal-overlay" onClick={closeModal}>
-            <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-              <h3>{activeModal === 'profile' ? 'My profile' : 'Settings'}</h3>
-              {activeModal === 'profile' ? <div className="profile-details"><p><b>Name</b><span>{customerName}</span></p><p><b>Email</b><span>{session?.email}</span></p><p><b>Account status</b><span>Active</span></p></div> : <div className="profile-details"><p><b>Theme</b><button className="link-btn" onClick={toggleTheme}>Switch to {theme === 'light' ? 'dark' : 'light'} mode</button></p><p><b>Language</b><span>{languageOptions.find((option) => option.code === language)?.label}</span></p><p><b>Notifications</b><span>Enabled</span></p></div>}
-              <div className="modal-actions"><button className="primary-btn" onClick={closeModal}>Done</button></div>
             </div>
           </div>
         )}

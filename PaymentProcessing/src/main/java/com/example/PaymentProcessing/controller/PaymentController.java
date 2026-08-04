@@ -4,10 +4,15 @@ import com.example.PaymentProcessing.api.CreatePaymentRequest;
 import com.example.PaymentProcessing.api.PaymentHistoryResponse;
 import com.example.PaymentProcessing.api.PaymentReceiptResponse;
 import com.example.PaymentProcessing.api.PaymentResponse;
+import com.example.PaymentProcessing.api.PaymentSearchResponse;
+import com.example.PaymentProcessing.api.PaymentSummaryResponse;
 import com.example.PaymentProcessing.api.UpdatePaymentStatusRequest;
 import com.example.PaymentProcessing.model.PaymentStatus;
 import com.example.PaymentProcessing.service.PaymentService;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -47,6 +52,36 @@ public class PaymentController {
             @RequestParam(required = false) Long customerId
     ) {
         return paymentService.listPayments(status, customerId);
+    }
+
+    @GetMapping("/search")
+    public PaymentSearchResponse search(
+            @RequestParam(required = false) List<PaymentStatus> status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(required = false) BigDecimal minAmount,
+            @RequestParam(required = false) BigDecimal maxAmount,
+            @RequestParam(required = false) Long senderAccountId,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String sortDateDir,
+            @RequestParam(required = false) String sortAmountDir,
+            @RequestParam(required = false) String sortPrimary,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return paymentService.searchPayments(status, fromDate, toDate, minAmount, maxAmount, senderAccountId, search, sortDateDir, sortAmountDir, sortPrimary, page, size);
+    }
+
+    @GetMapping("/summary")
+    public PaymentSummaryResponse summary(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(required = false) BigDecimal minAmount,
+            @RequestParam(required = false) BigDecimal maxAmount,
+            @RequestParam(required = false) Long senderAccountId,
+            @RequestParam(required = false) String search
+    ) {
+        return paymentService.getSummary(fromDate, toDate, minAmount, maxAmount, senderAccountId, search);
     }
 
     @GetMapping("/{paymentId}/history")
