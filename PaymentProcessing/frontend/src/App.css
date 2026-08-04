@@ -39,6 +39,11 @@
   font-size: 15px;
 }
 
+.brand-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
 .menu {
   display: flex;
   flex-direction: column;

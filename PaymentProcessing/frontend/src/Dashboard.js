@@ -1252,7 +1252,12 @@ function Dashboard({ session, onLogout }) {
     <div className={`smartpay-app ${theme === 'dark' ? 'dark-theme' : ''}`}>
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-icon">S</div>
+          <div className="brand-icon">
+            <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 17.5L14 21.5L26 8" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M6 17.5L14 21.5L11.5 12.5L26 8" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" opacity="0.55" />
+            </svg>
+          </div>
           <span>{t('appName')}</span>
         </div>
 
