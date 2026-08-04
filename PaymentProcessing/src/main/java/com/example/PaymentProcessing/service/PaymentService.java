@@ -18,6 +18,7 @@ import com.example.PaymentProcessing.repository.AccountRepository;
 import com.example.PaymentProcessing.repository.PaymentHistoryRepository;
 import com.example.PaymentProcessing.repository.PaymentRepository;
 import com.example.PaymentProcessing.repository.PaymentSpecifications;
+import com.example.PaymentProcessing.repository.CustomerRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
@@ -54,17 +55,23 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final PaymentHistoryRepository paymentHistoryRepository;
     private final EntityManager entityManager;
+    private final EmailService emailService;
+    private final CustomerRepository customerRepository;
 
     public PaymentService(
             AccountRepository accountRepository,
             PaymentRepository paymentRepository,
             PaymentHistoryRepository paymentHistoryRepository,
-            EntityManager entityManager
+            EntityManager entityManager,
+            EmailService emailService,
+            CustomerRepository customerRepository
     ) {
         this.accountRepository = accountRepository;
         this.paymentRepository = paymentRepository;
         this.paymentHistoryRepository = paymentHistoryRepository;
         this.entityManager = entityManager;
+        this.emailService = emailService;
+        this.customerRepository = customerRepository;
     }
 
     private static final BCryptPasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder();
@@ -361,7 +368,64 @@ public class PaymentService {
 
         Payment saved = paymentRepository.save(payment);
         saveHistory(saved, current, next, request.getRemarks());
+        // Send notifications asynchronously where appropriate. Failures are logged and do not affect payment state.
+        if (next == PaymentStatus.COMPLETED) {
+            try {
+                var source = saved.getSourceAccount();
+                var dest = saved.getDestinationAccount();
+                String senderEmail = source.getCustomerId() == null ? null : customerRepository.findById(source.getCustomerId()).map(c -> c.getEmail()).orElse(null);
+                String recipientEmail = dest.getCustomerId() == null ? null : customerRepository.findById(dest.getCustomerId()).map(c -> c.getEmail()).orElse(null);
+                String amount = saved.getAmount().toPlainString();
+                String ref = saved.getReferenceNumber();
+                String srcName = source.getAccountHolderName();
+                String dstName = dest.getAccountHolderName();
+                String remaining = source.getBalance() == null ? "" : source.getBalance().toPlainString();
+                String available = dest.getBalance() == null ? "" : dest.getBalance().toPlainString();
+                emailService.sendMoneyDeductedEmail(senderEmail, srcName, amount, dstName, ref, remaining);
+                emailService.sendMoneyReceivedEmail(recipientEmail, dstName, amount, srcName, ref, available);
+            } catch (Exception ex) {
+                // EmailService handles its own logging; swallow any unexpected errors here.
+            }
+        } else if (next == PaymentStatus.FAILED) {
+            try {
+                var source = saved.getSourceAccount();
+                String senderEmail = source.getCustomerId() == null ? null : customerRepository.findById(source.getCustomerId()).map(c -> c.getEmail()).orElse(null);
+                String amount = saved.getAmount() == null ? "" : saved.getAmount().toPlainString();
+                String ref = saved.getReferenceNumber();
+                String reason = saved.getErrorCode() == null ? "FAILED" : saved.getErrorCode();
+                emailService.sendPaymentFailedEmail(senderEmail, source.getAccountHolderName(), amount, reason, ref);
+            } catch (Exception ex) {
+            }
+        }
+
         return PaymentResponse.fromEntity(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public void resendNotifications(Long paymentId) {
+        Payment payment = findPayment(paymentId);
+        PaymentStatus status = payment.getStatus();
+        try {
+            var source = payment.getSourceAccount();
+            var dest = payment.getDestinationAccount();
+            String senderEmail = source.getCustomerId() == null ? null : customerRepository.findById(source.getCustomerId()).map(c -> c.getEmail()).orElse(null);
+            String recipientEmail = dest.getCustomerId() == null ? null : customerRepository.findById(dest.getCustomerId()).map(c -> c.getEmail()).orElse(null);
+            String amount = payment.getAmount() == null ? "" : payment.getAmount().toPlainString();
+            String ref = payment.getReferenceNumber();
+            String srcName = source.getAccountHolderName();
+            String dstName = dest.getAccountHolderName();
+            String remaining = source.getBalance() == null ? "" : source.getBalance().toPlainString();
+            String available = dest.getBalance() == null ? "" : dest.getBalance().toPlainString();
+
+            if (status == PaymentStatus.COMPLETED) {
+                emailService.sendMoneyDeductedEmail(senderEmail, srcName, amount, dstName, ref, remaining);
+                emailService.sendMoneyReceivedEmail(recipientEmail, dstName, amount, srcName, ref, available);
+            } else if (status == PaymentStatus.FAILED) {
+                emailService.sendPaymentFailedEmail(senderEmail, srcName, amount, payment.getErrorCode() == null ? "FAILED" : payment.getErrorCode(), ref);
+            }
+        } catch (Exception ex) {
+            // swallow - EmailService logs any errors
+        }
     }
 
     private Payment findPayment(Long paymentId) {
