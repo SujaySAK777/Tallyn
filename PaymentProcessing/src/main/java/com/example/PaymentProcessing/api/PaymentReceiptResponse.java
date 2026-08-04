@@ -14,9 +14,11 @@ public class PaymentReceiptResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Long sourceAccountId;
+    private String sourceAccountNumber;
     private String sourceAccountHolderName;
     private String sourceBankName;
     private Long destinationAccountId;
+    private String destinationAccountNumber;
     private String destinationAccountHolderName;
     private String destinationBankName;
     private String remarks;
@@ -31,9 +33,11 @@ public class PaymentReceiptResponse {
         response.setCreatedAt(payment.getCreatedAt());
         response.setUpdatedAt(payment.getUpdatedAt());
         response.setSourceAccountId(payment.getSourceAccount().getAccountId());
+        response.setSourceAccountNumber(payment.getSourceAccount().getAccountNumber());
         response.setSourceAccountHolderName(payment.getSourceAccount().getAccountHolderName());
         response.setSourceBankName(payment.getSourceAccount().getBankName());
         response.setDestinationAccountId(payment.getDestinationAccount().getAccountId());
+        response.setDestinationAccountNumber(payment.getDestinationAccount().getAccountNumber());
         response.setDestinationAccountHolderName(payment.getDestinationAccount().getAccountHolderName());
         response.setDestinationBankName(payment.getDestinationAccount().getBankName());
         response.setRemarks(payment.getRemarks());
@@ -104,6 +108,14 @@ public class PaymentReceiptResponse {
         this.sourceAccountId = sourceAccountId;
     }
 
+    public String getSourceAccountNumber() {
+        return sourceAccountNumber;
+    }
+
+    public void setSourceAccountNumber(String sourceAccountNumber) {
+        this.sourceAccountNumber = sourceAccountNumber;
+    }
+
     public String getSourceAccountHolderName() {
         return sourceAccountHolderName;
     }
@@ -126,6 +138,14 @@ public class PaymentReceiptResponse {
 
     public void setDestinationAccountId(Long destinationAccountId) {
         this.destinationAccountId = destinationAccountId;
+    }
+
+    public String getDestinationAccountNumber() {
+        return destinationAccountNumber;
+    }
+
+    public void setDestinationAccountNumber(String destinationAccountNumber) {
+        this.destinationAccountNumber = destinationAccountNumber;
     }
 
     public String getDestinationAccountHolderName() {

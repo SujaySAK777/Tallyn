@@ -9,6 +9,8 @@ function TransactionDetails({ paymentId, formState, accounts = [], referenceNumb
   const [receiptError, setReceiptError] = useState('');
   const [shareStatus, setShareStatus] = useState('');
   const [copiedReference, setCopiedReference] = useState(false);
+  const [resolvedSourceAccountNumber, setResolvedSourceAccountNumber] = useState('');
+  const [resolvedDestinationAccountNumber, setResolvedDestinationAccountNumber] = useState('');
   const resolvedPaymentId = paymentId || formState.paymentId || null;
 
   useEffect(() => {
@@ -47,20 +49,105 @@ function TransactionDetails({ paymentId, formState, accounts = [], referenceNumb
   const sourceAccountByReceiptId = getAccountById(receipt?.sourceAccountId);
   const destinationAccountByReceiptId = getAccountById(receipt?.destinationAccountId);
 
-  const senderName = receipt?.sourceAccountHolderName || formState.sourceAccountHolder || sourceAccountByReceiptId?.accountHolderName || 'Your account';
+  const sourceAccountIdForLookup = receipt?.sourceAccountId || formState.sourceAccountId || sourceAccountByReceiptId?.accountId || null;
+  const destinationAccountIdForLookup = receipt?.destinationAccountId || formState.destinationAccountId || destinationAccountByReceiptId?.accountId || null;
+
+  useEffect(() => {
+    let ignore = false;
+
+    const loadAccountNumbersById = async () => {
+      const shouldLookupSource = !formState.sourceAccountNumber && !receipt?.sourceAccountNumber && !sourceAccountByReceiptId?.accountNumber && sourceAccountIdForLookup;
+      const shouldLookupDestination = !formState.destinationAccountNumber && !receipt?.destinationAccountNumber && !destinationAccountByReceiptId?.accountNumber && destinationAccountIdForLookup;
+
+      if (!shouldLookupSource && !shouldLookupDestination) {
+        return;
+      }
+
+      const lookups = [];
+
+      if (shouldLookupSource) {
+        lookups.push(
+          apiRequest(`/accounts/${sourceAccountIdForLookup}`)
+            .then((data) => ({ type: 'source', accountNumber: data?.accountNumber || '' }))
+            .catch(() => ({ type: 'source', accountNumber: '' }))
+        );
+      }
+
+      if (shouldLookupDestination) {
+        lookups.push(
+          apiRequest(`/accounts/${destinationAccountIdForLookup}`)
+            .then((data) => ({ type: 'destination', accountNumber: data?.accountNumber || '' }))
+            .catch(() => ({ type: 'destination', accountNumber: '' }))
+        );
+      }
+
+      const results = await Promise.all(lookups);
+      if (ignore) return;
+
+      results.forEach((result) => {
+        if (result.type === 'source' && result.accountNumber) {
+          setResolvedSourceAccountNumber(result.accountNumber);
+        }
+        if (result.type === 'destination' && result.accountNumber) {
+          setResolvedDestinationAccountNumber(result.accountNumber);
+        }
+      });
+    };
+
+    loadAccountNumbersById();
+
+    return () => {
+      ignore = true;
+    };
+  }, [
+    formState.sourceAccountNumber,
+    formState.destinationAccountNumber,
+    formState.sourceAccountId,
+    formState.destinationAccountId,
+    receipt?.sourceAccountNumber,
+    receipt?.destinationAccountNumber,
+    receipt?.sourceAccountId,
+    receipt?.destinationAccountId,
+    sourceAccountByReceiptId?.accountNumber,
+    destinationAccountByReceiptId?.accountNumber,
+    sourceAccountIdForLookup,
+    destinationAccountIdForLookup
+  ]);
+
+  const senderBankName = resolveAccountNumber(
+    formState.sourceBankName
+    || receipt?.sourceBankName
+    || sourceAccountByReceiptId?.bankName
+  ) || 'Bank unavailable';
   const sourceAccountNumber = resolveAccountNumber(
     formState.sourceAccountNumber
+    || receipt?.sourceAccountNumber
     || sourceAccountByReceiptId?.accountNumber
+    || resolvedSourceAccountNumber
     || (formState.sourceAccountId ? getAccountById(formState.sourceAccountId)?.accountNumber : '')
   );
-  const senderMask = sourceAccountNumber ? `A/C ending ${sourceAccountNumber.slice(-4)}` : 'Account number unavailable';
-  const recipientName = receipt?.destinationAccountHolderName || formState.recipientName || formState.accountHolder || selectedDestination || 'Recipient';
+  const senderAccountIdFallback = receipt?.sourceAccountId || formState.sourceAccountId || sourceAccountByReceiptId?.accountId;
+  const senderMask = sourceAccountNumber
+    ? `A/C ${sourceAccountNumber}`
+    : (senderAccountIdFallback ? `Account ID ${senderAccountIdFallback}` : 'Account details unavailable');
+  const recipientName = receipt?.destinationAccountHolderName || formState.recipientName || formState.accountHolder || selectedDestination || 'Recipient unavailable';
+  const recipientBankName = resolveAccountNumber(
+    formState.destinationBankName
+    || formState.bankName
+    || receipt?.destinationBankName
+    || destinationAccountByReceiptId?.bankName
+  ) || 'Bank unavailable';
   const destinationAccountNumber = resolveAccountNumber(
     formState.destinationAccountNumber
+    || receipt?.destinationAccountNumber
     || destinationAccountByReceiptId?.accountNumber
+    || resolvedDestinationAccountNumber
     || (formState.destinationAccountId ? getAccountById(formState.destinationAccountId)?.accountNumber : '')
   );
-  const recipientMask = destinationAccountNumber ? `A/C ending ${destinationAccountNumber.slice(-4)}` : 'Account number unavailable';
+  const destinationAccountIdFallback = receipt?.destinationAccountId || formState.destinationAccountId || destinationAccountByReceiptId?.accountId;
+  const recipientMask = destinationAccountNumber
+    ? `A/C ${destinationAccountNumber}`
+    : (destinationAccountIdFallback ? `Account ID ${destinationAccountIdFallback}` : 'Account details unavailable');
 
   const timelineEntries = useMemo(() => {
     const suppliedCreated = receipt?.createdAt ? new Date(receipt.createdAt).getTime() : Number.NaN;
@@ -121,9 +208,9 @@ function TransactionDetails({ paymentId, formState, accounts = [], referenceNumb
         </header>
 
         <section className="receipt-route" aria-label="Transfer route">
-          <div><small>From</small><strong>{senderName}</strong><em>{senderMask}</em></div>
+          <div><small>From</small><strong>{senderBankName}</strong><em>{senderMask}</em></div>
           <span className="receipt-route-arrow"><FiArrowRight /></span>
-          <div><small>To</small><strong>{recipientName}</strong><em>{recipientMask}</em></div>
+          <div><small>To</small><strong>{recipientName}</strong><em>{recipientBankName}</em><em>{recipientMask}</em></div>
         </section>
 
         <section className="receipt-timeline" aria-label="Payment timeline">
@@ -137,7 +224,11 @@ function TransactionDetails({ paymentId, formState, accounts = [], referenceNumb
 
         <section className="receipt-details" aria-label="Transaction information">
           <div><span>Reference number</span><strong>{referenceNumber}<button type="button" onClick={handleCopyReference} aria-label="Copy reference number"><FiCopy /></button></strong></div>
-          <div><span>Recipient account</span><strong>{recipientMask}</strong></div>
+          <div><span>Sender bank</span><strong>{senderBankName}</strong></div>
+          <div><span>Sender account</span><strong>{senderMask}</strong></div>
+          <div><span>Receiver name</span><strong>{recipientName}</strong></div>
+          <div><span>Receiver bank</span><strong>{recipientBankName}</strong></div>
+          <div><span>Receiver account</span><strong>{recipientMask}</strong></div>
           <div><span>Status</span><strong><FiCheckCircle /> {statusLabel}</strong></div>
           <div><span>Completed on</span><strong><FiCalendar /> {formatDate(receipt?.updatedAt || receipt?.createdAt)} <FiClock /> {formatTime(receipt?.updatedAt || receipt?.createdAt)}</strong></div>
         </section>
