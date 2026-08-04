@@ -18,16 +18,15 @@ function AuthorizePayment({
   const accountNumber = formState.accountNumber || String(formState.destinationAccountId || '').trim() || '1234 5678 9012';
   const bankName = formState.bankName || 'HDFC Bank';
 
+  
+  const handleAuthorizeClick = () => {
+    if (pin.length < 6) return;
+    onAuthorize?.(pin);
+  };
+
   const handlePinChange = (event) => {
     const digitsOnly = event.target.value.replace(/\D/g, '').slice(0, 6);
     setPin(digitsOnly);
-  };
-
-  const handleAuthorizeClick = () => {
-    if (pin.length < 6) {
-      return;
-    }
-    onAuthorize?.();
   };
 
   const focusPinInput = () => {

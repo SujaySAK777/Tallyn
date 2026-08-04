@@ -11,9 +11,13 @@ export async function apiRequest(path, options = {}) {
 
   for (const baseUrl of API_FALLBACK_BASE_URLS) {
     try {
+      let token;
+      try { token = JSON.parse(window.localStorage.getItem('tallyn-session') || 'null')?.token; } catch { token = undefined; }
+
       const response = await fetch(`${baseUrl}${path}`, {
         headers: {
           "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...(options.headers || {})
         },
         ...options

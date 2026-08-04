@@ -97,7 +97,10 @@ public class ScheduledPaymentService {
     }
 
     @Scheduled(fixedDelay = 60000)
+
     public void processDuePayments() {
+
+
         LocalDateTime now = LocalDateTime.now();
         List<ScheduledPayment> duePayments = scheduledPaymentRepository
                 .findByStatusAndScheduledAtLessThanEqual(ScheduledPaymentStatus.PENDING, now);
@@ -113,7 +116,7 @@ public class ScheduledPaymentService {
                 paymentRequest.setReferenceNumber(scheduledPayment.getReferenceNumber());
                 paymentRequest.setRemarks(scheduledPayment.getRemarks());
 
-                PaymentResponse response = paymentService.createPayment(paymentRequest);
+                PaymentResponse response = paymentService.createScheduledExecutionPayment(paymentRequest);
                 if (response == null) {
                     throw new ApiException("PROCESSING_ERROR", "Payment service returned no response", HttpStatus.INTERNAL_SERVER_ERROR);
                 }

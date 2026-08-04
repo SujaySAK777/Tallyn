@@ -5,7 +5,8 @@ export default function BankDetails({
   formData,
   setFormData,
   previousStep,
-  nextStep
+  nextStep,
+  accounts = []
 }) {
   const [lookupError, setLookupError] = useState('');
   const sourceId = String(formData.sourceAccountId || '').trim();
@@ -52,6 +53,18 @@ export default function BankDetails({
       <div className="bank-layout">
         <div className="bank-form">
           <div className="bank-form-grid">
+            <div className="field-group">
+              <label>Pay From</label>
+              <select name="sourceAccountId" value={formData.sourceAccountId || ''} onChange={handleChange}>
+                <option value="">Select an account</option>
+                {accounts.map((account) => (
+                  <option key={account.accountId} value={account.accountId}>
+                    {account.accountNumber} — {account.bankName} ({account.accountHolderName})
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="field-group">
               <label>Recipient Account Number</label>
               <input

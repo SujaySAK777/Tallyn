@@ -20,6 +20,7 @@ export const initialFormState = {
   recurrenceType: 'MONTHLY',
   recurrenceIntervalDays: '',
   scheduleDestinationAccountNumber: '',
+  scheduleDestinationAccountId: '',
   receiverBankName: '',
   receiverIfsc: ''
 };

@@ -10,4 +10,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     Optional<Payment> findByReferenceNumber(String referenceNumber);
 
     List<Payment> findByStatus(PaymentStatus status);
+
+    List<Payment> findBySourceAccount_CustomerIdOrDestinationAccount_CustomerId(Long sourceCustomerId, Long destinationCustomerId);
 }

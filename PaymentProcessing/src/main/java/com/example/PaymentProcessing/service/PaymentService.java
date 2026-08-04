@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,9 +44,30 @@ public class PaymentService {
         this.paymentHistoryRepository = paymentHistoryRepository;
     }
 
+    private static final BCryptPasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder();
+
     @Transactional
     public PaymentResponse createPayment(CreatePaymentRequest request) {
-        validateCreateRequest(request);
+        // Kept for the existing test suite / any trusted internal caller.
+        // The real HTTP-facing path is createPayment(request, customerId)
+        // below, which enforces that the caller owns the source account.
+        return createPayment(request, true, null);
+    }
+
+    @Transactional
+    public PaymentResponse createPayment(CreatePaymentRequest request, Long authenticatedCustomerId) {
+        return createPayment(request, true, authenticatedCustomerId);
+    }
+
+    // Used only by ScheduledPaymentService, whose TPIN was already verified
+    // when the standing instruction was originally created.
+    @Transactional
+    public PaymentResponse createScheduledExecutionPayment(CreatePaymentRequest request) {
+        return createPayment(request, false, null);
+    }
+
+    private PaymentResponse createPayment(CreatePaymentRequest request, boolean requireTpin, Long authenticatedCustomerId) {
+        validateCreateRequest(request, requireTpin);
 
         paymentRepository.findByReferenceNumber(request.getReferenceNumber())
                 .ifPresent(existing -> {
@@ -56,6 +78,15 @@ public class PaymentService {
                 .orElseThrow(() -> new ApiException("INVALID_ACCOUNT", "Source account not found", HttpStatus.BAD_REQUEST));
         Account destination = accountRepository.findById(request.getDestinationAccountId())
                 .orElseThrow(() -> new ApiException("INVALID_ACCOUNT", "Destination account not found", HttpStatus.BAD_REQUEST));
+
+        if (authenticatedCustomerId != null
+                && (source.getCustomerId() == null || !source.getCustomerId().equals(authenticatedCustomerId))) {
+            throw new ApiException("ACCOUNT_NOT_OWNED", "You can only pay from an account you own", HttpStatus.FORBIDDEN);
+        }
+
+        if (requireTpin) {
+            verifyTpin(source, request.getTpin());
+        }
 
         if (source.getAccountId().equals(destination.getAccountId())) {
             throw new ApiException("VALIDATION_FAILED", "Source and destination accounts must be different", HttpStatus.BAD_REQUEST);
@@ -85,14 +116,29 @@ public class PaymentService {
         return PaymentResponse.fromEntity(saved);
     }
 
+    private void verifyTpin(Account source, String tpin) {
+        if (tpin == null || tpin.isBlank() || !PASSWORD_ENCODER.matches(tpin, source.getTpinHash())) {
+            throw new ApiException("INVALID_TPIN", "Incorrect TPIN", HttpStatus.UNAUTHORIZED);
+        }
+    }
+
+
     @Transactional(readOnly = true)
     public PaymentResponse getPayment(Long paymentId) {
         return PaymentResponse.fromEntity(findPayment(paymentId));
     }
 
     @Transactional(readOnly = true)
-    public List<PaymentResponse> listPayments(PaymentStatus status) {
-        List<Payment> items = status == null ? paymentRepository.findAll() : paymentRepository.findByStatus(status);
+    public List<PaymentResponse> listPayments(PaymentStatus status, Long customerId) {
+        List<Payment> items;
+        if (customerId != null) {
+            items = paymentRepository.findBySourceAccount_CustomerIdOrDestinationAccount_CustomerId(customerId, customerId);
+            if (status != null) {
+                items = items.stream().filter(p -> p.getStatus() == status).toList();
+            }
+        } else {
+            items = status == null ? paymentRepository.findAll() : paymentRepository.findByStatus(status);
+        }
         return items.stream().map(PaymentResponse::fromEntity).toList();
     }
 
@@ -169,14 +215,15 @@ public class PaymentService {
                 .orElseThrow(() -> new ApiException("PAYMENT_NOT_FOUND", "Payment not found", HttpStatus.NOT_FOUND));
     }
 
-    private void validateCreateRequest(CreatePaymentRequest request) {
+    private void validateCreateRequest(CreatePaymentRequest request, boolean requireTpin) {
         if (request == null
                 || request.getSourceAccountId() == null
                 || request.getDestinationAccountId() == null
                 || request.getAmount() == null
                 || request.getCurrency() == null
                 || request.getReferenceNumber() == null
-                || request.getReferenceNumber().isBlank()) {
+                || request.getReferenceNumber().isBlank()
+                || (requireTpin && (request.getTpin() == null || request.getTpin().isBlank()))) {
             throw new ApiException("VALIDATION_FAILED", "Required fields are missing", HttpStatus.BAD_REQUEST);
         }
 
