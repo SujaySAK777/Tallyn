@@ -83,9 +83,9 @@ function SuccessPage({
   };
 
   return (
-    <div className="journey-page success-page">
-      <div className="review-layout">
-        <div className="premium-card success-main-card">
+    <div className="journey-page success-page enhanced-success-page">
+      <div className="review-layout success-receipt-layout">
+        <div className="premium-card success-main-card success-payment-card">
           <div className="success-center-wrap">
             <div className="success-icon"><FiCheckCircle /></div>
             <h2>{isSelfTransfer ? 'Transfer Successful!' : 'Payment Successful!'}</h2>
@@ -134,7 +134,7 @@ function SuccessPage({
           )}
         </div>
 
-        <div className="summary-panel">
+        <div className="summary-panel success-summary-panel">
           <div className="payment-summary-box premium-card success-summary-card">
             <div className="section-label">Payment Summary</div>
             <div className="info-row"><span>To</span><strong>{beneficiaryName}</strong></div>

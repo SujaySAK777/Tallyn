@@ -9,6 +9,121 @@
   --journey-subtext: #64748b;
 }
 
+/* Completion receipt: kept here so these styles take precedence over shared dashboard styles. */
+.payment-journey .enhanced-success-page {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.payment-journey .enhanced-success-page .success-receipt-layout {
+  grid-template-columns: minmax(0, 1.42fr) minmax(300px, .82fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.payment-journey .enhanced-success-page .success-payment-card {
+  padding: 28px;
+  border: 1px solid #dbe5f6;
+  border-radius: 22px;
+  background: linear-gradient(145deg, #ffffff 0%, #f6f9ff 100%);
+  box-shadow: 0 18px 42px rgba(34, 57, 113, .1);
+}
+
+.payment-journey .enhanced-success-page .success-icon {
+  width: 76px;
+  height: 76px;
+  margin: 0 auto 16px;
+  border-radius: 24px;
+  background: linear-gradient(145deg, #dff9e9, #f3fff7);
+  color: #159e5c;
+  box-shadow: 0 12px 24px rgba(21, 158, 92, .16);
+}
+
+.payment-journey .enhanced-success-page .success-center-wrap h2 {
+  font-size: 38px;
+  letter-spacing: -.7px;
+}
+
+.payment-journey .enhanced-success-page .success-subcopy {
+  max-width: 430px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+
+.payment-journey .enhanced-success-page .success-tx-pill {
+  border-radius: 999px;
+  margin-top: 16px;
+  padding: 8px 14px;
+}
+
+.payment-journey .enhanced-success-page .success-actions-grid {
+  gap: 11px;
+  margin-top: 24px;
+}
+
+.payment-journey .enhanced-success-page .success-actions-grid button {
+  min-height: 58px;
+  border-radius: 13px;
+}
+
+.payment-journey .enhanced-success-page .success-actions-grid button:first-child {
+  border-color: #4b5cff;
+  background: #4b5cff;
+  color: #fff;
+  box-shadow: 0 9px 18px rgba(75, 92, 255, .2);
+}
+
+.payment-journey .enhanced-success-page .success-transfer-strip {
+  margin-top: 20px;
+  padding: 14px;
+  border-radius: 14px;
+}
+
+.payment-journey .enhanced-success-page .success-summary-panel {
+  position: sticky;
+  top: 14px;
+}
+
+.payment-journey .enhanced-success-page .success-summary-card {
+  overflow: hidden;
+  padding: 18px;
+  border: 1px solid #dce5f4;
+  border-radius: 18px;
+  box-shadow: 0 12px 28px rgba(34, 57, 113, .07);
+}
+
+.payment-journey .enhanced-success-page .success-summary-card .section-label {
+  margin: -18px -18px 8px;
+  padding: 15px 18px;
+  background: #f0f4ff;
+  color: #3f50c1;
+}
+
+.payment-journey .enhanced-success-page .success-summary-card .info-row {
+  padding: 12px 0;
+}
+
+.payment-journey .enhanced-success-page .success-summary-card .info-row.total {
+  margin: 5px -18px -18px;
+  padding: 16px 18px;
+  background: #f7f9ff;
+}
+
+.payment-journey .enhanced-success-page .success-summary-card .info-row.total strong {
+  color: #4054e5;
+  font-size: 17px;
+}
+
+.payment-journey .enhanced-success-page .success-security-card {
+  border: 1px solid #d8efdf;
+  border-radius: 16px;
+}
+
+@media (max-width: 900px) {
+  .payment-journey .enhanced-success-page .success-receipt-layout { grid-template-columns: 1fr; }
+  .payment-journey .enhanced-success-page .success-summary-panel { position: static; }
+}
+
 .payment-journey .journey-page {
   background: linear-gradient(180deg, #ffffff, var(--journey-bg));
   border: 1px solid var(--journey-border);

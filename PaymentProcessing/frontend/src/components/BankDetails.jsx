@@ -293,10 +293,25 @@ export default function BankDetails({
                   )}
                 </div>
 
-                <div className="field-group field-span-2">
+                <div className="field-group">
+                  <label>Category</label>
+                  <select
+                    name="category"
+                    value={formData.category || 'OTHERS'}
+                    onChange={handleChange}
+                  >
+                    <option value="BILL_PAYMENTS">Bills</option>
+                    <option value="SHOPPING">Shopping</option>
+                    <option value="ENTERTAINMENT">Entertainment</option>
+                    <option value="FOOD">Food</option>
+                    <option value="OTHERS">Other</option>
+                  </select>
+                </div>
+
+                <div className="field-group">
                   <label>Remarks</label>
-                  <textarea
-                    rows="2"
+                  <input
+                    type="text"
                     name="remarks"
                     value={formData.remarks || ''}
                     onChange={handleChange}
@@ -305,29 +320,6 @@ export default function BankDetails({
                 </div>
               </>
             )}
-            <div className="field-group field-span-2">
-              <label>Category</label>
-              <select
-                name="category"
-                value={formData.category || 'OTHERS'}
-                onChange={handleChange}
-              >
-                <option value="BILL_PAYMENTS">Bills</option>
-                <option value="SHOPPING">Shopping</option>
-                <option value="ENTERTAINMENT">Entertainment</option>
-                <option value="FOOD">Food</option>
-                <option value="OTHERS">Other</option>
-              </select>
-
-              <label style={{ marginTop: '8px' }}>Remarks</label>
-              <textarea
-                rows="2"
-                name="remarks"
-                value={formData.remarks || ''}
-                onChange={handleChange}
-                placeholder="Optional"
-              />
-            </div>
           </div>
         </div>
 
