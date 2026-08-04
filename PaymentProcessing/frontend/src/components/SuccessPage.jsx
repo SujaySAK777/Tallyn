@@ -11,15 +11,30 @@ function SuccessPage({
   currency,
   onStepChange,
   onClose,
-  isSelfTransfer = false
+  isSelfTransfer = false,
+  beneficiaries = [],
+  onSaveBeneficiary
 }) {
   const [shareStatus, setShareStatus] = useState('');
   const [shareOpen, setShareOpen] = useState(false);
   const [sharingPdf, setSharingPdf] = useState(false);
+  const [saveBeneficiaryStatus, setSaveBeneficiaryStatus] = useState('idle');
   const beneficiaryName = formState.recipientName || formState.accountHolder || selectedDestination || 'Recipient';
   const accountNumber = formState.destinationAccountNumber || formState.accountNumber || '—';
   const bankName = formState.bankName || '—';
   const ifsc = formState.ifscCode || formState.ifsc || '—';
+  const alreadySavedBeneficiary = beneficiaries.some((beneficiary) => beneficiary.accountNumber === accountNumber);
+  const canOfferSaveBeneficiary = !isSelfTransfer && accountNumber !== '—' && !alreadySavedBeneficiary && typeof onSaveBeneficiary === 'function';
+
+  const handleSaveBeneficiary = async () => {
+    setSaveBeneficiaryStatus('saving');
+    try {
+      await onSaveBeneficiary({ accountNumber });
+      setSaveBeneficiaryStatus('saved');
+    } catch (error) {
+      setSaveBeneficiaryStatus('error');
+    }
+  };
   const receiptSummary = [
     'Tallyn payment receipt',
     `Amount: ${currency(amountValue)}`,
@@ -95,6 +110,28 @@ function SuccessPage({
               <span>You will receive a confirmation notification shortly.</span>
             </div>
           </div>
+
+          {canOfferSaveBeneficiary && saveBeneficiaryStatus !== 'declined' && (
+            <div className="save-beneficiary-card">
+              {saveBeneficiaryStatus === 'saved' ? (
+                <div className="save-beneficiary-confirmed"><FiCheckCircle /> {beneficiaryName} saved as a beneficiary.</div>
+              ) : (
+                <>
+                  <div className="save-beneficiary-copy">
+                    <strong>Save {beneficiaryName} as a beneficiary?</strong>
+                    <span>Make your next transfer to them faster.</span>
+                  </div>
+                  <div className="save-beneficiary-actions">
+                    <button type="button" className="secondary-btn" onClick={() => setSaveBeneficiaryStatus('declined')} disabled={saveBeneficiaryStatus === 'saving'}>No, thanks</button>
+                    <button type="button" className="primary-btn" onClick={handleSaveBeneficiary} disabled={saveBeneficiaryStatus === 'saving'}>
+                      {saveBeneficiaryStatus === 'saving' ? 'Saving...' : 'Yes, save'}
+                    </button>
+                  </div>
+                  {saveBeneficiaryStatus === 'error' && <p className="error-msg">Unable to save beneficiary. You can try again from the Beneficiaries page.</p>}
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="summary-panel">

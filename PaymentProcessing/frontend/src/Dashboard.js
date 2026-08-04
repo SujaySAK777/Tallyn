@@ -27,6 +27,7 @@ import './Dashboard.css';
 import PaymentJourney from './components/PaymentJourney';
 import CheckBalanceJourney from './components/CheckBalanceJourney';
 import TransactionHistory from './components/TransactionHistory';
+import Beneficiaries from './components/Beneficiaries';
 import { apiRequest } from './services/api';
 import SupportChatbot from './SupportChatbot';
 import { initialFormState, languageOptions, translations } from './dashboardContent';
@@ -162,6 +163,8 @@ function Dashboard({ session, onLogout }) {
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduledReceipt, setScheduledReceipt] = useState(null);
   const [accounts, setAccounts] = useState([]);
+  const [beneficiaries, setBeneficiaries] = useState([]);
+  const [beneficiariesLoading, setBeneficiariesLoading] = useState(false);
   const [scheduleLookupError, setScheduleLookupError] = useState('');
   const [groupSplit, setGroupSplit] = useState({
     amount: '',
@@ -222,6 +225,7 @@ function Dashboard({ session, onLogout }) {
     loadScheduledPayments();
     loadAccounts();
     loadGroupSplitNotifications();
+    loadBeneficiaries();
     loadGroupSplitHistory();
     loadGroupSplitCreated();
 
@@ -334,6 +338,34 @@ function Dashboard({ session, onLogout }) {
     } catch (err) {
       setAccounts([]);
     }
+  };
+
+  const loadBeneficiaries = async () => {
+    setBeneficiariesLoading(true);
+    try {
+      const data = await apiRequest('/beneficiaries');
+      setBeneficiaries(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setBeneficiaries([]);
+    } finally {
+      setBeneficiariesLoading(false);
+    }
+  };
+
+  const addBeneficiary = async (payload) => {
+    const created = await apiRequest('/beneficiaries', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    setBeneficiaries((prev) => [...prev, created]);
+    showToast('Beneficiary saved');
+    return created;
+  };
+
+  const deleteBeneficiary = async (beneficiaryId) => {
+    await apiRequest(`/beneficiaries/${beneficiaryId}`, { method: 'DELETE' });
+    setBeneficiaries((prev) => prev.filter((beneficiary) => beneficiary.beneficiaryId !== beneficiaryId));
+    showToast('Beneficiary removed');
   };
 
   const loadGroupSplitNotifications = async () => {
@@ -1228,7 +1260,7 @@ function Dashboard({ session, onLogout }) {
           <button className={`menu-item ${activeSection === 'dashboard' ? 'active' : ''}`} onClick={() => goToSection('dashboard')}>{t('dashboard')}</button>
           <button className="menu-item">{t('payments')}</button>
           <button className={`menu-item ${activeSection === 'transactions' ? 'active' : ''}`} onClick={() => goToSection('transactions')}>Payment History</button>
-          <button className="menu-item">{t('beneficiaries')}</button>
+          <button className={`menu-item ${activeSection === 'beneficiaries' ? 'active' : ''}`} onClick={() => goToSection('beneficiaries')}>{t('beneficiaries')}</button>
           <button className="menu-item">Analytics</button>
           <button className="menu-item">Rewards</button>
           <button className="menu-item" onClick={() => setActiveModal('settings')}>Settings</button>
@@ -1654,6 +1686,8 @@ function Dashboard({ session, onLogout }) {
             errorMessage={error}
             payments={payments}
             accounts={accounts}
+            beneficiaries={beneficiaries}
+            onSaveBeneficiary={addBeneficiary}
             selectedDestination={formState.destinationAccountId || 'Not added yet'}
             selectedAmount={formState.amount || '0'}
             sourceBalance={journeySourceBalance}
@@ -1934,6 +1968,21 @@ function Dashboard({ session, onLogout }) {
               </article>
             </section>
           </>
+        )}
+
+        {activeSection === 'beneficiaries' && !paymentJourneyOpen && !balanceJourneyOpen && activeModal !== 'schedule' && (
+          <section className="payment-journey">
+            <div className="journey-breadcrumb">
+              <span>{t('dashboard')}<FiChevronRight /></span>
+              <span className="current">{t('beneficiaries')}</span>
+            </div>
+            <Beneficiaries
+              beneficiaries={beneficiaries}
+              loading={beneficiariesLoading}
+              onAdd={addBeneficiary}
+              onDelete={deleteBeneficiary}
+            />
+          </section>
         )}
 
         {activeSection === 'transactions' && !paymentJourneyOpen && !balanceJourneyOpen && activeModal !== 'schedule' && (

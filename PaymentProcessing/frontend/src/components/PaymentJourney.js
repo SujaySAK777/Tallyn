@@ -62,7 +62,9 @@ function PaymentJourney({
   selectedDestination,
   selectedAmount,
   sourceBalance = 0,
-  onStepChange
+  onStepChange,
+  beneficiaries = [],
+  onSaveBeneficiary
 }) {
   const [authenticating, setAuthenticating] = useState(false);
   const [processingStage, setProcessingStage] = useState(0);
@@ -321,6 +323,7 @@ function PaymentJourney({
           nextStep={goNext}
           sourceBalance={sourceBalance}
           accounts={accounts}
+          beneficiaries={beneficiaries}
         />
         )
   );
@@ -373,6 +376,8 @@ function PaymentJourney({
           onStepChange={onStepChange}
           onClose={onClose}
           isSelfTransfer={isSelfTransfer}
+          beneficiaries={beneficiaries}
+          onSaveBeneficiary={onSaveBeneficiary}
         />
         )
       : (
