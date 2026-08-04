@@ -24,7 +24,7 @@ function SuccessPage({
   const bankName = formState.bankName || '—';
   const ifsc = formState.ifscCode || formState.ifsc || '—';
   const alreadySavedBeneficiary = beneficiaries.some((beneficiary) => beneficiary.accountNumber === accountNumber);
-  const canOfferSaveBeneficiary = !isSelfTransfer && accountNumber !== '—' && !alreadySavedBeneficiary && typeof onSaveBeneficiary === 'function';
+  const canShowBeneficiaryCard = !isSelfTransfer && accountNumber !== '—' && typeof onSaveBeneficiary === 'function';
 
   const handleSaveBeneficiary = async () => {
     setSaveBeneficiaryStatus('saving');
@@ -111,9 +111,11 @@ function SuccessPage({
             </div>
           </div>
 
-          {canOfferSaveBeneficiary && saveBeneficiaryStatus !== 'declined' && (
+          {canShowBeneficiaryCard && saveBeneficiaryStatus !== 'declined' && (
             <div className="save-beneficiary-card">
-              {saveBeneficiaryStatus === 'saved' ? (
+              {alreadySavedBeneficiary ? (
+                <div className="save-beneficiary-confirmed"><FiCheckCircle /> {beneficiaryName} is already in your beneficiaries.</div>
+              ) : saveBeneficiaryStatus === 'saved' ? (
                 <div className="save-beneficiary-confirmed"><FiCheckCircle /> {beneficiaryName} saved as a beneficiary.</div>
               ) : (
                 <>

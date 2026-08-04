@@ -397,6 +397,7 @@ function PaymentJourney({
     <TransactionDetails
       paymentId={paymentId}
       formState={formState}
+      accounts={accounts}
       referenceNumber={referenceNumber}
       selectedDestination={selectedDestination}
       goBack={goBack}
@@ -427,13 +428,13 @@ function PaymentJourney({
 
       <div className="journey-hero premium-hero">
         <div>
-          <h1>Make Payment</h1>
+          <h1>{step === 'transaction' ? 'Transaction Details' : 'Make Payment'}</h1>
         </div>
         <button className="back-btn" onClick={onClose}><FiArrowLeft /> Back to Dashboard</button>
       </div>
 
       <div className="journey-shell premium-shell">
-        {renderStepCards()}
+        {step !== 'transaction' && renderStepCards()}
         <div className="journey-step-content" key={step}>
           {renderActivePage()}
         </div>

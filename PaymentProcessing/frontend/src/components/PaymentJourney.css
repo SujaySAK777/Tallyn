@@ -2136,6 +2136,20 @@
   cursor: pointer;
 }
 
+.payment-journey .history-view-action {
+  display: inline-grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  padding: 0;
+  border-radius: 12px;
+}
+
+.payment-journey .history-view-action svg {
+  width: 21px;
+  height: 21px;
+}
+
 .payment-journey .history-footer,
 .payment-journey .history-actions,
 .payment-journey .history-pagination,

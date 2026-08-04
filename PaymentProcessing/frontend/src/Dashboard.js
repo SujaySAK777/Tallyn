@@ -159,6 +159,7 @@ function Dashboard({ session, onLogout }) {
   const [balanceJourneyStep, setBalanceJourneyStep] = useState('accounts');
   const [paymentJourneyStep, setPaymentJourneyStep] = useState('method');
   const [paymentJourneyMethod, setPaymentJourneyMethod] = useState('bank');
+  const [paymentJourneyOrigin, setPaymentJourneyOrigin] = useState('payment');
   const [formState, setFormState] = useState(initialFormState);
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduledReceipt, setScheduledReceipt] = useState(null);
@@ -721,7 +722,8 @@ function Dashboard({ session, onLogout }) {
     setFormState({
       ...initialFormState,
       sourceAccountId: String(linkedAccount?.accountId || ''),
-      sourceAccountNumber: linkedAccount?.accountNumber || ''
+      sourceAccountNumber: linkedAccount?.accountNumber || '',
+      sourceAccountHolder: linkedAccount?.accountHolderName || ''
     });
     setActiveModal('');
     setError('');
@@ -734,6 +736,28 @@ function Dashboard({ session, onLogout }) {
     setJourneyPaymentId(null);
     setFormState(initialFormState);
     setError('');
+  };
+
+  const openTransactionFromHistory = (payment) => {
+    const sourceAccount = accounts.find((account) => String(account.accountId) === String(payment.sourceAccountId));
+    const destinationAccount = accounts.find((account) => String(account.accountId) === String(payment.destinationAccountId));
+
+    setFormState({
+      ...initialFormState,
+      sourceAccountId: String(payment.sourceAccountId || ''),
+      sourceAccountNumber: sourceAccount?.accountNumber || '',
+      sourceAccountHolder: sourceAccount?.accountHolderName || '',
+      destinationAccountId: String(payment.destinationAccountId || ''),
+      destinationAccountNumber: destinationAccount?.accountNumber || '',
+      accountHolder: destinationAccount?.accountHolderName || '',
+      recipientName: destinationAccount?.accountHolderName || '',
+      amount: String(payment.amount ?? ''),
+      currency: payment.currency || 'INR',
+      referenceNumber: payment.referenceNumber || ''
+    });
+    setJourneyPaymentId(payment.paymentId);
+    setPaymentJourneyStep('transaction');
+    setPaymentJourneyOpen(true);
   };
 
   const handleQuickAction = (action) => {
@@ -1693,7 +1717,7 @@ function Dashboard({ session, onLogout }) {
             accounts={accounts}
             beneficiaries={beneficiaries}
             onSaveBeneficiary={addBeneficiary}
-            selectedDestination={formState.destinationAccountId || 'Not added yet'}
+            selectedDestination={formState.accountHolder || formState.recipientName || 'Recipient'}
             selectedAmount={formState.amount || '0'}
             sourceBalance={journeySourceBalance}
             onStepChange={setPaymentJourneyStep}
@@ -2028,6 +2052,7 @@ function Dashboard({ session, onLogout }) {
               results={historyResults}
               pagination={historyPagination}
               onPageChange={setHistoryPage}
+              onViewTransaction={openTransactionFromHistory}
               currency={currency}
             />
           </section>

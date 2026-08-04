@@ -5,14 +5,13 @@ import {
   FiCalendar,
   FiCheckCircle,
   FiClock,
-  FiDownload,
+  FiEye,
   FiFilter,
   FiSearch,
   FiSlash,
   FiXCircle
 } from 'react-icons/fi';
 import { RiBankLine } from 'react-icons/ri';
-import { downloadReceiptPdf } from '../services/receipt';
 
 function getAccount(accounts, accountId) {
   return (accounts || []).find((account) => String(account.accountId) === String(accountId));
@@ -87,6 +86,7 @@ function TransactionHistory({
   results,
   pagination,
   onPageChange,
+  onViewTransaction,
   currency
 }) {
   const [dateOpen, setDateOpen] = useState(false);
@@ -136,14 +136,6 @@ function TransactionHistory({
   const handleToggleAmountSort = (checked) => {
     setHistorySortAmountEnabled(checked);
     if (checked) setHistorySortPrimary('amount');
-  };
-
-  const handleDownloadReceipt = async (paymentId) => {
-    try {
-      await downloadReceiptPdf(paymentId);
-    } catch (error) {
-      window.alert(error.message || 'Unable to download receipt.');
-    }
   };
 
   return (
@@ -284,7 +276,7 @@ function TransactionHistory({
                 <th>Reference ID</th>
                 <th>Amount</th>
                 <th>Status</th>
-                <th>Receipt</th>
+                <th>View</th>
               </tr>
             </thead>
             <tbody>
@@ -317,7 +309,7 @@ function TransactionHistory({
                       {cancelledRow ? (
                         <span className="table-action-disabled">—</span>
                       ) : (
-                        <button type="button" className="table-action" onClick={() => handleDownloadReceipt(payment.paymentId)}><FiDownload /> Receipt</button>
+                        <button type="button" className="table-action history-view-action" onClick={() => onViewTransaction(payment)} aria-label="View transaction details" title="View transaction details"><FiEye /></button>
                       )}
                     </td>
                   </tr>
