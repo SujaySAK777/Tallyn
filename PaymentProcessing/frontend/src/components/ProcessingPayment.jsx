@@ -15,9 +15,9 @@ function ProcessingPayment({
   onClose
 }) {
   const currentStage = stage || 1;
-  const beneficiaryName = formState.recipientName || formState.accountHolder || 'John Doe';
-  const accountNumber = formState.accountNumber || String(formState.destinationAccountId || '').trim() || '1234 5678 9012';
-  const bankName = formState.bankName || 'HDFC Bank';
+  const beneficiaryName = formState.recipientName || formState.accountHolder || 'Recipient';
+  const accountNumber = formState.destinationAccountNumber || formState.accountNumber || '—';
+  const bankName = formState.bankName || '—';
   const base = new Date();
   const times = [0, 2, 4].map((m) => new Date(base.getTime() + m * 1000).toLocaleTimeString('en-IN'));
 

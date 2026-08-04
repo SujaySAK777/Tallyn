@@ -41,13 +41,13 @@ function TransactionDetails({
           </div>
           <div className="summary-card premium-card">
             <small>Sender</small>
-            <strong>{formState.sourceAccountId || 'Source account'}</strong>
+            <strong>{formState.sourceAccountNumber ? `•••• ${String(formState.sourceAccountNumber).slice(-4)}` : 'Source account'}</strong>
             <span>Your bank account</span>
           </div>
           <div className="summary-card premium-card">
             <small>Recipient</small>
             <strong>{selectedDestination || formState.recipientName || formState.accountHolder || 'Recipient Name'}</strong>
-            <span>{formState.destinationAccountId || formState.accountNumber || 'Account pending'}</span>
+            <span>{formState.destinationAccountNumber ? `•••• ${String(formState.destinationAccountNumber).slice(-4)}` : 'Account pending'}</span>
           </div>
         </div>
 
@@ -66,7 +66,7 @@ function TransactionDetails({
           </div>
 
           <div className="receipt-card premium-card">
-            <div className="section-label">Buttons</div>
+            <div className="section-label">Actions</div>
             <div className="receipt-actions vertical-actions">
               <button type="button" onClick={handleDownloadReceipt} disabled={!paymentId && !formState.paymentId}><FiDownload /> Download PDF</button>
               <button type="button"><FiShare2 /> Share</button>

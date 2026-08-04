@@ -16,6 +16,21 @@
   padding: 24px;
 }
 
+.payment-journey .journey-step-content {
+  animation: journeyStepIn 0.28s ease;
+}
+
+@keyframes journeyStepIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .payment-journey .journey-breadcrumb {
   display: flex;
   align-items: center;
@@ -119,6 +134,7 @@
 }
 
 .payment-journey .payment-card {
+  position: relative;
   background: #ffffff;
   border: 1px solid var(--journey-border);
   border-radius: 14px;
@@ -137,11 +153,23 @@
 .payment-journey .payment-card.active {
   border-color: var(--journey-primary);
   background: var(--journey-primary-soft);
+  box-shadow: 0 10px 20px rgba(29, 78, 216, 0.14);
 }
 
 .payment-journey .payment-card.disabled {
   opacity: 0.62;
   cursor: not-allowed;
+}
+
+.payment-journey .payment-card-check {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  color: var(--journey-primary);
+  font-size: 18px;
+  display: inline-flex;
+  background: #ffffff;
+  border-radius: 999px;
 }
 
 .payment-journey .payment-icon {
@@ -184,20 +212,32 @@
   gap: 10px;
 }
 
-.payment-journey .security-box,
-.payment-journey .security-note {
-  color: var(--journey-text);
+.payment-journey .security-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #166534;
+  background: #f0fdf4;
+  border: 1px solid #d3f0dd;
+  border-radius: 999px;
+  padding: 8px 12px;
   font-weight: 600;
   font-size: 12px;
 }
 
-.payment-journey .security-box,
-.payment-journey .security-note,
-.payment-journey .security-banner {
-  display: none;
+.payment-journey .security-box svg {
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.payment-journey .payment-footer .continue-btn {
+  margin-left: auto;
 }
 
 .payment-journey .security-note {
+  color: var(--journey-text);
+  font-weight: 600;
+  font-size: 12px;
   margin-top: 8px;
   background: #f8fafc;
   border: 1px solid var(--journey-border);
@@ -234,13 +274,21 @@
   cursor: pointer;
 }
 
-.payment-journey .bank-layout,
 .payment-journey .review-layout,
 .payment-journey .processing-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.75fr) minmax(270px, 0.85fr);
   gap: 18px;
   align-items: start;
+}
+
+.payment-journey .bank-layout {
+  display: block;
+}
+
+.payment-journey .bank-layout .bank-form {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .payment-journey .bank-form,
@@ -319,6 +367,148 @@
   margin-top: 4px;
   color: #dc2626;
   font-size: 12px;
+}
+
+.payment-journey .lookup-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  color: var(--journey-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.payment-journey .spin-icon {
+  animation: journeySpin 0.9s linear infinite;
+}
+
+@keyframes journeySpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.payment-journey .recipient-found-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #cdeedb;
+  background: linear-gradient(180deg, #f2fcf6, #ecf9f1);
+  border-radius: 12px;
+  padding: 12px 14px;
+  animation: journeyStepIn 0.25s ease;
+}
+
+.payment-journey .recipient-found-avatar {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #dff6eb, #c4f0da);
+  color: #0f7a49;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.payment-journey .recipient-found-meta {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.payment-journey .recipient-found-meta strong {
+  color: var(--journey-title);
+  font-size: 14px;
+}
+
+.payment-journey .recipient-found-meta span {
+  color: var(--journey-subtext);
+  font-size: 12px;
+}
+
+.payment-journey .recipient-found-check {
+  margin-left: auto;
+  color: #15803d;
+  background: #ffffff;
+  border-radius: 999px;
+  padding: 6px 9px;
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.payment-journey .self-transfer-pair {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+  align-items: end;
+}
+
+.payment-journey .self-transfer-swap {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  border: 1px solid var(--journey-border);
+  background: #ffffff;
+  color: var(--journey-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-bottom: 2px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.payment-journey .self-transfer-swap:hover:not(:disabled) {
+  transform: rotate(90deg);
+  border-color: var(--journey-primary);
+  box-shadow: 0 8px 16px rgba(29, 78, 216, 0.14);
+}
+
+.payment-journey .self-transfer-swap:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.payment-journey .self-transfer-route {
+  justify-content: center;
+}
+
+.payment-journey .self-transfer-route .recipient-found-meta {
+  text-align: center;
+}
+
+.payment-journey .self-transfer-route-arrow {
+  color: var(--journey-primary);
+  font-size: 18px;
+  flex-shrink: 0;
+  transform: rotate(-90deg);
+}
+
+@media (max-width: 680px) {
+  .payment-journey .self-transfer-pair {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-journey .self-transfer-swap {
+    justify-self: center;
+    transform: rotate(90deg);
+  }
+
+  .payment-journey .self-transfer-route {
+    flex-wrap: wrap;
+  }
+
+  .payment-journey .self-transfer-route-arrow {
+    transform: rotate(0deg);
+  }
 }
 
 .payment-journey .live-balance-preview { display: flex; justify-content: space-between; gap: 8px; margin-top: 7px; padding: 7px 9px; border-radius: 8px; background: #f0fdf4; color: #166534; font-size: 11px; }
@@ -699,8 +889,8 @@
 }
 
 .payment-journey .authorize-tabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  gap: 4px;
   border-bottom: 1px solid #e7ecf8;
   margin-bottom: 10px;
 }
@@ -711,7 +901,7 @@
   color: #627294;
   font-size: 13px;
   font-weight: 700;
-  padding: 8px;
+  padding: 8px 4px;
 }
 
 .payment-journey .authorize-tab.active {
@@ -1331,7 +1521,6 @@
 }
 
 @media (max-width: 1024px) {
-  .payment-journey .bank-layout,
   .payment-journey .review-layout,
   .payment-journey .processing-layout {
     grid-template-columns: 1fr;

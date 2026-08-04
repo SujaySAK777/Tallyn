@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiCreditCard, FiSmartphone } from 'react-icons/fi';
+import { FiCheckCircle, FiCreditCard, FiRepeat, FiShield, FiSmartphone } from 'react-icons/fi';
 import { MdAccountBalanceWallet } from 'react-icons/md';
 import { RiBankLine } from 'react-icons/ri';
 
@@ -9,6 +9,13 @@ const paymentMethods = [
     title: 'Bank Transfer',
     icon: RiBankLine,
     description: 'Transfer directly using account number and IFSC',
+    available: true
+  },
+  {
+    id: 'self',
+    title: 'Self Transfer',
+    icon: FiRepeat,
+    description: 'Move money between your own linked accounts',
     available: true
   },
   {
@@ -55,6 +62,7 @@ export default function PaymentMethod({
             className={`payment-card ${selectedMethod === method.id ? 'active' : ''} ${!method.available ? 'disabled' : ''}`}
             onClick={() => method.available && setSelectedMethod(method.id)}
           >
+            {selectedMethod === method.id && <span className="payment-card-check"><FiCheckCircle /></span>}
             <div className="payment-icon"><MethodIcon /></div>
             <h3>{method.title}</h3>
             <p>{method.description}</p>
@@ -66,7 +74,7 @@ export default function PaymentMethod({
 
       <div className="payment-footer">
         <div className="security-box">
-          Your payments are secured using bank-grade encryption.
+          <FiShield /> Your payments are secured using bank-grade encryption.
         </div>
 
         <button

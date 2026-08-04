@@ -10,15 +10,16 @@ function SuccessPage({
   amountValue,
   currency,
   onStepChange,
-  onClose
+  onClose,
+  isSelfTransfer = false
 }) {
   const [shareStatus, setShareStatus] = useState('');
   const [shareOpen, setShareOpen] = useState(false);
   const [sharingPdf, setSharingPdf] = useState(false);
-  const beneficiaryName = formState.recipientName || formState.accountHolder || selectedDestination || 'John Doe';
-  const accountNumber = formState.accountNumber || String(formState.destinationAccountId || '').trim() || '1234 5678 9012';
-  const bankName = formState.bankName || 'HDFC Bank';
-  const ifsc = formState.ifscCode || formState.ifsc || 'HDFC0001234';
+  const beneficiaryName = formState.recipientName || formState.accountHolder || selectedDestination || 'Recipient';
+  const accountNumber = formState.destinationAccountNumber || formState.accountNumber || '—';
+  const bankName = formState.bankName || '—';
+  const ifsc = formState.ifscCode || formState.ifsc || '—';
   const receiptSummary = [
     'Tallyn payment receipt',
     `Amount: ${currency(amountValue)}`,
@@ -72,8 +73,8 @@ function SuccessPage({
         <div className="premium-card success-main-card">
           <div className="success-center-wrap">
             <div className="success-icon"><FiCheckCircle /></div>
-            <h2>Payment Successful!</h2>
-            <span className="success-subcopy">Your payment has been completed successfully.</span>
+            <h2>{isSelfTransfer ? 'Transfer Successful!' : 'Payment Successful!'}</h2>
+            <span className="success-subcopy">{isSelfTransfer ? 'Your funds have been moved between your accounts successfully.' : 'Your payment has been completed successfully.'}</span>
             <div className="success-tx-pill">Transaction ID: {referenceNumber}</div>
             <div className="success-time">{new Date().toLocaleString('en-IN')}</div>
           </div>
@@ -90,7 +91,7 @@ function SuccessPage({
           <div className="success-transfer-strip">
             <FiCheckCircle />
             <div>
-              <strong>The amount {currency(amountValue)} has been transferred to {beneficiaryName}</strong>
+              <strong>The amount {currency(amountValue)} has been transferred to {isSelfTransfer ? 'your account' : beneficiaryName}</strong>
               <span>You will receive a confirmation notification shortly.</span>
             </div>
           </div>
