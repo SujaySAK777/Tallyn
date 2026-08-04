@@ -592,8 +592,8 @@ function Dashboard({ session, onLogout }) {
   };
 
   const openPaymentJourney = () => {
-    const linkedAccount = accounts.find((account) => String(account.accountId) === String(session?.accountId))
-      || accounts.find((account) => account.accountNumber === session?.accountNumber)
+    const linkedAccount = activeAccounts.find((account) => String(account.accountId) === String(session?.accountId))
+      || activeAccounts.find((account) => account.accountNumber === session?.accountNumber)
       || activeAccounts[0];
 
     setPaymentJourneyOpen(true);
@@ -602,8 +602,8 @@ function Dashboard({ session, onLogout }) {
     setJourneyPaymentId(null);
     setFormState({
       ...initialFormState,
-      sourceAccountId: String(session?.accountId || linkedAccount?.accountId || ''),
-      sourceAccountNumber: session?.accountNumber || linkedAccount?.accountNumber || ''
+      sourceAccountId: String(linkedAccount?.accountId || ''),
+      sourceAccountNumber: linkedAccount?.accountNumber || ''
     });
     setActiveModal('');
     setError('');

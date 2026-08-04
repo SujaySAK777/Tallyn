@@ -302,6 +302,7 @@ function PaymentJourney({
       previousStep={goBack}
       nextStep={goNext}
       sourceBalance={sourceBalance}
+      accounts={accounts}
     />
   );
 

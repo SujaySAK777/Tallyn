@@ -6,17 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="c05d6212-cc28-40ef-8b40-fc6a3fd721b7" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PaymentProcessing/database/SampleData.sql" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/database/SampleData.sql" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PaymentProcessing/frontend/src/App.js" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/frontend/src/App.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PaymentProcessing/frontend/src/Dashboard.css" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/frontend/src/Dashboard.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PaymentProcessing/frontend/src/Dashboard.js" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/frontend/src/Dashboard.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PaymentProcessing/frontend/src/components/BankDetails.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/frontend/src/components/BankDetails.jsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PaymentProcessing/frontend/src/components/PaymentJourney.js" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/frontend/src/components/PaymentJourney.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PaymentProcessing/src/main/java/com/example/PaymentProcessing/api/AccountResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/src/main/java/com/example/PaymentProcessing/api/AccountResponse.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PaymentProcessing/src/main/java/com/example/PaymentProcessing/controller/AccountController.java" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/src/main/java/com/example/PaymentProcessing/controller/AccountController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PaymentProcessing/src/main/java/com/example/PaymentProcessing/model/Account.java" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/src/main/java/com/example/PaymentProcessing/model/Account.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PaymentProcessing/src/main/java/com/example/PaymentProcessing/service/AccountService.java" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/src/main/java/com/example/PaymentProcessing/service/AccountService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PaymentProcessing/src/main/java/com/example/PaymentProcessing/service/OnboardingService.java" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/src/main/java/com/example/PaymentProcessing/service/OnboardingService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PaymentProcessing/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/src/main/resources/application.properties" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
