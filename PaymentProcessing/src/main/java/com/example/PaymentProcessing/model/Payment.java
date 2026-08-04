@@ -47,6 +47,10 @@ public class Payment {
     @Column(name = "remarks", length = 255)
     private String remarks;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category", length = 32)
+    private PaymentCategory category;
+
     @Column(name = "error_code", length = 50)
     private String errorCode;
 
@@ -121,6 +125,14 @@ public class Payment {
 
     public void setRemarks(String remarks) {
         this.remarks = remarks;
+    }
+
+    public PaymentCategory getCategory() {
+        return category;
+    }
+
+    public void setCategory(PaymentCategory category) {
+        this.category = category;
     }
 
     public String getErrorCode() {

@@ -18,6 +18,7 @@ public class PaymentResponse {
     private String errorMessage;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String category;
 
     public static PaymentResponse fromEntity(Payment payment) {
         PaymentResponse response = new PaymentResponse();
@@ -33,6 +34,7 @@ public class PaymentResponse {
         response.setErrorMessage(payment.getErrorMessage());
         response.setCreatedAt(payment.getCreatedAt());
         response.setUpdatedAt(payment.getUpdatedAt());
+        response.setCategory(payment.getCategory() == null ? null : payment.getCategory().name());
         return response;
     }
 
@@ -130,5 +132,13 @@ public class PaymentResponse {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
     }
 }

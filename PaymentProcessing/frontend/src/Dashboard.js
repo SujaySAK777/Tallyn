@@ -105,7 +105,7 @@ function getPaymentCategory(payment) {
   if (text.includes('bill')) return 'Bill Payments';
   if (text.includes('shop') || text.includes('amazon') || text.includes('purchase')) return 'Shopping';
   if (text.includes('movie') || text.includes('netflix') || text.includes('entertain')) return 'Entertainment';
-  return 'UPI Payments';
+  return 'Others';
 }
 
 function classifyTransaction(payment) {
@@ -126,6 +126,7 @@ function Dashboard({ session, onLogout }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchText, setSearchText] = useState('');
+  const [recentFilter, setRecentFilter] = useState('ALL');
   const [selectedMonth, setSelectedMonth] = useState('This Month');
   const [activeModal, setActiveModal] = useState('');
   const [activeSection, setActiveSection] = useState('dashboard');
@@ -584,10 +585,18 @@ function Dashboard({ session, onLogout }) {
   }, [allTransactions, searchText]);
 
   const recentPayments = useMemo(() => {
-    return [...searchedPayments]
+    const filtered = [...searchedPayments].filter((payment) => {
+      const status = String(payment.status || '').toUpperCase();
+      if (recentFilter === 'ALL') return true;
+      if (recentFilter === 'COMPLETED') return status === 'COMPLETED';
+      if (recentFilter === 'FAILED') return status === 'FAILED' || status === 'CREATED';
+      return true;
+    });
+
+    return filtered
       .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
       .slice(0, 5);
-  }, [searchedPayments]);
+  }, [searchedPayments, recentFilter]);
 
   const upcomingPayments = useMemo(() => {
     return scheduledPayments
@@ -603,23 +612,34 @@ function Dashboard({ session, onLogout }) {
 
     const activeMonth = selectedMonth === 'Last Month' ? previousMonth : currentMonth;
     const filtered = payments.filter((payment) => {
+      const status = String(payment.status || '').toUpperCase();
+      if (status !== 'COMPLETED') return false;
       const date = new Date(payment.createdAt || Date.now());
       return date.getMonth() === activeMonth;
     });
 
     const categoryTotals = {
-      'UPI Payments': 0,
       'Bill Payments': 0,
       Shopping: 0,
       Entertainment: 0,
+      Food: 0,
       Others: 0
     };
 
     for (const payment of filtered) {
       const amount = Number(payment.amount || 0);
-      const category = getPaymentCategory(payment);
-      if (categoryTotals[category] !== undefined) {
-        categoryTotals[category] += amount;
+      const CATEGORY_LABELS = {
+        UPI_PAYMENTS: 'Others',
+        BILL_PAYMENTS: 'Bill Payments',
+        SHOPPING: 'Shopping',
+        ENTERTAINMENT: 'Entertainment',
+        FOOD: 'Food',
+        OTHERS: 'Others'
+      };
+
+      const label = payment.category ? (CATEGORY_LABELS[payment.category] || 'Others') : getPaymentCategory(payment);
+      if (categoryTotals[label] !== undefined) {
+        categoryTotals[label] += amount;
       } else {
         categoryTotals.Others += amount;
       }
@@ -631,11 +651,11 @@ function Dashboard({ session, onLogout }) {
     return {
       total,
       items: [
-        { label: 'UPI Payments', amount: categoryTotals['UPI Payments'], pct: Math.round((categoryTotals['UPI Payments'] / baseline) * 100) },
-        { label: 'Bill Payments', amount: categoryTotals['Bill Payments'], pct: Math.round((categoryTotals['Bill Payments'] / baseline) * 100) },
-        { label: 'Shopping', amount: categoryTotals.Shopping, pct: Math.round((categoryTotals.Shopping / baseline) * 100) },
-        { label: 'Entertainment', amount: categoryTotals.Entertainment, pct: Math.round((categoryTotals.Entertainment / baseline) * 100) },
-        { label: 'Others', amount: categoryTotals.Others, pct: Math.round((categoryTotals.Others / baseline) * 100) }
+          { label: 'Bill Payments', amount: categoryTotals['Bill Payments'], pct: Math.round((categoryTotals['Bill Payments'] / baseline) * 100) },
+          { label: 'Shopping', amount: categoryTotals.Shopping, pct: Math.round((categoryTotals.Shopping / baseline) * 100) },
+          { label: 'Entertainment', amount: categoryTotals.Entertainment, pct: Math.round((categoryTotals.Entertainment / baseline) * 100) },
+          { label: 'Food', amount: categoryTotals.Food, pct: Math.round((categoryTotals.Food / baseline) * 100) },
+          { label: 'Others', amount: categoryTotals.Others, pct: Math.round((categoryTotals.Others / baseline) * 100) }
       ]
     };
   }, [payments, selectedMonth]);
@@ -1051,6 +1071,7 @@ function Dashboard({ session, onLogout }) {
           amount,
           currency: formState.currency || 'INR',
           remarks: formState.remarks,
+          category: formState.category || 'OTHERS',
           receiverBankName: formState.receiverBankName || null,
           receiverIfsc: formState.receiverIfsc || null,
           scheduledAt: scheduleDate,
@@ -1095,6 +1116,7 @@ function Dashboard({ session, onLogout }) {
         currency: formState.currency || 'INR',
         referenceNumber,
         remarks: formState.remarks,
+        category: formState.category || 'OTHERS',
         tpin: pin
       };
 
@@ -1732,7 +1754,23 @@ function Dashboard({ session, onLogout }) {
               <article className="card">
                 <div className="card-title-row">
                   <h3>{t('recentTransactions')}</h3>
-                  <button className="link-btn">{t('viewAll')}</button>
+                  <div className="recent-filter">
+                    <button
+                      type="button"
+                      className={`filter-btn ${recentFilter === 'ALL' ? 'active' : ''}`}
+                      onClick={() => setRecentFilter('ALL')}
+                    >All</button>
+                    <button
+                      type="button"
+                      className={`filter-btn ${recentFilter === 'COMPLETED' ? 'active' : ''}`}
+                      onClick={() => setRecentFilter('COMPLETED')}
+                    >Completed</button>
+                    <button
+                      type="button"
+                      className={`filter-btn ${recentFilter === 'FAILED' ? 'active' : ''}`}
+                      onClick={() => setRecentFilter('FAILED')}
+                    >Failed</button>
+                  </div>
                 </div>
 
                 {loading && <p className="empty-note">{t('loadingPayments')}</p>}
