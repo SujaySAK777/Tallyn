@@ -15,3 +15,6 @@ CREATE TABLE group_split_member (
         FOREIGN KEY (customer_id) REFERENCES customer(customer_id),
     CONSTRAINT chk_gsm_share CHECK (share_amount > 0)
 );
+
+
+ALTER TABLE group_split_member ADD COLUMN paid BOOLEAN NOT NULL DEFAULT FALSE AFTER seen;
