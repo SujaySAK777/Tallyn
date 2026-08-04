@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -36,8 +37,8 @@ public class PaymentController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public PaymentResponse create(@RequestBody CreatePaymentRequest request) {
-        return paymentService.createPayment(request);
+    public PaymentResponse create(@RequestBody CreatePaymentRequest request, @RequestAttribute("customerId") Long customerId) {
+        return paymentService.createPayment(request, customerId);
     }
 
     @GetMapping("/{paymentId}")
@@ -46,8 +47,11 @@ public class PaymentController {
     }
 
     @GetMapping
-    public List<PaymentResponse> list(@RequestParam(required = false) PaymentStatus status) {
-        return paymentService.listPayments(status);
+    public List<PaymentResponse> list(
+            @RequestParam(required = false) PaymentStatus status,
+            @RequestParam(required = false) Long customerId
+    ) {
+        return paymentService.listPayments(status, customerId);
     }
 
     @GetMapping("/search")

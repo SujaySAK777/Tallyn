@@ -13,6 +13,7 @@ public class OnboardingController {
     @PutMapping("/{customerId}/profile") public Map<String,Object> profile(@PathVariable Long customerId, @RequestBody Map<String,String> body) { return service.profile(customerId, body); }
     @PostMapping("/{customerId}/link-account") public Map<String,Object> link(@PathVariable Long customerId, @RequestBody Map<String,String> body) { return service.linkAccount(customerId, body); }
     @PostMapping("/{customerId}/verify") public Map<String,Object> verify(@PathVariable Long customerId, @RequestBody Map<String,String> body) { return service.verify(customerId, body); }
+    @PostMapping("/{customerId}/complete") public Map<String,Object> complete(@PathVariable Long customerId) { return service.completeWithoutAccount(customerId); }
     @PostMapping("/{customerId}/set-tpin") public Map<String,Object> tpin(@PathVariable Long customerId, @RequestBody Map<String,String> body) { return service.setTpin(customerId, body); }
     @PostMapping("/login") public Map<String,Object> login(@RequestBody Map<String,String> body) { return service.login(body); }
 }

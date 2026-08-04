@@ -10,6 +10,10 @@ public class CreatePaymentRequest {
     private String referenceNumber;
     private String remarks;
 
+    private String tpin;
+    public String getTpin() { return tpin; }
+    public void setTpin(String tpin) { this.tpin = tpin; }
+
     public Long getSourceAccountId() {
         return sourceAccountId;
     }

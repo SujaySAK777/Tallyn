@@ -13,6 +13,8 @@ import * as ReviewPaymentModule from './ReviewPayment';
 import * as SuccessPageModule from './SuccessPage';
 import * as TransactionDetailsModule from './TransactionDetails';
 
+
+
 const createMissingComponent = (name) => function MissingComponent() {
   return <div className="error-msg">{name} component is unavailable.</div>;
 };
@@ -43,6 +45,7 @@ function PaymentJourney({
   setMethod,
   formState,
   setFormState,
+  accounts,
   paymentId,
   currency,
   onClose,
@@ -210,10 +213,10 @@ function PaymentJourney({
     }
   };
 
-  const handleAuthorize = async () => {
+  const handleAuthorize = async (pin) => {
     setAuthenticating(true);
     try {
-      const created = await Promise.resolve(onAuthorize?.());
+      const created = await Promise.resolve(onAuthorize?.(pin));
       if (created === false) {
         onStepChange('failed');
         return;

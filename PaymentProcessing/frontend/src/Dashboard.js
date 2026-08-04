@@ -158,7 +158,16 @@ function Dashboard({ session, onLogout }) {
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduledReceipt, setScheduledReceipt] = useState(null);
   const [accounts, setAccounts] = useState([]);
-  const [groupSplit, setGroupSplit] = useState({ amount: '', members: '' });
+  const [scheduleLookupError, setScheduleLookupError] = useState('');
+  const [groupSplit, setGroupSplit] = useState({
+    amount: '',
+    description: '',
+    splitType: 'EQUAL',
+    members: [{ accountNumber: '', amount: '' }, { accountNumber: '', amount: '' }]
+  });
+  const [groupSplitError, setGroupSplitError] = useState('');
+  const [groupSplitSubmitting, setGroupSplitSubmitting] = useState(false);
+  const [groupSplitNotifications, setGroupSplitNotifications] = useState([]);
   const [toast, setToast] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [isSupportChatOpen, setIsSupportChatOpen] = useState(false);
@@ -171,13 +180,11 @@ function Dashboard({ session, onLogout }) {
   const [accountSubmitting, setAccountSubmitting] = useState(false);
   const [accountError, setAccountError] = useState('');
   const [createdAccount, setCreatedAccount] = useState(null);
-  const [checkBalanceForm, setCheckBalanceForm] = useState({
-    accountNumber: '',
-    tpin: ''
-  });
-  const [checkBalanceSubmitting, setCheckBalanceSubmitting] = useState(false);
-  const [checkBalanceError, setCheckBalanceError] = useState('');
-  const [checkBalanceResult, setCheckBalanceResult] = useState(null);
+  const [balanceAccountNumber, setBalanceAccountNumber] = useState('');
+  const [balanceTpin, setBalanceTpin] = useState('');
+  const [balanceResult, setBalanceResult] = useState(null);
+  const [balanceError, setBalanceError] = useState('');
+  const [balanceSubmitting, setBalanceSubmitting] = useState(false);
   const [accountForm, setAccountForm] = useState({
     bankName: 'HDFC BANK',
     mobileNumber: '',
@@ -198,6 +205,62 @@ function Dashboard({ session, onLogout }) {
       setLanguage(savedLanguage);
     }
   }, []);
+
+  useEffect(() => {
+    loadPayments();
+    loadScheduledPayments();
+    loadAccounts();
+    loadGroupSplitNotifications();
+
+    const pollInterval = window.setInterval(() => {
+      loadPayments({ silent: true });
+      loadScheduledPayments();
+    }, 15000);
+
+    return () => window.clearInterval(pollInterval);
+  }, []);
+
+  const updateGroupSplitMember = (index, field, value) => {
+    setGroupSplit((prev) => {
+      const members = [...prev.members];
+      members[index] = { ...members[index], [field]: value };
+      return { ...prev, members };
+    });
+  };
+
+  const addGroupSplitMember = () => {
+    setGroupSplit((prev) => ({ ...prev, members: [...prev.members, { accountNumber: '', amount: '' }] }));
+  };
+
+  const removeGroupSplitMember = (index) => {
+    setGroupSplit((prev) => ({ ...prev, members: prev.members.filter((_, i) => i !== index) }));
+  };
+
+  const submitGroupSplit = async () => {
+    setGroupSplitError('');
+    setGroupSplitSubmitting(true);
+    try {
+      const payload = {
+        amount: Number(groupSplit.amount || 0),
+        description: groupSplit.description,
+        split_type: groupSplit.splitType,
+        members: groupSplit.members
+          .filter((member) => member.accountNumber.trim())
+          .map((member) => ({
+            account_number: member.accountNumber.trim(),
+            amount: groupSplit.splitType === 'UNEQUAL' ? Number(member.amount || 0) : undefined
+          }))
+      };
+      await apiRequest('/group-splits', { method: 'POST', body: JSON.stringify(payload) });
+      showToast(t('splitCreated'));
+      setGroupSplit({ amount: '', description: '', splitType: 'EQUAL', members: [{ accountNumber: '', amount: '' }, { accountNumber: '', amount: '' }] });
+      closeModal();
+    } catch (err) {
+      setGroupSplitError(err.message || 'Unable to create split');
+    } finally {
+      setGroupSplitSubmitting(false);
+    }
+  };
 
   const toggleTheme = () => {
     const nextTheme = theme === 'light' ? 'dark' : 'light';
@@ -225,7 +288,8 @@ function Dashboard({ session, onLogout }) {
     }
     setError('');
     try {
-      const data = await apiRequest('/payments');
+      const customerQuery = session?.customerId ? `?customerId=${session.customerId}` : '';
+      const data = await apiRequest(`/payments${customerQuery}`);
       setPayments(Array.isArray(data) ? data : []);
     } catch (err) {
       if (!silent) {
@@ -254,6 +318,21 @@ function Dashboard({ session, onLogout }) {
       setAccounts(Array.isArray(data) ? data : []);
     } catch (err) {
       setAccounts([]);
+    }
+  };
+
+  const loadGroupSplitNotifications = async () => {
+    try {
+      const data = await apiRequest('/group-splits/notifications');
+      const list = Array.isArray(data) ? data : [];
+      setGroupSplitNotifications(list);
+      list.forEach((notification) => {
+        showToast(
+          `${notification.createdByName} added you to "${notification.description}" — your share: ${currency(notification.shareAmount)}`
+        );
+      });
+    } catch (err) {
+      // silent — notifications shouldn't block the dashboard from loading
     }
   };
 
@@ -535,7 +614,7 @@ function Dashboard({ session, onLogout }) {
       return;
     }
     if (action === 'checkBalance') {
-      openCheckBalance();
+      openCheckBalanceFlow();
       return;
     }
     if (action === 'schedulePayment') {
@@ -543,6 +622,7 @@ function Dashboard({ session, onLogout }) {
       setScheduleStep('details');
       setScheduledReceipt(null);
       setError('');
+      setScheduleLookupError('');
       loadAccounts();
       return;
     }
@@ -558,6 +638,8 @@ function Dashboard({ session, onLogout }) {
     setScheduleStep('details');
     setScheduledReceipt(null);
     setGroupSplit({ amount: '', members: '' });
+    setError('');
+    setScheduleLookupError('');
     setAccountError('');
     setAccountSubmitting(false);
     setAccountStep('entry');
@@ -570,6 +652,11 @@ function Dashboard({ session, onLogout }) {
       tpin: '',
       confirmTpin: ''
     });
+    setBalanceAccountNumber('');
+    setBalanceTpin('');
+    setBalanceResult(null);
+    setBalanceError('');
+    setBalanceSubmitting(false);
   };
 
   const openAccountFlow = () => {
@@ -587,6 +674,50 @@ function Dashboard({ session, onLogout }) {
       tpin: '',
       confirmTpin: ''
     });
+  };
+
+  const openCheckBalanceFlow = () => {
+    setActiveModal('checkBalance');
+    setBalanceResult(null);
+    setBalanceError('');
+    setBalanceSubmitting(false);
+    setBalanceTpin('');
+    loadAccounts();
+    setBalanceAccountNumber(
+      accounts.find((account) => String(account.accountId) === String(session?.accountId))?.accountNumber
+        || session?.accountNumber
+        || ''
+    );
+  };
+
+  const submitCheckBalance = async () => {
+    setBalanceError('');
+
+    if (!balanceAccountNumber) {
+      setBalanceError('Please select an account.');
+      return;
+    }
+    if (!/^\d{6}$/.test(String(balanceTpin || '').trim())) {
+      setBalanceError('Enter your 6-digit TPIN.');
+      return;
+    }
+
+    setBalanceSubmitting(true);
+    try {
+      const response = await apiRequest('/accounts/balance', {
+        method: 'POST',
+        body: JSON.stringify({
+          account_number: balanceAccountNumber,
+          tpin: balanceTpin.trim()
+        })
+      });
+      setBalanceResult(response);
+    } catch (err) {
+      setBalanceError(err.message || 'Unable to check balance');
+      setBalanceResult(null);
+    } finally {
+      setBalanceSubmitting(false);
+    }
   };
 
   const handleAccountFormChange = (event) => {
@@ -652,7 +783,8 @@ function Dashboard({ session, onLogout }) {
           bank_name: accountForm.bankName,
           mobile_number: accountForm.mobileNumber.trim(),
           account_holder_name: accountForm.accountHolderName.trim() || undefined,
-          currency: accountForm.currency.trim() || 'INR'
+          currency: accountForm.currency.trim() || 'INR',
+          customer_id: session?.customerId
         };
 
         const account = await apiRequest('/accounts/simulate', {
@@ -747,13 +879,12 @@ function Dashboard({ session, onLogout }) {
       return;
     }
 
-    const destinationAccount = getAccountByNumber(formState.scheduleDestinationAccountNumber);
-    if (!destinationAccount) {
+    if (!formState.scheduleDestinationAccountId) {
       setError('Destination account number not found.');
       return;
     }
 
-    if (String(destinationAccount.accountId) === String(formState.sourceAccountId)) {
+    if (String(formState.scheduleDestinationAccountId) === String(formState.sourceAccountId)) {
       setError('Source and destination accounts must be different.');
       return;
     }
@@ -795,15 +926,36 @@ function Dashboard({ session, onLogout }) {
 
   const handleDestinationAccountNumberChange = (event) => {
     const value = event.target.value;
-    const matchedAccount = getAccountByNumber(value);
     setFormState((prev) => ({
       ...prev,
       scheduleDestinationAccountNumber: value,
-      receiverBankName: matchedAccount ? matchedAccount.bankName : prev.receiverBankName
+      scheduleDestinationAccountId: '',
+      accountHolder: '',
+      receiverBankName: '',
+      receiverIfsc: ''
     }));
+    setScheduleLookupError('');
   };
 
-  const createPayment = async (mode) => {
+  const lookupScheduleDestination = async () => {
+    const accountNumber = String(formState.scheduleDestinationAccountNumber || '').trim();
+    if (!accountNumber) return;
+    try {
+      const account = await apiRequest(`/accounts/number/${encodeURIComponent(accountNumber)}`);
+      setFormState((prev) => ({
+        ...prev,
+        scheduleDestinationAccountId: String(account.accountId),
+        accountHolder: account.accountHolderName,
+        receiverBankName: account.bankName,
+        receiverIfsc: account.ifscCode || ''
+      }));
+      setScheduleLookupError('');
+    } catch (err) {
+      setScheduleLookupError(err.message || 'Recipient account was not found.');
+    }
+  };
+
+  const createPayment = async (mode, pin) => {
     setSubmitting(true);
     try {
       const amount = Number(formState.amount);
@@ -820,12 +972,11 @@ function Dashboard({ session, onLogout }) {
           return false;
         }
 
-        const destinationAccount = getAccountByNumber(formState.scheduleDestinationAccountNumber);
-        if (!destinationAccount) {
+        if (!formState.scheduleDestinationAccountId) {
           setError('Destination account number not found.');
           return false;
         }
-        const destinationAccountId = destinationAccount.accountId;
+        const destinationAccountId = Number(formState.scheduleDestinationAccountId);
 
         if (sourceAccountId === destinationAccountId) {
           setError('Source and destination accounts must be different.');
@@ -878,15 +1029,24 @@ function Dashboard({ session, onLogout }) {
         return false;
       }
 
+
       const referenceNumber = (formState.referenceNumber || formState.reference || '').trim() || `REF${Date.now()}`;
+
+      if (!/^\d{6}$/.test(pin || '')) {
+        setError('Enter your 6-digit TPIN to authorize this payment.');
+        return false;
+      }
+
       const payload = {
         sourceAccountId,
         destinationAccountId,
         amount,
         currency: formState.currency || 'INR',
         referenceNumber,
-        remarks: formState.remarks
+        remarks: formState.remarks,
+        tpin: pin
       };
+
       const createdPayment = await apiRequest('/payments', {
         method: 'POST',
         body: JSON.stringify(payload)
@@ -1083,7 +1243,13 @@ function Dashboard({ session, onLogout }) {
                           placeholder={t('destinationAccountNumberPlaceholder')}
                           value={formState.scheduleDestinationAccountNumber}
                           onChange={handleDestinationAccountNumberChange}
+                          onBlur={lookupScheduleDestination}
                         />
+                        {scheduleLookupError && <div className="error-msg">{scheduleLookupError}</div>}
+                      </label>
+                      <label className="field-col">
+                        <span><FiUser /> Account Holder Name</span>
+                        <input name="accountHolder" value={formState.accountHolder} readOnly />
                       </label>
                       <label className="field-col">
                         <span><FiCreditCard /> {t('receiverBankName')}</span>
@@ -1091,7 +1257,7 @@ function Dashboard({ session, onLogout }) {
                           name="receiverBankName"
                           placeholder={t('receiverBankNamePlaceholder')}
                           value={formState.receiverBankName}
-                          onChange={handleFormChange}
+                          readOnly
                         />
                       </label>
                       <label className="field-col">
@@ -1100,8 +1266,7 @@ function Dashboard({ session, onLogout }) {
                           name="receiverIfsc"
                           placeholder={t('receiverIfscPlaceholder')}
                           value={formState.receiverIfsc}
-                          onChange={(event) => setFormState((prev) => ({ ...prev, receiverIfsc: event.target.value.toUpperCase() }))}
-                          maxLength={11}
+                          readOnly
                         />
                       </label>
                       <label className="field-col">
@@ -1340,16 +1505,17 @@ function Dashboard({ session, onLogout }) {
         )}
 
         {paymentJourneyOpen && (
-          <PaymentJourney
+            <PaymentJourney
             step={paymentJourneyStep}
             method={paymentJourneyMethod}
             setMethod={setPaymentJourneyMethod}
             formState={formState}
             setFormState={setFormState}
+            accounts={activeAccounts}
             paymentId={journeyPaymentId}
             currency={currency}
             onClose={closePaymentJourney}
-            onAuthorize={() => createPayment('payment')}
+            onAuthorize={(pin) => createPayment('payment', pin)}
             onValidate={validateJourneyPayment}
             onProcessStatus={processJourneyPayment}
             onSettle={settleJourneyPayment}
@@ -1598,6 +1764,7 @@ function Dashboard({ session, onLogout }) {
           <div className="modal-overlay" onClick={closeModal}>
             <div className="modal-card" onClick={(event) => event.stopPropagation()}>
               <h3>{t('groupSplit')}</h3>
+
               <div className="form-grid">
                 <input
                   type="number"
@@ -1606,15 +1773,71 @@ function Dashboard({ session, onLogout }) {
                   onChange={(event) => setGroupSplit((prev) => ({ ...prev, amount: event.target.value }))}
                 />
                 <input
-                  type="number"
-                  placeholder={t('numberOfPeople')}
-                  value={groupSplit.members}
-                  onChange={(event) => setGroupSplit((prev) => ({ ...prev, members: event.target.value }))}
+                  type="text"
+                  placeholder={t('splitDescription')}
+                  value={groupSplit.description}
+                  onChange={(event) => setGroupSplit((prev) => ({ ...prev, description: event.target.value }))}
                 />
               </div>
-              <p className="split-result">{t('perPerson')}: <strong>{currency(perHead)}</strong></p>
+
+              <div className="split-type-toggle">
+                <button
+                  type="button"
+                  className={groupSplit.splitType === 'EQUAL' ? 'active' : ''}
+                  onClick={() => setGroupSplit((prev) => ({ ...prev, splitType: 'EQUAL' }))}
+                >
+                  {t('splitEqually')}
+                </button>
+                <button
+                  type="button"
+                  className={groupSplit.splitType === 'UNEQUAL' ? 'active' : ''}
+                  onClick={() => setGroupSplit((prev) => ({ ...prev, splitType: 'UNEQUAL' }))}
+                >
+                  {t('splitUnequally')}
+                </button>
+              </div>
+
+              <p className="split-result">{t('numberOfPeople')}: <strong>{groupSplit.members.length}</strong></p>
+
+              {groupSplit.members.map((member, index) => (
+                <div className="form-grid" key={index}>
+                  <input
+                    type="text"
+                    placeholder={t('memberAccountNumber')}
+                    value={member.accountNumber}
+                    onChange={(event) => updateGroupSplitMember(index, 'accountNumber', event.target.value)}
+                  />
+                  {groupSplit.splitType === 'UNEQUAL' && (
+                    <input
+                      type="number"
+                      placeholder={t('memberAmount')}
+                      value={member.amount}
+                      onChange={(event) => updateGroupSplitMember(index, 'amount', event.target.value)}
+                    />
+                  )}
+                  {groupSplit.members.length > 2 && (
+                    <button type="button" className="link-btn" onClick={() => removeGroupSplitMember(index)}>
+                      {t('removeMember')}
+                    </button>
+                  )}
+                </div>
+              ))}
+
+              <button type="button" className="link-btn" onClick={addGroupSplitMember}>{t('addMember')}</button>
+
+              {groupSplit.splitType === 'EQUAL' && groupSplit.amount && groupSplit.members.length > 0 && (
+                <p className="split-result">
+                  {t('perPerson')}: <strong>{currency(Number(groupSplit.amount) / groupSplit.members.length)}</strong>
+                </p>
+              )}
+
+              {groupSplitError && <p className="form-error">{groupSplitError}</p>}
+
               <div className="modal-actions">
                 <button className="secondary-btn" onClick={closeModal}>{t('close')}</button>
+                <button className="primary-btn" onClick={submitGroupSplit} disabled={groupSplitSubmitting}>
+                  {t('createSplit')}
+                </button>
               </div>
             </div>
           </div>
@@ -1786,6 +2009,71 @@ function Dashboard({ session, onLogout }) {
                     <div><strong>Status:</strong> {createdAccount?.status || 'INACTIVE'}</div>
                   </div>
                   <div className="modal-actions">
+                    <button className="primary-btn" onClick={closeModal}>Done</button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeModal === 'checkBalance' && (
+          <div className="modal-overlay" onClick={closeModal}>
+            <div className="modal-card account-modal" onClick={(event) => event.stopPropagation()}>
+              <div className="card-title-row account-modal-head">
+                <h3>Check Balance</h3>
+              </div>
+
+              {!balanceResult && (
+                <>
+                  <div className="form-grid">
+                    <label className="field-col">
+                      <span>Account</span>
+                      <select
+                        value={balanceAccountNumber}
+                        onChange={(event) => setBalanceAccountNumber(event.target.value)}
+                      >
+                        <option value="">Select an account</option>
+                        {accounts.map((account) => (
+                          <option key={account.accountId} value={account.accountNumber}>
+                            {account.accountNumber} ({account.bankName})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="field-col">
+                      <span>TPIN</span>
+                      <input
+                        type="password"
+                        placeholder="6-digit TPIN"
+                        value={balanceTpin}
+                        onChange={(event) => setBalanceTpin(event.target.value)}
+                      />
+                    </label>
+                  </div>
+
+                  {balanceError && <p className="empty-note error-note">{balanceError}</p>}
+
+                  <div className="modal-actions">
+                    <button className="secondary-btn" onClick={closeModal}>Cancel</button>
+                    <button className="primary-btn" onClick={submitCheckBalance} disabled={balanceSubmitting}>
+                      {balanceSubmitting ? 'Checking...' : 'View Balance'}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {balanceResult && (
+                <>
+                  <div className="account-created-summary done">
+                    <div><strong>Account Number:</strong> {balanceResult.accountNumber}</div>
+                    <div><strong>Account Holder:</strong> {balanceResult.accountHolderName}</div>
+                    <div><strong>Balance:</strong> {currency(balanceResult.balance)}</div>
+                  </div>
+                  <div className="modal-actions">
+                    <button className="secondary-btn" onClick={() => { setBalanceResult(null); setBalanceTpin(''); }}>
+                      Check Another
+                    </button>
                     <button className="primary-btn" onClick={closeModal}>Done</button>
                   </div>
                 </>
