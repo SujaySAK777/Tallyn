@@ -98,4 +98,10 @@ public class PaymentController {
     public PaymentResponse updateStatus(@PathVariable Long paymentId, @RequestBody UpdatePaymentStatusRequest request) {
         return paymentService.updateStatus(paymentId, request);
     }
+
+    @PostMapping("/{paymentId}/resend-notifications")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void resendNotifications(@PathVariable Long paymentId) {
+        paymentService.resendNotifications(paymentId);
+    }
 }
