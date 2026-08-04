@@ -1,0 +1,22 @@
+.balance-journey-layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(250px, .65fr); gap: 18px; align-items: start; }
+.balance-main-card { padding: 22px; }
+.journey-linked-accounts { max-height: 330px; }
+.balance-security-card { padding: 22px; display: grid; gap: 9px; }
+.balance-security-card h3 { margin: 0; color: #1d2946; font-size: 16px; }
+.balance-security-card p { margin: 0; color: #7080a7; font-size: 13px; line-height: 1.55; }
+.balance-security-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 13px; background: #edf1ff; color: #4b5cff; font-size: 19px; }
+.balance-authorize-heading { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; margin-bottom: 14px; }
+.balance-authorize-heading h2 { margin: 0; color: #1d2946; font-size: 22px; }
+.balance-authorize-heading p { margin: 4px 0 0; color: #7080a7; font-size: 13px; }
+.balance-change-account { margin-top: 12px; padding: 0; border: 0; background: transparent; color: #4054f4; font-size: 12px; font-weight: 700; cursor: pointer; }
+.selected-balance-account { display: flex; align-items: center; gap: 11px; padding: 13px; margin: 20px 0; border: 1px solid #dbe4ff; border-radius: 14px; background: #f7f9ff; color: #4b5cff; }
+.selected-balance-account > div { display: grid; gap: 3px; flex: 1; color: #27345a; }
+.selected-balance-account strong { font-size: 14px; }.selected-balance-account span { color: #71809d; font-size: 12px; }
+.selected-balance-account button { border: 0; background: transparent; color: #4054f4; font-size: 12px; font-weight: 700; cursor: pointer; }
+.balance-tpin-input { display: grid; gap: 8px; color: #43527e; font-size: 13px; font-weight: 700; }
+.balance-tpin-input input { width: 100%; box-sizing: border-box; border: 1px solid #dfe6fa; border-radius: 12px; padding: 13px 14px; background: #fbfcff; color: #27345a; font-size: 17px; letter-spacing: .14em; }
+.balance-tpin-input input:focus { outline: 2px solid rgba(76,93,255,.2); border-color: #4b5cff; }
+.balance-result-page { display: grid; place-items: center; min-height: 400px; }.journey-result-card { width: min(470px, 100%); }
+.balance-result-card .journey-actions { width: 100%; margin-top: 16px; }.balance-result-card .journey-actions button { flex: 1; }
+@media (max-width: 850px) { .balance-journey-layout { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .balance-main-card, .balance-security-card { padding: 18px; }.balance-stepper small { font-size: 10px; }.balance-authorize-heading { display: grid; }.balance-authorize-heading .status-chip { justify-self: start; } }
