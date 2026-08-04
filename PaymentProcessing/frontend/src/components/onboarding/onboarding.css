@@ -1,0 +1,107 @@
+:root{--tallyn-primary:#4d5dff;--tallyn-blue-bg:#2c3f8c;--tallyn-bg:#f7f8fc;--tallyn-text:#17203b;--tallyn-muted:#69748e;--tallyn-border:#e3e7f1}
+
+.onboarding-shell{
+  min-height:100vh;width:100%;box-sizing:border-box;
+  background:var(--tallyn-blue-bg);
+  color:#fff;padding:96px max(24px,4vw) 60px;display:flex;flex-direction:column;align-items:center
+}
+
+.onboarding-topbar{position:fixed;top:24px;left:max(24px,4vw);display:flex;align-items:center;gap:12px;z-index:10}
+.onboarding-logo{width:40px;height:40px;display:grid;place-items:center;border-radius:11px;background:#fff;color:var(--tallyn-blue-bg);font-size:18px;font-weight:800;flex:0 0 auto;box-shadow:0 6px 16px rgba(0,0,0,.18)}
+.onboarding-logo svg{width:19px;height:19px}
+.onboarding-brand-name{font-size:19px;font-weight:800;color:#fff}
+
+.onboarding-page-heading{width:100%;max-width:820px;margin:0 0 18px;font-size:clamp(30px,4vw,40px);font-weight:800;letter-spacing:-.02em;color:#fff;text-align:center}
+
+.onboarding-hstepper{list-style:none;display:flex;align-items:center;justify-content:center;gap:0;margin:0 0 28px;padding:0;width:100%;max-width:640px}
+.onboarding-hstepper li{display:flex;align-items:center;gap:9px;flex:1;color:rgba(255,255,255,.6);font-size:12.5px;font-weight:650}
+.onboarding-hstepper li:not(:last-child)::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.3);margin:0 8px}
+.hstep-marker{width:26px;height:26px;flex:0 0 auto;display:grid;place-items:center;border:1px solid rgba(255,255,255,.4);border-radius:50%;font-size:12px;box-sizing:border-box}
+.onboarding-hstepper li.done .hstep-marker{background:#fff;color:var(--tallyn-primary);border-color:#fff}
+.onboarding-hstepper li.done{color:#fff}
+.hstep-label{white-space:nowrap}
+
+.onboarding-card{width:100%;max-width:820px;padding:40px clamp(24px,5vw,64px);background:#fff;border:1px solid var(--tallyn-border);border-radius:18px;box-shadow:0 20px 50px rgba(33,48,96,.08)}
+.onboarding-icon{width:46px;height:46px;display:grid;place-items:center;border-radius:12px;background:#eef0ff;color:var(--tallyn-primary);font-size:22px}
+.onboarding-card h2{margin:20px 0 8px;font-size:28px}
+.onboarding-card>p{margin:0 0 26px;color:var(--tallyn-muted)}
+
+.onboarding-card form{display:grid;gap:14px}
+.onboarding-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px}
+.onboarding-form-grid .field-span2{grid-column:1 / -1}
+
+.onboarding-card label{display:grid;gap:6px;color:#3f4b69;font-size:13px;font-weight:650}
+.onboarding-card input{box-sizing:border-box;width:100%;border:1px solid #dce2f0;border-radius:9px;padding:13px 14px;font:inherit}
+.onboarding-card input:focus{outline:0;border-color:var(--tallyn-primary);box-shadow:0 0 0 3px rgba(77,93,255,.12)}
+.onboarding-card form button{border:0;border-radius:9px;padding:13px 16px;background:var(--tallyn-primary);color:#fff;font-weight:700;cursor:pointer}
+.onboarding-card form button:disabled{opacity:.6;cursor:not-allowed}
+
+.email-field-row{display:flex;align-items:flex-end;gap:8px}
+.email-field-row label{flex:1}
+.email-verify-btn{flex:0 0 auto;border:1px solid var(--tallyn-primary)!important;background:#fff!important;color:var(--tallyn-primary)!important;font-weight:700;border-radius:9px;padding:12px 16px;cursor:pointer;white-space:nowrap}
+.email-verify-btn:disabled{opacity:.6;cursor:not-allowed}
+.email-verified-badge{display:inline-flex;align-items:center;gap:6px;color:#0eaa55;font-size:12.5px;font-weight:700;margin-top:4px}
+
+.onboarding-actions-row{display:flex;gap:10px}
+.onboarding-actions-row button{flex:1}
+.onboarding-skip-btn{background:#fff!important;color:var(--tallyn-muted)!important;border:1px solid var(--tallyn-border)!important}
+
+.onboarding-link{width:100%;margin-top:15px;border:0!important;background:transparent!important;color:var(--tallyn-primary)!important;font-weight:700;cursor:pointer}
+.onboarding-link-row{display:flex;justify-content:flex-end;margin-top:-4px}
+.onboarding-link-row button{border:0;background:transparent;color:var(--tallyn-primary);font-size:12.5px;font-weight:650;cursor:pointer;padding:0}
+.onboarding-error{margin:0;color:#b03a4b;font-size:13px}
+.dev-otp,.complete-note{border:1px solid #d8deff;border-radius:9px;background:#f1f3ff;color:#4152d5;padding:11px;font-size:13px}
+.complete-note{display:flex;gap:8px;align-items:center}
+
+/* Welcome splash — light ground, vivid color used as accents */
+.welcome-shell{
+  height:100vh;height:100dvh;width:100%;
+  display:grid;place-items:center;
+  position:relative;overflow:hidden;color:#fff;padding:24px;box-sizing:border-box;
+  background:var(--tallyn-blue-bg);
+}
+.welcome-content{
+  position:relative;z-index:1;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;max-width:420px;
+}
+.welcome-hero{
+  width:112px;height:112px;border-radius:28px;
+  background:#fff;box-shadow:0 10px 26px rgba(0,0,0,.18);
+  display:grid;place-items:center;margin-bottom:28px;
+  opacity:0;animation:welcomeIn .7s ease .05s forwards;
+}
+.welcome-hero svg{width:56px;height:56px;color:var(--tallyn-blue-bg)}
+.welcome-shell h1{margin:0;font-size:44px;font-weight:800;letter-spacing:-.5px;color:#fff;opacity:0;animation:welcomeIn .7s ease .18s forwards}
+.welcome-shell p{
+  margin:14px auto 0;color:rgba(255,255,255,.85);font-size:16px;
+  max-width:360px;line-height:1.55;text-align:center;
+  opacity:0;animation:welcomeIn .7s ease .3s forwards;
+}
+@keyframes welcomeIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@media (prefers-reduced-motion: reduce){
+  .welcome-hero,.welcome-shell h1,.welcome-shell p{animation:none;opacity:1}
+}
+
+/* Terms & Conditions / OTP modal (shared) */
+.onboarding-card label.terms-checkbox-row{display:flex;align-items:flex-start;gap:9px;font-size:12.5px;color:#3f4b69;font-weight:500;line-height:1.5}
+.terms-checkbox-row input{width:16px;height:16px;margin-top:2px;flex:0 0 auto}
+.terms-checkbox-row button{border:0;background:transparent;color:var(--tallyn-primary);font-weight:700;cursor:pointer;padding:0;font-size:12.5px}
+.terms-modal-overlay{position:fixed;inset:0;background:rgba(15,20,45,.5);display:grid;place-items:center;z-index:80;padding:20px}
+.terms-modal{width:min(520px,100%);max-height:80vh;overflow-y:auto;background:#fff;border-radius:16px;padding:28px;box-shadow:0 24px 60px rgba(10,15,50,.3)}
+.terms-modal h3{margin:0 0 4px;color:var(--tallyn-text)}
+.terms-modal-placeholder-note{margin:0 0 16px;color:#b03a4b;font-size:12.5px;font-weight:650}
+.terms-modal p{color:var(--tallyn-muted);line-height:1.6;font-size:13.5px}
+.terms-modal-close{margin-top:12px;border:0;border-radius:9px;padding:11px 16px;background:var(--tallyn-primary);color:#fff;font-weight:700;cursor:pointer}
+.otp-modal-input{text-align:center;font-size:22px;letter-spacing:10px;font-weight:700}
+
+@media(max-width:760px){
+  .onboarding-form-grid{grid-template-columns:1fr}
+  .onboarding-hstepper{flex-wrap:wrap;gap:10px 0;max-width:100%}
+  .onboarding-hstepper li{flex:0 0 auto}
+  .onboarding-hstepper li:not(:last-child)::after{display:none}
+  .hstep-label{display:none}
+  .onboarding-card{padding:28px 20px}
+  .welcome-hero{width:88px;height:88px}
+  .welcome-shell h1{font-size:32px}
+}
