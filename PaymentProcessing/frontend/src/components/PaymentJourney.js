@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   FiArrowLeft,
+  FiCheck,
   FiChevronRight
 } from 'react-icons/fi';
 import './PaymentJourney.css';
@@ -10,6 +11,7 @@ import * as FailedPaymentModule from './FailedPayment';
 import * as PaymentMethodModule from './PaymentMethod';
 import * as ProcessingPaymentModule from './ProcessingPayment';
 import * as ReviewPaymentModule from './ReviewPayment';
+import * as SelfTransferDetailsModule from './SelfTransferDetails';
 import * as SuccessPageModule from './SuccessPage';
 import * as TransactionDetailsModule from './TransactionDetails';
 
@@ -36,6 +38,7 @@ const FailedPayment = resolveComponent(FailedPaymentModule, 'FailedPayment');
 const PaymentMethod = resolveComponent(PaymentMethodModule, 'PaymentMethod');
 const ProcessingPayment = resolveComponent(ProcessingPaymentModule, 'ProcessingPayment');
 const ReviewPayment = resolveComponent(ReviewPaymentModule, 'ReviewPayment');
+const SelfTransferDetails = resolveComponent(SelfTransferDetailsModule, 'SelfTransferDetails');
 const SuccessPage = resolveComponent(SuccessPageModule, 'SuccessPage');
 const TransactionDetails = resolveComponent(TransactionDetailsModule, 'TransactionDetails');
 
@@ -254,7 +257,7 @@ function PaymentJourney({
         const isCompleted = index < currentIndex;
         return (
           <div key={item.id} className={`stepper-item ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}>
-            <span>{index + 1}</span>
+            <span>{isCompleted ? <FiCheck /> : index + 1}</span>
             <small>{item.label}</small>
           </div>
         );
@@ -295,15 +298,30 @@ function PaymentJourney({
     }));
   };
 
+  const isSelfTransfer = method === 'self';
+
   const renderDetailsPage = () => (
-    <BankDetails
-      formData={mapBankFormData}
-      setFormData={setBankFormData}
-      previousStep={goBack}
-      nextStep={goNext}
-      sourceBalance={sourceBalance}
-      accounts={accounts}
-    />
+    isSelfTransfer
+      ? (
+        <SelfTransferDetails
+          formData={mapBankFormData}
+          setFormData={setBankFormData}
+          previousStep={goBack}
+          nextStep={goNext}
+          sourceBalance={sourceBalance}
+          accounts={accounts}
+        />
+        )
+      : (
+        <BankDetails
+          formData={mapBankFormData}
+          setFormData={setBankFormData}
+          previousStep={goBack}
+          nextStep={goNext}
+          sourceBalance={sourceBalance}
+          accounts={accounts}
+        />
+        )
   );
 
   const renderReviewPage = () => (
@@ -322,6 +340,7 @@ function PaymentJourney({
       onBudgetChange={updateMonthlyBudget}
       onBack={goBack}
       onConfirm={goNext}
+      isSelfTransfer={isSelfTransfer}
     />
   );
 
@@ -352,6 +371,7 @@ function PaymentJourney({
           currency={currency}
           onStepChange={onStepChange}
           onClose={onClose}
+          isSelfTransfer={isSelfTransfer}
         />
         )
       : (
@@ -408,7 +428,9 @@ function PaymentJourney({
 
       <div className="journey-shell premium-shell">
         {renderStepCards()}
-        {renderActivePage()}
+        <div className="journey-step-content" key={step}>
+          {renderActivePage()}
+        </div>
       </div>
     </section>
   );

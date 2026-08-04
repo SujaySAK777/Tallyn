@@ -900,13 +900,27 @@
 }
 
 .stepper {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 18px;
 }
 
+.stepper::before {
+  content: '';
+  position: absolute;
+  top: 27px;
+  left: 6%;
+  right: 6%;
+  height: 2px;
+  background: #e3e9f6;
+  z-index: 0;
+}
+
 .stepper-item {
+  position: relative;
+  z-index: 1;
   border: 1px solid #e3e9f6;
   background: #f9fbff;
   border-radius: 16px;
@@ -915,6 +929,7 @@
   align-items: center;
   gap: 10px;
   color: #5f6b86;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
 
 .stepper-item span {
@@ -926,7 +941,9 @@
   display: grid;
   place-items: center;
   font-weight: 700;
+  font-size: 14px;
   flex: 0 0 auto;
+  transition: background 0.18s ease, color 0.18s ease;
 }
 
 .stepper-item small {
@@ -938,11 +955,49 @@
   border-color: #4b5cff;
   background: #eff3ff;
   color: #27345a;
+  box-shadow: 0 10px 22px rgba(75, 92, 255, 0.16);
+  transform: translateY(-1px);
+}
+
+.stepper-item.active span {
+  background: #4b5cff;
+  color: #fff;
+}
+
+.stepper-item.completed {
+  border-color: #c7d1ff;
 }
 
 .stepper-item.completed span {
   background: #4b5cff;
   color: #fff;
+  font-size: 15px;
+}
+
+@media (max-width: 780px) {
+  .stepper {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .stepper::before {
+    display: none;
+  }
+
+  .stepper-item {
+    flex-direction: column;
+    text-align: center;
+    padding: 8px 4px;
+    gap: 5px;
+  }
+
+  .stepper-item small {
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+  }
 }
 
 .page-heading {
@@ -1254,6 +1309,94 @@
 
 .payment-journey .journey-shell .section-title:first-child {
   margin-top: 0;
+}
+
+/* Schedule payment details step: always 2 boxes per row. */
+.schedule-compact .form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.schedule-compact .section-title.compact-heading {
+  margin: 16px 0 10px;
+}
+
+.schedule-compact .section-title.compact-heading:first-child {
+  margin-top: 0;
+}
+
+.schedule-compact .section-title.compact-heading h2 {
+  font-size: 15px;
+}
+
+.field-col-span2 {
+  grid-column: span 2;
+}
+
+.recipient-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -2px 0 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #eef4ff;
+  border: 1px solid #dbe6ff;
+  color: #2a3a66;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.recipient-chip svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  color: #4b5cff;
+}
+
+.recipient-chip-name {
+  color: #16234a;
+}
+
+.recipient-chip-dot {
+  color: #9aa8cf;
+  font-weight: 400;
+}
+
+.schedule-type-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 4px;
+  border-radius: 12px;
+  background: #f2f4fb;
+}
+
+.schedule-type-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #4a5578;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+}
+
+.schedule-type-option svg {
+  width: 15px;
+  height: 15px;
+}
+
+.schedule-type-option.selected {
+  background: #fff;
+  border-color: #dfe6fa;
+  color: #2b3a66;
+  box-shadow: 0 6px 16px rgba(43, 65, 120, 0.12);
 }
 
 .form-grid {
@@ -1752,6 +1895,30 @@
   background: #26304a;
   border-color: #344163;
   color: #b7c2e7;
+}
+
+.smartpay-app.dark-theme .recipient-chip {
+  background: #1c2742;
+  border-color: #314163;
+  color: #d9e3ff;
+}
+
+.smartpay-app.dark-theme .recipient-chip-name {
+  color: #f1f4ff;
+}
+
+.smartpay-app.dark-theme .schedule-type-toggle {
+  background: #1a2338;
+}
+
+.smartpay-app.dark-theme .schedule-type-option {
+  color: #b7c2e7;
+}
+
+.smartpay-app.dark-theme .schedule-type-option.selected {
+  background: #253455;
+  border-color: #4f68ff;
+  color: #f1f4ff;
 }
 
 .smartpay-app.dark-theme .card,

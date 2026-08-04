@@ -16,7 +16,7 @@ function AuthorizePayment({
   const pinInputRef = useRef(null);
   const [pin, setPin] = useState('');
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
-  const beneficiaryName = formState.recipientName || formState.accountHolder || selectedDestination || 'John Doe';
+  const beneficiaryName = formState.recipientName || formState.accountHolder || selectedDestination || 'Recipient';
   const accountNumber = formState.destinationAccountNumber || formState.accountNumber || '—';
   const bankName = formState.bankName || '—';
 
