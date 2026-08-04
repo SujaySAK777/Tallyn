@@ -4,4 +4,5 @@ import com.example.PaymentProcessing.model.GroupSplit;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface GroupSplitRepository extends JpaRepository<GroupSplit, Long> {
+    java.util.List<GroupSplit> findByCreatedByCustomerIdOrderByGroupSplitIdDesc(Long customerId);
 }

@@ -171,6 +171,13 @@ function Dashboard({ session, onLogout }) {
   const [groupSplitError, setGroupSplitError] = useState('');
   const [groupSplitSubmitting, setGroupSplitSubmitting] = useState(false);
   const [groupSplitNotifications, setGroupSplitNotifications] = useState([]);
+  const [groupSplitHistory, setGroupSplitHistory] = useState([]);
+  const [groupSplitCreated, setGroupSplitCreated] = useState([]);
+  const [splitPromptQueue, setSplitPromptQueue] = useState([]);
+  const [payingSplitId, setPayingSplitId] = useState(null);
+  const [paySplitTpin, setPaySplitTpin] = useState('');
+  const [paySplitError, setPaySplitError] = useState('');
+  const [paySplitSubmitting, setPaySplitSubmitting] = useState(false);
   const [toast, setToast] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [isSupportChatOpen, setIsSupportChatOpen] = useState(false);
@@ -209,6 +216,22 @@ function Dashboard({ session, onLogout }) {
     }
   }, []);
 
+  useEffect(() => {
+    loadPayments();
+    loadScheduledPayments();
+    loadAccounts();
+    loadGroupSplitNotifications();
+    loadGroupSplitHistory();
+    loadGroupSplitCreated();
+
+    const pollInterval = window.setInterval(() => {
+      loadPayments({ silent: true });
+      loadScheduledPayments();
+    }, 15000);
+
+    return () => window.clearInterval(pollInterval);
+  }, []);
+
   const updateGroupSplitMember = (index, field, value) => {
     setGroupSplit((prev) => {
       const members = [...prev.members];
@@ -244,6 +267,8 @@ function Dashboard({ session, onLogout }) {
       showToast(t('splitCreated'));
       setGroupSplit({ amount: '', description: '', splitType: 'EQUAL', members: [{ accountNumber: '', amount: '' }, { accountNumber: '', amount: '' }] });
       closeModal();
+      loadGroupSplitHistory();
+      loadGroupSplitCreated();
     } catch (err) {
       setGroupSplitError(err.message || 'Unable to create split');
     } finally {
@@ -315,13 +340,66 @@ function Dashboard({ session, onLogout }) {
       const data = await apiRequest('/group-splits/notifications');
       const list = Array.isArray(data) ? data : [];
       setGroupSplitNotifications(list);
-      list.forEach((notification) => {
-        showToast(
-          `${notification.createdByName} added you to "${notification.description}" — your share: ${currency(notification.shareAmount)}`
-        );
-      });
+      if (list.length > 0) {
+        setSplitPromptQueue((prev) => [...prev, ...list]);
+      }
     } catch (err) {
       // silent — notifications shouldn't block the dashboard from loading
+    }
+  };
+
+  const loadGroupSplitHistory = async () => {
+    try {
+      const data = await apiRequest('/group-splits/mine');
+      setGroupSplitHistory(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setGroupSplitHistory([]);
+    }
+  };
+
+  const loadGroupSplitCreated = async () => {
+    try {
+      const data = await apiRequest('/group-splits/created');
+      setGroupSplitCreated(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setGroupSplitCreated([]);
+    }
+  };
+
+  const openPaySplit = (groupSplitId) => {
+    setPayingSplitId(groupSplitId);
+    setPaySplitTpin('');
+    setPaySplitError('');
+    setActiveModal('paySplit');
+  };
+
+  const closePaySplit = () => {
+    setPayingSplitId(null);
+    setPaySplitTpin('');
+    setPaySplitError('');
+    setActiveModal('');
+  };
+
+  const skipSplitPrompt = () => {
+    setSplitPromptQueue((prev) => prev.slice(1));
+  };
+
+  const submitPaySplit = async () => {
+    setPaySplitError('');
+    setPaySplitSubmitting(true);
+    try {
+      await apiRequest(`/group-splits/${payingSplitId}/pay`, {
+        method: 'POST',
+        body: JSON.stringify({ tpin: paySplitTpin })
+      });
+      showToast('Split settled');
+      setSplitPromptQueue((prev) => prev.filter((item) => item.groupSplitId !== payingSplitId));
+      closePaySplit();
+      loadGroupSplitHistory();
+    } catch (err) {
+      setPaySplitError(err.message || 'Unable to settle your share');
+    } finally {
+      setPaySplitSubmitting(false);
     }
   };
 
@@ -639,7 +717,7 @@ function Dashboard({ session, onLogout }) {
     setScheduleDate('');
     setScheduleStep('details');
     setScheduledReceipt(null);
-    setGroupSplit({ amount: '', members: '' });
+    setGroupSplit({ amount: '', description: '', splitType: 'EQUAL', members: [{ accountNumber: '', amount: '' }, { accountNumber: '', amount: '' }] });
     setError('');
     setScheduleLookupError('');
     setAccountError('');
@@ -1761,6 +1839,62 @@ function Dashboard({ session, onLogout }) {
                 <button onClick={openPaymentJourney}>{t('payNow')} →</button>
               </article>
             </section>
+
+            <section className="bottom-grid">
+              <article className="card">
+                <div className="card-title-row">
+                  <h3>{t('groupSplit')}</h3>
+                </div>
+                {groupSplitHistory.length === 0 && <p className="empty-note">No group splits yet.</p>}
+                {groupSplitHistory.map((split) => (
+                  <div className="tx-row" key={split.groupSplitId}>
+                    <span>
+                      {split.description}
+                      <br />
+                      <small>By {split.createdByName} • {formatDateTime(split.createdAt)}{!split.seen ? ' • New' : ''}</small>
+                    </span>
+                    <span className="sch-right">
+                      <strong>{currency(split.shareAmount)}</strong>
+                      {split.paid ? (
+                        <span className="status-pill status-completed">Paid</span>
+                      ) : (
+                        <button className="cancel-btn" onClick={() => openPaySplit(split.groupSplitId)}>Pay Now</button>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </article>
+
+              <article className="card">
+                <div className="card-title-row">
+                  <h3>Splits you created</h3>
+                </div>
+                {groupSplitCreated.length === 0 && <p className="empty-note">You haven't created any splits yet.</p>}
+                {groupSplitCreated.map((split) => {
+                  const settledCount = split.members.filter((member) => member.paid).length;
+                  return (
+                    <div key={split.groupSplitId} className="tx-row" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                      <span>
+                        {split.description}
+                        <br />
+                        <small>{formatDateTime(split.createdAt)} • {settledCount}/{split.members.length} settled</small>
+                      </span>
+                      {split.members.map((member) => (
+                        <div className="tx-row" key={member.accountNumber}>
+                          <span>{member.accountHolderName || member.accountNumber}</span>
+                          <span className="sch-right">
+                            <strong>{currency(member.shareAmount)}</strong>
+                            <span className={`status-pill ${member.paid ? 'status-completed' : 'status-pending'}`}>
+                              {member.paid ? 'Paid' : 'Pending'}
+                            </span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </article>
+            </section>
           </>
         )}
 
@@ -1887,6 +2021,44 @@ function Dashboard({ session, onLogout }) {
                 <button className="primary-btn" onClick={submitGroupSplit} disabled={groupSplitSubmitting}>
                   {t('createSplit')}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeModal === 'paySplit' && (
+          <div className="modal-overlay" onClick={closePaySplit}>
+            <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+              <h3>Settle your share</h3>
+              <input
+                type="password"
+                placeholder="TPIN"
+                maxLength={6}
+                value={paySplitTpin}
+                onChange={(event) => setPaySplitTpin(event.target.value.replace(/\D/g, '').slice(0, 6))}
+              />
+              {paySplitError && <p className="form-error">{paySplitError}</p>}
+              <div className="modal-actions">
+                <button className="secondary-btn" onClick={closePaySplit}>{t('close')}</button>
+                <button className="primary-btn" onClick={submitPaySplit} disabled={paySplitSubmitting || paySplitTpin.length < 4}>
+                  {paySplitSubmitting ? '...' : 'Pay Now'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {splitPromptQueue[0] && activeModal !== 'paySplit' && (
+          <div className="modal-overlay">
+            <div className="modal-card">
+              <h3>You've been added to a split</h3>
+              <p>
+                {splitPromptQueue[0].createdByName} added you to "{splitPromptQueue[0].description}" — your share:{' '}
+                {currency(splitPromptQueue[0].shareAmount)}
+              </p>
+              <div className="modal-actions">
+                <button className="secondary-btn" onClick={skipSplitPrompt}>Skip</button>
+                <button className="primary-btn" onClick={() => openPaySplit(splitPromptQueue[0].groupSplitId)}>Pay Now</button>
               </div>
             </div>
           </div>

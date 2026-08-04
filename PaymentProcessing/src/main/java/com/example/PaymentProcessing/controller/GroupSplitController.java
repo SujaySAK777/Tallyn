@@ -3,6 +3,7 @@ package com.example.PaymentProcessing.controller;
 import com.example.PaymentProcessing.api.CreateGroupSplitRequest;
 import com.example.PaymentProcessing.api.GroupSplitNotificationResponse;
 import com.example.PaymentProcessing.api.GroupSplitResponse;
+import com.example.PaymentProcessing.api.SettleGroupSplitRequest;
 import com.example.PaymentProcessing.service.GroupSplitService;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -28,5 +29,22 @@ public class GroupSplitController {
     @GetMapping("/notifications")
     public List<GroupSplitNotificationResponse> notifications(@RequestAttribute("customerId") Long customerId) {
         return groupSplitService.fetchAndAcknowledgeNotifications(customerId);
+    }
+
+    @GetMapping("/mine")
+    public List<GroupSplitNotificationResponse> mine(@RequestAttribute("customerId") Long customerId) {
+        return groupSplitService.getMySplits(customerId);
+    }
+
+    @GetMapping("/created")
+    public List<GroupSplitResponse> created(@RequestAttribute("customerId") Long customerId) {
+        return groupSplitService.getCreatedSplits(customerId);
+    }
+
+    @PostMapping("/{groupSplitId}/pay")
+    public GroupSplitNotificationResponse pay(@PathVariable Long groupSplitId,
+            @RequestBody SettleGroupSplitRequest request,
+            @RequestAttribute("customerId") Long customerId) {
+        return groupSplitService.paySplitShare(groupSplitId, customerId, request.getTpin());
     }
 }
