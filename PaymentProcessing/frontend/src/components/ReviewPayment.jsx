@@ -1,130 +1,99 @@
-import { FiCheckCircle, FiClock, FiCreditCard, FiShield } from 'react-icons/fi';
+import { FiArrowDownRight, FiCheckCircle, FiEdit3, FiShield, FiTrendingUp } from 'react-icons/fi';
 
 function ReviewPayment({
   formState,
-  selectedDestination,
   referenceNumber,
   amountValue,
   grandTotal,
   currency,
+  sourceBalance,
+  monthlySpent,
+  monthlyBudget,
+  onBudgetChange,
   authenticating,
   submitting,
   onBack,
   onConfirm
 }) {
-  const recipientName = formState.recipientName || formState.accountHolder || 'Recipient Name';
-  const recipientInitials = recipientName
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('') || 'RP';
-  const maskedAccountNumber = formState.accountNumber
-    ? `•••• ${String(formState.accountNumber).slice(-4)}`
-    : 'Pending';
+  const recipientName = formState.recipientName || formState.accountHolder || 'Recipient';
+  const accountNumber = String(formState.destinationAccountNumber || formState.accountNumber || '');
+  const maskedAccount = accountNumber ? `•••• ${accountNumber.slice(-4)}` : '—';
+  const remainingBalance = sourceBalance - grandTotal;
+  const projectedSpend = monthlySpent + grandTotal;
+  const budgetPercent = monthlyBudget > 0 ? Math.min((projectedSpend / monthlyBudget) * 100, 100) : 0;
+  const spendingState = projectedSpend <= monthlyBudget * 0.7
+    ? { label: 'Healthy spending', className: 'healthy' }
+    : projectedSpend <= monthlyBudget
+      ? { label: 'Close to your budget', className: 'watch' }
+      : { label: 'Over monthly budget', className: 'over' };
 
   return (
     <div className="journey-page review-page">
       <div className="page-heading premium-heading">
         <div className="heading-copy">
-          <h2>Review Payment Details</h2>
-          <span className="review-subcopy">Final confirmation before initiating the transfer.</span>
+          <h2>Review your payment</h2>
+          <span className="review-subcopy">Check the recipient and payment impact before authorizing.</span>
         </div>
-        <div className="status-chip review-status"><FiShield /> Secure Review</div>
+        <div className="status-chip review-status"><FiShield /> Verified details</div>
       </div>
 
       <div className="review-layout">
-        <div className="review-main-card premium-card">
+        <main className="review-main-card premium-card review-clean-card">
           <section className="review-section review-beneficiary">
             <div className="review-section-head">
-              <div className="review-section-title">Transfer To</div>
-              <button type="button" className="table-action" onClick={onBack}>Edit</button>
+              <div className="review-section-title">Paying to</div>
+              <button type="button" className="table-action" onClick={onBack}><FiEdit3 /> Edit</button>
             </div>
-            <div className="review-party-grid review-party-grid-elevated">
-              <div className="recipient-badge">{recipientInitials}</div>
+            <div className="recipient-row">
+              <div className="recipient-badge">{recipientName.slice(0, 2).toUpperCase()}</div>
               <div className="recipient-meta">
                 <strong>{recipientName}</strong>
-                <span className="meta-line">{formState.bankName || 'Bank name pending'}</span>
-                <span className="meta-line">Account ID: {selectedDestination || formState.destinationAccountId || 'Pending'}</span>
-                <span className="meta-line">A/C No: {maskedAccountNumber}</span>
-                <span className="meta-line">IFSC: {formState.ifscCode || formState.ifsc || 'Pending'}</span>
+                <span>{formState.bankName || 'Bank details unavailable'} · {maskedAccount}</span>
+                <span>IFSC: {formState.ifscCode || formState.ifsc || '—'}</span>
               </div>
-              <div className="trust-pill"><FiShield /> Verified Beneficiary</div>
+              <span className="verified-badge"><FiCheckCircle /> Verified</span>
             </div>
           </section>
 
-          <section className="review-section">
-            <div className="review-section-title">Payment Information</div>
-            <div className="review-kv-grid">
-              <div className="review-kv-card">
-                <span className="review-kv-label">Amount</span>
-                <strong className="review-kv-value">{currency(amountValue)}</strong>
-              </div>
-              <div className="review-kv-card">
-                <span className="review-kv-label">Transfer Via</span>
-                <strong className="review-kv-value">Bank Transfer</strong>
-              </div>
-              <div className="review-kv-card">
-                <span className="review-kv-label">Reference Number</span>
-                <strong className="review-kv-value review-mono">{referenceNumber}</strong>
-              </div>
-              <div className="review-kv-card">
-                <span className="review-kv-label">Remarks</span>
-                <strong className="review-kv-value">{formState.remarks || 'Payment'}</strong>
-              </div>
-            </div>
+          <section className="review-section review-payment-amount">
+            <span className="review-kv-label">You are paying</span>
+            <strong className="review-amount">{currency(amountValue)}</strong>
+            <span className="review-reference">Reference: {referenceNumber}</span>
           </section>
 
-          <section className="review-section review-section-tight">
-            <div className="review-section-head">
-              <div className="review-section-title">From Account</div>
-              <button type="button" className="table-action" onClick={onBack}>Edit</button>
-            </div>
-            <div className="review-party-grid review-origin-grid">
-              <div className="recipient-meta">
-                <strong>Tallyn Savings</strong>
-                <span className="meta-line">Source Account ID: {formState.sourceAccountId || 'Pending'}</span>
-                <span className="meta-line">Transaction Type: Immediate</span>
-              </div>
-              <div className="account-pill"><FiCreditCard /> Primary Account</div>
-            </div>
+          <section className="review-section review-detail-list">
+            <div><span>From</span><strong>{formState.sourceAccountNumber ? `Account ending ${String(formState.sourceAccountNumber).slice(-4)}` : 'Linked account'}</strong></div>
+            <div><span>Transfer type</span><strong>Immediate bank transfer</strong></div>
+            <div><span>Remarks</span><strong>{formState.remarks || '—'}</strong></div>
           </section>
-        </div>
+        </main>
 
-        <div className="summary-panel">
-          <div className="payment-summary-box premium-card review-summary-primary">
-            <div className="section-label">Payment Summary</div>
-            <div className="info-row"><span>Amount</span><strong>{currency(amountValue)}</strong></div>
-            <div className="info-row"><span>Transfer Charges</span><strong>{currency(0)}</strong></div>
-            <div className="info-row total"><span>Total Payable</span><strong>{currency(grandTotal)}</strong></div>
+        <aside className="summary-panel review-insights">
+          <div className="payment-summary-box premium-card impact-card">
+            <div className="section-label">Payment impact</div>
+            <div className="balance-impact"><span>Current balance</span><strong>{currency(sourceBalance)}</strong></div>
+            <div className="impact-arrow"><FiArrowDownRight /></div>
+            <div className={`balance-impact remaining ${remainingBalance < 0 ? 'negative' : ''}`}><span>Balance after payment</span><strong>{currency(remainingBalance)}</strong></div>
           </div>
 
-          <div className="security-banner premium-card review-security-card">
-            <FiShield />
-            <div>
-              <strong>Secure Payment</strong>
-              <p>Your payment is protected with 256-bit SSL encryption.</p>
-            </div>
+          <div className="payment-summary-box premium-card budget-card">
+            <div className="budget-heading"><div><span className="section-label">Monthly payment budget</span><strong className={spendingState.class}><FiTrendingUp /> {spendingState.label}</strong></div><input aria-label="Monthly payment budget" type="number" min="0" value={monthlyBudget} onChange={(event) => onBudgetChange(event.target.value)} /></div>
+            <div className="budget-amounts"><span>Spent after this payment</span><strong>{currency(projectedSpend)} / {currency(monthlyBudget)}</strong></div>
+            <div className="budget-track"><span className={spendingState.class} style={{ width: `${budgetPercent}%` }} /></div>
+            <small>{currency(amountValue)} will be added to this month’s outgoing payments.</small>
           </div>
 
-          <div className="payment-summary-box premium-card review-summary-meta">
-            <div className="info-row"><span><FiClock /> Estimated Time</span><strong>Within 5 minutes</strong></div>
-            <div className="info-row"><span><FiCreditCard /> Transaction Type</span><strong>Immediate</strong></div>
+          <div className="payment-summary-box premium-card payable-card">
+            <span>Total payable</span><strong>{currency(grandTotal)}</strong>
+            <small>No transfer fee</small>
           </div>
-
-          <div className="payment-summary-box premium-card review-next-steps">
-            <div className="section-label">What Happens Next</div>
-            <div className="step-item"><FiCheckCircle /> Payment will be validated</div>
-            <div className="step-item"><FiCheckCircle /> Funds will be processed securely</div>
-            <div className="step-item"><FiCheckCircle /> You'll see final confirmation</div>
-          </div>
-        </div>
+        </aside>
       </div>
 
       <div className="journey-actions premium-actions review-actions-row">
-        <button type="button" className="secondary-btn" onClick={onBack}>Cancel</button>
+        <button type="button" className="secondary-btn" onClick={onBack}>Back</button>
         <button type="button" className="primary-btn" onClick={onConfirm} disabled={authenticating || submitting}>
-          {authenticating || submitting ? 'Submitting...' : 'Continue'}
+          Continue to authorize
         </button>
       </div>
     </div>

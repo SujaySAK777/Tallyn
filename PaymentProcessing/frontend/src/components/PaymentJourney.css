@@ -319,6 +319,75 @@
   font-size: 12px;
 }
 
+.payment-journey .live-balance-preview { display: flex; justify-content: space-between; gap: 8px; margin-top: 7px; padding: 7px 9px; border-radius: 8px; background: #f0fdf4; color: #166534; font-size: 11px; }
+.payment-journey .live-balance-preview strong { font-size: 11px; }
+.payment-journey .live-balance-preview.insufficient { background: #fff7f7; color: #b91c1c; }
+
+.payment-journey .review-clean-card { padding: 0; overflow: hidden; }
+.payment-journey .review-clean-card .review-section { padding: 20px 22px; margin: 0; border-bottom: 1px solid var(--journey-border); }
+.payment-journey .review-clean-card .review-section:last-child { border-bottom: 0; }
+.payment-journey .recipient-row { display: flex; align-items: center; gap: 12px; }
+.payment-journey .recipient-row .recipient-badge { margin: 0; flex: 0 0 44px; }
+.payment-journey .recipient-meta { display: grid; gap: 3px; min-width: 0; }
+.payment-journey .recipient-meta strong { color: var(--journey-title); font-size: 15px; }
+.payment-journey .recipient-meta span { color: var(--journey-subtext); font-size: 12px; }
+.payment-journey .verified-badge { margin-left: auto; color: #15803d; background: #f0fdf4; border-radius: 999px; padding: 6px 9px; display: inline-flex; gap: 5px; align-items: center; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.payment-journey .review-payment-amount { background: #f8faff; display: grid; gap: 5px; }
+.payment-journey .review-amount { color: var(--journey-title); font-size: 30px; letter-spacing: -1px; }
+.payment-journey .review-reference { color: var(--journey-subtext); font-size: 12px; }
+.payment-journey .review-detail-list { display: grid; gap: 13px; }
+.payment-journey .review-detail-list > div { display: flex; justify-content: space-between; gap: 16px; font-size: 13px; }
+.payment-journey .review-detail-list span { color: var(--journey-subtext); }
+.payment-journey .review-detail-list strong { color: var(--journey-text); text-align: right; }
+.payment-journey .impact-card { padding: 18px; }
+.payment-journey .balance-impact { display: flex; justify-content: space-between; align-items: baseline; margin-top: 12px; }
+.payment-journey .balance-impact span { color: var(--journey-subtext); font-size: 12px; }
+.payment-journey .balance-impact strong { color: var(--journey-title); font-size: 17px; }
+.payment-journey .balance-impact.remaining strong { color: #166534; }
+.payment-journey .balance-impact.negative strong { color: #b91c1c; }
+.payment-journey .impact-arrow { color: var(--journey-primary); margin: 7px 0 -3px; }
+.payment-journey .budget-heading { display: flex; justify-content: space-between; gap: 10px; align-items: start; }
+.payment-journey .budget-heading > div { display: grid; gap: 6px; }
+.payment-journey .budget-heading input { width: 92px; border: 1px solid var(--journey-border); border-radius: 8px; padding: 7px; color: var(--journey-title); font-weight: 700; }
+.payment-journey .budget-heading strong { font-size: 12px; display: inline-flex; gap: 5px; align-items: center; }
+.payment-journey .healthy { color: #15803d; }
+.payment-journey .watch { color: #a16207; }
+.payment-journey .over { color: #b91c1c; }
+.payment-journey .budget-amounts { display: flex; justify-content: space-between; gap: 8px; color: var(--journey-subtext); font-size: 11px; margin: 16px 0 7px; }
+.payment-journey .budget-amounts strong { color: var(--journey-text); font-size: 11px; }
+.payment-journey .budget-track { height: 7px; overflow: hidden; background: #e8edf6; border-radius: 99px; }
+.payment-journey .budget-track span { display: block; height: 100%; background: #15803d; border-radius: inherit; }
+.payment-journey .budget-track span.watch { background: #d97706; }
+.payment-journey .budget-track span.over { background: #dc2626; }
+.payment-journey .budget-card small, .payment-journey .payable-card small { display: block; color: var(--journey-subtext); font-size: 11px; margin-top: 8px; }
+.payment-journey .payable-card { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; }
+.payment-journey .payable-card span { color: var(--journey-subtext); font-size: 12px; }
+.payment-journey .payable-card strong { color: var(--journey-title); font-size: 19px; }
+.payment-journey .payable-card small { width: 100%; }
+.payment-journey .duplicate-overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(15, 23, 42, .48); display: grid; place-items: center; padding: 20px; }
+.payment-journey .duplicate-dialog { position: relative; width: min(420px, 100%); padding: 28px; text-align: center; box-shadow: 0 24px 60px rgba(15, 23, 42, .24); }
+.payment-journey .duplicate-dialog h3 { color: var(--journey-title); margin: 10px 0 8px; font-size: 21px; }
+.payment-journey .duplicate-dialog p { color: var(--journey-subtext); font-size: 13px; line-height: 1.55; margin: 0; }
+.payment-journey .duplicate-icon { width: 46px; height: 46px; display: inline-grid; place-items: center; margin-bottom: 11px; border-radius: 50%; background: #fff7ed; color: #c2410c; font-size: 22px; }
+.payment-journey .duplicate-close { position: absolute; top: 12px; right: 12px; border: 0; background: transparent; color: var(--journey-subtext); font-size: 18px; cursor: pointer; }
+.payment-journey .duplicate-actions { display: flex; justify-content: center; gap: 9px; margin-top: 22px; }
+.payment-journey .retry-page { display: grid; place-items: center; min-height: 440px; }
+.payment-journey .retry-card { max-width: 520px; width: 100%; text-align: center; padding: 34px; }
+.payment-journey .retry-card h2 { color: var(--journey-title); margin: 11px 0 8px; }
+.payment-journey .retry-card > p { color: var(--journey-subtext); font-size: 13px; line-height: 1.55; margin: 0; }
+.payment-journey .retry-error-box { display: grid; gap: 4px; text-align: left; margin: 22px 0 12px; padding: 12px; background: #fff7f7; border: 1px solid #fee2e2; border-radius: 10px; }
+.payment-journey .retry-error-box strong { color: #991b1b; font-size: 12px; }
+.payment-journey .retry-error-box span { color: #b91c1c; font-size: 12px; }
+.payment-journey .retry-assurance { display: flex; justify-content: center; gap: 7px; color: #166534; font-size: 12px; font-weight: 600; }
+.payment-journey .retry-actions { display: flex; justify-content: center; gap: 10px; margin-top: 24px; }
+
+@media (max-width: 680px) {
+  .payment-journey .recipient-row { align-items: flex-start; flex-wrap: wrap; }
+  .payment-journey .verified-badge { margin-left: 56px; }
+  .payment-journey .review-detail-list > div { display: grid; gap: 3px; }
+  .payment-journey .review-detail-list strong { text-align: left; }
+}
+
 .payment-journey .summary-row,
 .payment-journey .info-row {
   display: flex;

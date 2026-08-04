@@ -734,6 +734,8 @@ function Dashboard({ session, onLogout }) {
       .filter((account) => String(account.status || '').toUpperCase() === 'ACTIVE')
       .sort((a, b) => (a.accountNumber || '').localeCompare(b.accountNumber || ''));
   }, [accounts]);
+  const journeySourceAccount = accounts.find((account) => String(account.accountId) === String(formState.sourceAccountId));
+  const journeySourceBalance = Number(journeySourceAccount?.balance || 0);
 
   const getAccountLabel = (accountId) => {
     const match = accounts.find((account) => String(account.accountId) === String(accountId));
@@ -1119,6 +1121,7 @@ function Dashboard({ session, onLogout }) {
             payments={payments}
             selectedDestination={formState.destinationAccountId || 'Not added yet'}
             selectedAmount={formState.amount || '0'}
+            sourceBalance={journeySourceBalance}
             onStepChange={setPaymentJourneyStep}
           />
         )}

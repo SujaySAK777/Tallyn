@@ -57,6 +57,7 @@ function PaymentJourney({
   payments,
   selectedDestination,
   selectedAmount,
+  sourceBalance = 0,
   onStepChange
 }) {
   const [authenticating, setAuthenticating] = useState(false);
@@ -67,6 +68,10 @@ function PaymentJourney({
   const [historyMethod, setHistoryMethod] = useState('All');
   const [historyDate, setHistoryDate] = useState('');
   const [historyAmount, setHistoryAmount] = useState('');
+  const [monthlyBudget, setMonthlyBudget] = useState(() => {
+    const savedBudget = Number(window.localStorage.getItem('tallyn-monthly-payment-budget'));
+    return Number.isFinite(savedBudget) && savedBudget > 0 ? savedBudget : 50000;
+  });
 
   const flowSteps = [
     { id: 'method', label: 'Method' },
@@ -82,6 +87,36 @@ function PaymentJourney({
   const amountValue = Number(formState.amount || selectedAmount || 0);
   const grandTotal = amountValue;
   const referenceNumber = formState.referenceNumber || formState.reference || `REF${Date.now()}`;
+  const monthlySpent = useMemo(() => {
+    const now = new Date();
+    return payments
+      .filter((payment) => {
+        const createdAt = new Date(payment.createdAt || 0);
+        const status = String(payment.status || '').toUpperCase();
+        return createdAt.getFullYear() === now.getFullYear()
+          && createdAt.getMonth() === now.getMonth()
+          && status !== 'FAILED'
+          && status !== 'CANCELLED';
+      })
+      .reduce((total, payment) => total + Number(payment.amount || 0), 0);
+  }, [payments]);
+
+  const updateMonthlyBudget = (value) => {
+    const nextBudget = Number(value);
+    if (!Number.isFinite(nextBudget) || nextBudget < 0) return;
+    setMonthlyBudget(nextBudget);
+    window.localStorage.setItem('tallyn-monthly-payment-budget', String(nextBudget));
+  };
+
+  const duplicatePayment = useMemo(() => {
+    const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+    return payments.find((payment) => (
+      String(payment.destinationAccountId) === String(formState.destinationAccountId)
+      && Number(payment.amount) === amountValue
+      && new Date(payment.createdAt || 0).getTime() >= fiveMinutesAgo
+      && !['FAILED', 'CANCELLED'].includes(String(payment.status || '').toUpperCase())
+    ));
+  }, [amountValue, formState.destinationAccountId, payments]);
 
   useEffect(() => {
     if (step !== 'completed') {
@@ -293,7 +328,7 @@ function PaymentJourney({
       setFormData={setBankFormData}
       previousStep={goBack}
       nextStep={goNext}
-      balance={1250000}
+      sourceBalance={sourceBalance}
     />
   );
 
@@ -307,6 +342,10 @@ function PaymentJourney({
       currency={currency}
       authenticating={authenticating}
       submitting={submitting}
+      sourceBalance={sourceBalance}
+      monthlySpent={monthlySpent}
+      monthlyBudget={monthlyBudget}
+      onBudgetChange={updateMonthlyBudget}
       onBack={goBack}
       onConfirm={goNext}
     />
@@ -321,6 +360,7 @@ function PaymentJourney({
       currency={currency}
       authenticating={authenticating}
       submitting={submitting}
+      duplicatePayment={duplicatePayment}
       onBack={goBack}
       onAuthorize={handleAuthorize}
     />
