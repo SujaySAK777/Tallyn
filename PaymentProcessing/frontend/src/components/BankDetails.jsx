@@ -162,7 +162,20 @@ export default function BankDetails({
             </div>
 
             <div className="field-group field-span-2">
-              <label>Remarks</label>
+              <label>Category</label>
+              <select
+                name="category"
+                value={formData.category || 'OTHERS'}
+                onChange={handleChange}
+              >
+                <option value="BILL_PAYMENTS">Bills</option>
+                <option value="SHOPPING">Shopping</option>
+                <option value="ENTERTAINMENT">Entertainment</option>
+                <option value="FOOD">Food</option>
+                <option value="OTHERS">Other</option>
+              </select>
+
+              <label style={{ marginTop: '8px' }}>Remarks</label>
               <textarea
                 rows="2"
                 name="remarks"
