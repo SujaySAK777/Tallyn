@@ -1305,13 +1305,117 @@
 }
 
 .check-balance-modal {
-  width: min(520px, 96vw);
+  width: min(560px, 96vw);
 }
 
-.check-balance-grid {
-  grid-template-columns: 1fr;
-  gap: 14px;
+.check-balance-subtitle {
+  margin: 5px 0 0;
+  color: #7080a7;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
 }
+
+.linked-accounts {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+  max-height: 265px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.linked-account-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border: 1px solid #e0e7f6;
+  border-radius: 15px;
+  background: #fff;
+  color: #27345a;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.linked-account-card:hover {
+  border-color: #b8c6ff;
+  box-shadow: 0 8px 20px rgba(75, 92, 255, 0.09);
+  transform: translateY(-1px);
+}
+
+.linked-account-card.selected {
+  border-color: #4b5cff;
+  background: linear-gradient(135deg, #f4f6ff, #fbfcff);
+  box-shadow: 0 9px 22px rgba(75, 92, 255, 0.13);
+}
+
+.linked-account-icon,
+.balance-result-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: #edf1ff;
+  color: #4b5cff;
+  font-size: 19px;
+}
+
+.linked-account-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.linked-account-copy strong { font-size: 14px; }
+.linked-account-copy span { color: #52617f; font-size: 13px; }
+.linked-account-copy small { color: #8490aa; font-size: 12px; font-weight: 600; }
+
+.account-select-dot {
+  width: 17px;
+  height: 17px;
+  border: 2px solid #c4cde2;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.linked-account-card.selected .account-select-dot {
+  border: 5px solid #4b5cff;
+}
+
+.tpin-field {
+  margin: 4px 0 18px;
+}
+
+.balance-result-card {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  margin: 18px 0;
+  padding: 24px 18px;
+  border: 1px solid #dbe5ff;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #f4f7ff, #fbfcff);
+  color: #25355f;
+  text-align: center;
+}
+
+.balance-result-icon {
+  width: 48px;
+  height: 48px;
+  background: #e6faf1;
+  color: #0d9b67;
+  font-size: 23px;
+}
+
+.balance-result-label { color: #667694; font-size: 13px; font-weight: 700; }
+.balance-result-card strong { color: #1d2946; font-size: clamp(28px, 5vw, 36px); letter-spacing: -0.04em; }
+.balance-result-account { color: #667694; font-size: 13px; }
 
 .check-balance-field {
   gap: 8px;

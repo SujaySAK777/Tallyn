@@ -25,6 +25,7 @@ import {
 import { MdOutlinePayments } from 'react-icons/md';
 import './Dashboard.css';
 import PaymentJourney from './components/PaymentJourney';
+import CheckBalanceJourney from './components/CheckBalanceJourney';
 import TransactionHistory from './components/TransactionHistory';
 import { apiRequest } from './services/api';
 import SupportChatbot from './SupportChatbot';
@@ -152,6 +153,8 @@ function Dashboard({ session, onLogout }) {
   const [scheduleStep, setScheduleStep] = useState('details');
   const [cancellingId, setCancellingId] = useState(null);
   const [paymentJourneyOpen, setPaymentJourneyOpen] = useState(false);
+  const [balanceJourneyOpen, setBalanceJourneyOpen] = useState(false);
+  const [balanceJourneyStep, setBalanceJourneyStep] = useState('accounts');
   const [paymentJourneyStep, setPaymentJourneyStep] = useState('method');
   const [paymentJourneyMethod, setPaymentJourneyMethod] = useState('bank');
   const [formState, setFormState] = useState(initialFormState);
@@ -575,6 +578,7 @@ function Dashboard({ session, onLogout }) {
     setActiveSection(section);
     setActiveModal('');
     setPaymentJourneyOpen(false);
+    setBalanceJourneyOpen(false);
   };
 
   const goToUpcomingPayments = () => {
@@ -687,17 +691,24 @@ function Dashboard({ session, onLogout }) {
   };
 
   const openCheckBalanceFlow = () => {
-    setActiveModal('checkBalance');
+    setBalanceJourneyOpen(true);
+    setBalanceJourneyStep('accounts');
+    setActiveModal('');
     setBalanceResult(null);
     setBalanceError('');
     setBalanceSubmitting(false);
     setBalanceTpin('');
     loadAccounts();
-    setBalanceAccountNumber(
-      accounts.find((account) => String(account.accountId) === String(session?.accountId))?.accountNumber
-        || session?.accountNumber
-        || ''
-    );
+    setBalanceAccountNumber('');
+  };
+
+  const closeCheckBalanceJourney = () => {
+    setBalanceJourneyOpen(false);
+    setBalanceJourneyStep('accounts');
+    setBalanceAccountNumber('');
+    setBalanceTpin('');
+    setBalanceResult(null);
+    setBalanceError('');
   };
 
   const submitCheckBalance = async () => {
@@ -1156,7 +1167,7 @@ function Dashboard({ session, onLogout }) {
         </div>
       </aside>
 
-      <main className={`main-content ${(paymentJourneyOpen || activeModal === 'schedule') ? 'journey-mode' : ''}`}>
+      <main className={`main-content ${(paymentJourneyOpen || balanceJourneyOpen || activeModal === 'schedule') ? 'journey-mode' : ''}`}>
         {activeModal === 'schedule' && (
           <section className="payment-journey">
             <div className="journey-breadcrumb">
@@ -1500,7 +1511,26 @@ function Dashboard({ session, onLogout }) {
           />
         )}
 
-        {activeSection === 'dashboard' && !paymentJourneyOpen && activeModal !== 'schedule' && (
+        {balanceJourneyOpen && (
+          <CheckBalanceJourney
+            accounts={accounts}
+            selectedAccountNumber={balanceAccountNumber}
+            setSelectedAccountNumber={(accountNumber) => { setBalanceAccountNumber(accountNumber); setBalanceTpin(''); setBalanceError(''); }}
+            tpin={balanceTpin}
+            setTpin={setBalanceTpin}
+            step={balanceJourneyStep}
+            setStep={setBalanceJourneyStep}
+            result={balanceResult}
+            error={balanceError}
+            submitting={balanceSubmitting}
+            onCheck={submitCheckBalance}
+            onClose={closeCheckBalanceJourney}
+            onStartAgain={() => { setBalanceJourneyStep('accounts'); setBalanceResult(null); setBalanceAccountNumber(''); setBalanceTpin(''); setBalanceError(''); }}
+            customerName={customerName}
+          />
+        )}
+
+        {activeSection === 'dashboard' && !paymentJourneyOpen && !balanceJourneyOpen && activeModal !== 'schedule' && (
           <>
             <header className="topbar">
               <div className="search-wrap">
@@ -1684,7 +1714,7 @@ function Dashboard({ session, onLogout }) {
           </>
         )}
 
-        {activeSection === 'transactions' && !paymentJourneyOpen && activeModal !== 'schedule' && (
+        {activeSection === 'transactions' && !paymentJourneyOpen && !balanceJourneyOpen && activeModal !== 'schedule' && (
           <section className="payment-journey">
             <div className="journey-breadcrumb">
               <span>{t('dashboard')}<FiChevronRight /></span>
@@ -1986,70 +2016,6 @@ function Dashboard({ session, onLogout }) {
           </div>
         )}
 
-        {activeModal === 'checkBalance' && (
-          <div className="modal-overlay" onClick={closeModal}>
-            <div className="modal-card account-modal" onClick={(event) => event.stopPropagation()}>
-              <div className="card-title-row account-modal-head">
-                <h3>Check Balance</h3>
-              </div>
-
-              {!balanceResult && (
-                <>
-                  <div className="form-grid">
-                    <label className="field-col">
-                      <span>Account</span>
-                      <select
-                        value={balanceAccountNumber}
-                        onChange={(event) => setBalanceAccountNumber(event.target.value)}
-                      >
-                        <option value="">Select an account</option>
-                        {accounts.map((account) => (
-                          <option key={account.accountId} value={account.accountNumber}>
-                            {account.accountNumber} ({account.bankName})
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="field-col">
-                      <span>TPIN</span>
-                      <input
-                        type="password"
-                        placeholder="6-digit TPIN"
-                        value={balanceTpin}
-                        onChange={(event) => setBalanceTpin(event.target.value)}
-                      />
-                    </label>
-                  </div>
-
-                  {balanceError && <p className="empty-note error-note">{balanceError}</p>}
-
-                  <div className="modal-actions">
-                    <button className="secondary-btn" onClick={closeModal}>Cancel</button>
-                    <button className="primary-btn" onClick={submitCheckBalance} disabled={balanceSubmitting}>
-                      {balanceSubmitting ? 'Checking...' : 'View Balance'}
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {balanceResult && (
-                <>
-                  <div className="account-created-summary done">
-                    <div><strong>Account Number:</strong> {balanceResult.accountNumber}</div>
-                    <div><strong>Account Holder:</strong> {balanceResult.accountHolderName}</div>
-                    <div><strong>Balance:</strong> {currency(balanceResult.balance)}</div>
-                  </div>
-                  <div className="modal-actions">
-                    <button className="secondary-btn" onClick={() => { setBalanceResult(null); setBalanceTpin(''); }}>
-                      Check Another
-                    </button>
-                    <button className="primary-btn" onClick={closeModal}>Done</button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
       </main>
 
       <SupportChatbot isOpen={isSupportChatOpen} onClose={() => setIsSupportChatOpen(false)} hideFab />
