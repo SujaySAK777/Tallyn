@@ -6,6 +6,7 @@ export default function BankDetails({
   setFormData,
   previousStep,
   nextStep,
+  sourceBalance = 0,
   accounts = []
 }) {
   const [lookupError, setLookupError] = useState('');
