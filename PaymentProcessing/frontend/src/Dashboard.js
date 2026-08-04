@@ -577,6 +577,16 @@ function Dashboard({ session, onLogout }) {
     setPaymentJourneyOpen(false);
   };
 
+  const goToUpcomingPayments = () => {
+    setActiveModal('');
+    setScheduleStep('details');
+    setScheduledReceipt(null);
+    setActiveSection('dashboard');
+    window.requestAnimationFrame(() => {
+      document.getElementById('upcoming-payments-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
   const openPaymentJourney = () => {
     const linkedAccount = accounts.find((account) => String(account.accountId) === String(session?.accountId))
       || accounts.find((account) => account.accountNumber === session?.accountNumber)
@@ -723,47 +733,6 @@ function Dashboard({ session, onLogout }) {
   const handleAccountFormChange = (event) => {
     const { name, value } = event.target;
     setAccountForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleCheckBalanceFormChange = (event) => {
-    const { name, value } = event.target;
-    setCheckBalanceForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const submitCheckBalance = async () => {
-    const accountNumber = String(checkBalanceForm.accountNumber || '').trim();
-    const tpin = String(checkBalanceForm.tpin || '').trim();
-
-    setCheckBalanceError('');
-    setCheckBalanceResult(null);
-
-    if (!accountNumber) {
-      setCheckBalanceError('Account number is required.');
-      return;
-    }
-
-    if (!/^\d{6}$/.test(tpin)) {
-      setCheckBalanceError('TPIN must be exactly 6 digits.');
-      return;
-    }
-
-    setCheckBalanceSubmitting(true);
-    try {
-      const response = await apiRequest('/accounts/balance', {
-        method: 'POST',
-        body: JSON.stringify({
-          account_number: accountNumber,
-          tpin
-        })
-      });
-
-      setCheckBalanceResult(response);
-      setCheckBalanceForm((prev) => ({ ...prev, tpin: '' }));
-    } catch (err) {
-      setCheckBalanceError(err.message || 'Unable to fetch balance.');
-    } finally {
-      setCheckBalanceSubmitting(false);
-    }
   };
 
   const validateMobile = (mobileNumber) => /^\d{10}$/.test(String(mobileNumber || '').trim());

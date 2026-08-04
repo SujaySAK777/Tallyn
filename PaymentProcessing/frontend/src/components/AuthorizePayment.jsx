@@ -20,12 +20,6 @@ function AuthorizePayment({
   const accountNumber = formState.destinationAccountNumber || formState.accountNumber || '—';
   const bankName = formState.bankName || '—';
 
-  
-  const handleAuthorizeClick = () => {
-    if (pin.length < 6) return;
-    onAuthorize?.(pin);
-  };
-
   const handlePinChange = (event) => {
     const digitsOnly = event.target.value.replace(/\D/g, '').slice(0, 6);
     setPin(digitsOnly);
@@ -137,7 +131,7 @@ function AuthorizePayment({
             <p>You already transferred {currency(amountValue)} to {beneficiaryName} in the last 5 minutes.</p>
             <div className="duplicate-actions">
               <button type="button" className="secondary-btn" onClick={() => setShowDuplicateWarning(false)}>Cancel</button>
-              <button type="button" className="primary-btn" onClick={() => { setShowDuplicateWarning(false); onAuthorize?.(); }}>Continue anyway</button>
+              <button type="button" className="primary-btn" onClick={() => { setShowDuplicateWarning(false); onAuthorize?.(pin); }}>Continue anyway</button>
             </div>
           </div>
         </div>
