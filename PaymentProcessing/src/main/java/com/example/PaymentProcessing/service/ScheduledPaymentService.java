@@ -45,6 +45,7 @@ public class ScheduledPaymentService {
             AccountRepository accountRepository,
             PaymentService paymentService,
             CustomerRepository customerRepository,
+            EmailService emailService) {
             EmailService emailService,
             NotificationService notificationService) {
         this.scheduledPaymentRepository = scheduledPaymentRepository;
@@ -60,6 +61,7 @@ public class ScheduledPaymentService {
             ScheduledPaymentRepository scheduledPaymentRepository,
             AccountRepository accountRepository,
             PaymentService paymentService) {
+        this(scheduledPaymentRepository, accountRepository, paymentService, null, null);
         this(scheduledPaymentRepository, accountRepository, paymentService, null, null, null);
     }
 
@@ -99,6 +101,13 @@ public class ScheduledPaymentService {
             if (sourceAccount != null && sourceAccount.getCustomerId() != null) {
                 var customer = customerRepository.findById(sourceAccount.getCustomerId()).orElse(null);
                 if (customer != null) {
+                    emailService.sendPaymentScheduledEmail(
+                            customer.getEmail(),
+                            customer.getFirstName(),
+                            saved.getAmount() == null ? "" : saved.getAmount().toPlainString(),
+                            saved.getScheduledAt() == null ? "" : saved.getScheduledAt().toString(),
+                            saved.getReferenceNumber()
+                    );
                     String amount = saved.getAmount() == null ? "" : saved.getAmount().toPlainString();
                     String scheduledAt = saved.getScheduledAt() == null ? "" : saved.getScheduledAt().toString();
                     emailService.sendPaymentScheduledEmail(

@@ -9,7 +9,8 @@ function ReviewPayment({
   sourceBalance,
   monthlySpent,
   monthlyBudget,
-  onBudgetChange,
+  categoryBudget = 0,
+  categorySpent = 0,
   authenticating,
   submitting,
   onBack,
@@ -22,6 +23,8 @@ function ReviewPayment({
   const remainingBalance = sourceBalance - grandTotal;
   const projectedSpend = monthlySpent + grandTotal;
   const budgetPercent = monthlyBudget > 0 ? Math.min((projectedSpend / monthlyBudget) * 100, 100) : 0;
+  const projectedCategorySpend = categorySpent + grandTotal;
+  const categoryPercent = categoryBudget > 0 ? Math.min((projectedCategorySpend / categoryBudget) * 100, 100) : 0;
   const spendingState = projectedSpend <= monthlyBudget * 0.7
     ? { label: 'Healthy spending', className: 'healthy' }
     : projectedSpend <= monthlyBudget
@@ -84,12 +87,13 @@ function ReviewPayment({
             <div className={`balance-impact remaining ${remainingBalance < 0 ? 'negative' : ''}`}><span>Balance after payment</span><strong>{currency(remainingBalance)}</strong></div>
           </div>
 
-          <div className="payment-summary-box premium-card budget-card">
-            <div className="budget-heading"><div><span className="section-label">Monthly payment budget</span><strong className={spendingState.className}><FiTrendingUp /> {spendingState.label}</strong></div><input aria-label="Monthly payment budget" type="number" min="0" value={monthlyBudget} onChange={(event) => onBudgetChange(event.target.value)} /></div>
+          {monthlyBudget > 0 && <div className="payment-summary-box premium-card budget-card">
+            <div className="budget-heading"><div><span className="section-label">Monthly budget</span><strong className={spendingState.className}><FiTrendingUp /> {spendingState.label}</strong></div></div>
             <div className="budget-amounts"><span>Spent after this payment</span><strong>{currency(projectedSpend)} / {currency(monthlyBudget)}</strong></div>
             <div className="budget-track"><span className={spendingState.className} style={{ width: `${budgetPercent}%` }} /></div>
+            {categoryBudget > 0 && <><div className="budget-amounts category-budget"><span>Category after payment</span><strong>{currency(projectedCategorySpend)} / {currency(categoryBudget)}</strong></div><div className="budget-track category-track"><span className={projectedCategorySpend > categoryBudget ? 'over' : 'healthy'} style={{ width: `${categoryPercent}%` }} /></div></>}
             <small>{currency(amountValue)} will be added to this month’s outgoing payments.</small>
-          </div>
+          </div>}
 
           <div className="payment-summary-box premium-card payable-card">
             <span>Total payable</span><strong>{currency(grandTotal)}</strong>

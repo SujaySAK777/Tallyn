@@ -58,6 +58,7 @@ public class PaymentService {
     private final EntityManager entityManager;
     private final EmailService emailService;
     private final CustomerRepository customerRepository;
+    private final CurrencyConversionService currencyConversionService;
     private final NotificationService notificationService;
 
     public PaymentService(
@@ -67,6 +68,7 @@ public class PaymentService {
             EntityManager entityManager,
             EmailService emailService,
             CustomerRepository customerRepository,
+            CurrencyConversionService currencyConversionService
             NotificationService notificationService
     ) {
         this.accountRepository = accountRepository;
@@ -75,6 +77,7 @@ public class PaymentService {
         this.entityManager = entityManager;
         this.emailService = emailService;
         this.customerRepository = customerRepository;
+        this.currencyConversionService = currencyConversionService;
         this.notificationService = notificationService;
     }
 
@@ -130,11 +133,9 @@ public class PaymentService {
             throw new ApiException("INVALID_ACCOUNT", "Both accounts must be ACTIVE", HttpStatus.BAD_REQUEST);
         }
 
-        String currency = request.getCurrency().toUpperCase();
-        if (!source.getCurrency().equalsIgnoreCase(currency)
-                || !destination.getCurrency().equalsIgnoreCase(currency)) {
-            throw new ApiException("INVALID_CURRENCY", "Currency must match account currencies", HttpStatus.BAD_REQUEST);
-        }
+        // The debit is always expressed in the source account's currency.
+        // The destination credit is converted automatically when it settles.
+        String currency = source.getCurrency().toUpperCase();
 
         Payment payment = new Payment();
         payment.setSourceAccount(source);
@@ -430,6 +431,8 @@ public class PaymentService {
             if (status == PaymentStatus.COMPLETED) {
                 emailService.sendMoneyDeductedEmail(senderEmail, srcName, amount, dstName, ref, remaining);
                 emailService.sendMoneyReceivedEmail(recipientEmail, dstName, amount, srcName, ref, available);
+            } else if (status == PaymentStatus.FAILED) {
+                emailService.sendPaymentFailedEmail(senderEmail, srcName, amount, payment.getErrorCode() == null ? "FAILED" : payment.getErrorCode(), ref);
                 notificationService.create(source.getCustomerId(), NotificationType.MONEY_DEBITED,
                         "Money debited", "Rs. " + amount + " sent to " + dstName + " (ref " + ref + ")");
                 notificationService.create(dest.getCustomerId(), NotificationType.MONEY_CREDITED,
@@ -455,7 +458,6 @@ public class PaymentService {
                 || request.getSourceAccountId() == null
                 || request.getDestinationAccountId() == null
                 || request.getAmount() == null
-                || request.getCurrency() == null
                 || request.getReferenceNumber() == null
                 || request.getReferenceNumber().isBlank()
                 || (requireTpin && (request.getTpin() == null || request.getTpin().isBlank()))) {
@@ -477,7 +479,8 @@ public class PaymentService {
         }
 
         source.setBalance(source.getBalance().subtract(amount));
-        destination.setBalance(destination.getBalance().add(amount));
+        BigDecimal creditedAmount = currencyConversionService.convert(amount, source.getCurrency(), destination.getCurrency());
+        destination.setBalance(destination.getBalance().add(creditedAmount));
         accountRepository.save(source);
         accountRepository.save(destination);
     }
