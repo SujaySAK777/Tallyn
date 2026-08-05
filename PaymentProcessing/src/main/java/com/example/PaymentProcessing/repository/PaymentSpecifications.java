@@ -1,6 +1,7 @@
 package com.example.PaymentProcessing.repository;
 
 import com.example.PaymentProcessing.model.Payment;
+import com.example.PaymentProcessing.model.PaymentCategory;
 import com.example.PaymentProcessing.model.PaymentStatus;
 import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
@@ -51,6 +52,33 @@ public final class PaymentSpecifications {
             return null;
         }
         return (root, query, cb) -> cb.equal(root.get("sourceAccount").get("accountId"), accountId);
+    }
+
+    public static Specification<Payment> hasCategory(PaymentCategory category) {
+        if (category == null) {
+            return null;
+        }
+        return (root, query, cb) -> cb.equal(root.get("category"), category);
+    }
+
+    public static Specification<Payment> hasPaymentMethod(String paymentMethod) {
+        if (paymentMethod == null || paymentMethod.isBlank()) {
+            return null;
+        }
+
+        String normalized = paymentMethod.trim().toUpperCase();
+        return switch (normalized) {
+            case "SELF_TRANSFER" -> (root, query, cb) -> cb.and(
+                    cb.isNotNull(root.get("sourceAccount").get("customerId")),
+                    cb.equal(root.get("sourceAccount").get("customerId"), root.get("destinationAccount").get("customerId"))
+            );
+            case "BANK_TRANSFER" -> (root, query, cb) -> cb.or(
+                    cb.isNull(root.get("sourceAccount").get("customerId")),
+                    cb.isNull(root.get("destinationAccount").get("customerId")),
+                    cb.notEqual(root.get("sourceAccount").get("customerId"), root.get("destinationAccount").get("customerId"))
+            );
+            default -> null;
+        };
     }
 
     public static Specification<Payment> matchesSearch(String search) {
