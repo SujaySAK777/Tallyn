@@ -761,6 +761,10 @@ function Dashboard({ session, onLogout }) {
   };
 
   const handleQuickAction = (action) => {
+    setPaymentJourneyOpen(false);
+    setBalanceJourneyOpen(false);
+    setActiveModal('');
+
     if (action === 'account') {
       openAccountFlow();
       return;
@@ -1272,6 +1276,20 @@ function Dashboard({ session, onLogout }) {
     return accounts.find((account) => String(account.accountNumber || '').trim().toLowerCase() === normalized) || null;
   };
 
+  const activeNav = paymentJourneyOpen
+    ? 'payments'
+    : activeModal === 'schedule'
+      ? 'schedule'
+      : activeModal === 'groupSplit'
+        ? 'groupSplit'
+        : activeModal === 'settings'
+          ? 'settings'
+          : activeSection === 'transactions'
+            ? 'transactions'
+            : activeSection === 'beneficiaries'
+              ? 'beneficiaries'
+              : 'dashboard';
+
   return (
     <div className={`smartpay-app ${theme === 'dark' ? 'dark-theme' : ''}`}>
       <aside className="sidebar">
@@ -1286,20 +1304,14 @@ function Dashboard({ session, onLogout }) {
         </div>
 
         <nav className="menu">
-          <button className={`menu-item ${activeSection === 'dashboard' ? 'active' : ''}`} onClick={() => goToSection('dashboard')}>{t('dashboard')}</button>
-          <button className="menu-item">{t('payments')}</button>
-          <button className={`menu-item ${activeSection === 'transactions' ? 'active' : ''}`} onClick={() => goToSection('transactions')}>Payment History</button>
-          <button className={`menu-item ${activeSection === 'beneficiaries' ? 'active' : ''}`} onClick={() => goToSection('beneficiaries')}>{t('beneficiaries')}</button>
-          <button className="menu-item">Analytics</button>
-          <button className="menu-item">Rewards</button>
-          <button className="menu-item" onClick={() => setActiveModal('settings')}>Settings</button>
+          <button className={`menu-item ${activeNav === 'dashboard' ? 'active' : ''}`} onClick={() => goToSection('dashboard')}>{t('dashboard')}</button>
+          <button className={`menu-item ${activeNav === 'payments' ? 'active' : ''}`} onClick={() => handleQuickAction('makePayment')}>Make Payment</button>
+          <button className={`menu-item ${activeNav === 'schedule' ? 'active' : ''}`} onClick={() => handleQuickAction('schedulePayment')}>{t('schedulePayment')}</button>
+          <button className={`menu-item ${activeNav === 'groupSplit' ? 'active' : ''}`} onClick={() => handleQuickAction('groupSplit')}>{t('groupSplit')}</button>
+          <button className={`menu-item ${activeNav === 'transactions' ? 'active' : ''}`} onClick={() => goToSection('transactions')}>Payment History</button>
+          <button className={`menu-item ${activeNav === 'beneficiaries' ? 'active' : ''}`} onClick={() => goToSection('beneficiaries')}>{t('beneficiaries')}</button>
+          <button className={`menu-item ${activeNav === 'settings' ? 'active' : ''}`} onClick={() => setActiveModal('settings')}>Settings</button>
         </nav>
-
-        <div className="invite-card">
-          <h4>{t('inviteTitle')}</h4>
-          <p>{t('inviteText')}</p>
-          <button>{t('inviteButton')}</button>
-        </div>
 
         <div
           className="support"
@@ -2138,6 +2150,48 @@ function Dashboard({ session, onLogout }) {
                 <button className="primary-btn" onClick={submitGroupSplit} disabled={groupSplitSubmitting}>
                   {t('createSplit')}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeModal === 'settings' && (
+          <div className="modal-overlay" onClick={closeModal}>
+            <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+              <h3>Settings</h3>
+
+              <div className="settings-row">
+                <div>
+                  <strong>Theme</strong>
+                  <p>Switch between light and dark mode.</p>
+                </div>
+                <button className="secondary-btn" onClick={toggleTheme}>
+                  {theme === 'dark' ? <><FiSun /> Light</> : <><FiMoon /> Dark</>}
+                </button>
+              </div>
+
+              <div className="settings-row">
+                <div>
+                  <strong>Language</strong>
+                  <p>Choose your preferred language.</p>
+                </div>
+                <select className="lang-select" value={language} onChange={handleLanguageChange} aria-label="Language selector">
+                  {languageOptions.map((option) => (
+                    <option key={option.code} value={option.code}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="settings-row">
+                <div>
+                  <strong>Account</strong>
+                  <p>{session?.email}</p>
+                </div>
+                <button className="secondary-btn" onClick={onLogout}><FiLogOut /> Log out</button>
+              </div>
+
+              <div className="modal-actions">
+                <button className="primary-btn" onClick={closeModal}>{t('close')}</button>
               </div>
             </div>
           </div>
