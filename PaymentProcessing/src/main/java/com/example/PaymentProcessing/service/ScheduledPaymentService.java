@@ -14,6 +14,7 @@ import com.example.PaymentProcessing.model.ScheduledPaymentRecurrenceType;
 import com.example.PaymentProcessing.model.ScheduledPaymentStatus;
 import com.example.PaymentProcessing.repository.AccountRepository;
 import com.example.PaymentProcessing.repository.ScheduledPaymentRepository;
+import com.example.PaymentProcessing.repository.CustomerRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,6 +23,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -32,14 +34,29 @@ public class ScheduledPaymentService {
     private final ScheduledPaymentRepository scheduledPaymentRepository;
     private final AccountRepository accountRepository;
     private final PaymentService paymentService;
+    private final CustomerRepository customerRepository;
+    private final EmailService emailService;
 
+    @Autowired
+    public ScheduledPaymentService(
+            ScheduledPaymentRepository scheduledPaymentRepository,
+            AccountRepository accountRepository,
+            PaymentService paymentService,
+            CustomerRepository customerRepository,
+            EmailService emailService) {
+        this.scheduledPaymentRepository = scheduledPaymentRepository;
+        this.accountRepository = accountRepository;
+        this.paymentService = paymentService;
+        this.customerRepository = customerRepository;
+        this.emailService = emailService;
+    }
+
+    // Backwards-compatible constructor used by existing tests and callers.
     public ScheduledPaymentService(
             ScheduledPaymentRepository scheduledPaymentRepository,
             AccountRepository accountRepository,
             PaymentService paymentService) {
-        this.scheduledPaymentRepository = scheduledPaymentRepository;
-        this.accountRepository = accountRepository;
-        this.paymentService = paymentService;
+        this(scheduledPaymentRepository, accountRepository, paymentService, null, null);
     }
 
     @Transactional
@@ -71,6 +88,26 @@ public class ScheduledPaymentService {
         scheduledPayment.setReferenceNumber("SCH-" + UUID.randomUUID());
 
         ScheduledPayment saved = scheduledPaymentRepository.save(scheduledPayment);
+
+        // Send scheduled notification to payer (async; failures are logged)
+        try {
+            var sourceAccount = accountRepository.findById(request.getSourceAccountId()).orElse(null);
+            if (sourceAccount != null && sourceAccount.getCustomerId() != null) {
+                var customer = customerRepository.findById(sourceAccount.getCustomerId()).orElse(null);
+                if (customer != null) {
+                    emailService.sendPaymentScheduledEmail(
+                            customer.getEmail(),
+                            customer.getFirstName(),
+                            saved.getAmount() == null ? "" : saved.getAmount().toPlainString(),
+                            saved.getScheduledAt() == null ? "" : saved.getScheduledAt().toString(),
+                            saved.getReferenceNumber()
+                    );
+                }
+            }
+        } catch (Exception ex) {
+            // swallow; EmailService logs failures
+        }
+
         return ScheduledPaymentResponse.fromEntity(saved);
     }
 
