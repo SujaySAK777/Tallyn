@@ -52,4 +52,25 @@ class JwtServiceTest {
     void shouldRejectMalformedToken() {
         assertThrows(JwtException.class, () -> service.validateAndGetCustomerId("not-a-real-token"));
     }
+
+    @Test
+    void shouldRoundTripAdminIdThroughAdminToken() {
+        String token = service.generateAdminToken(7L, "admin@tallyn.com");
+        Long adminId = service.validateAndGetAdminId(token);
+        assertEquals(7L, adminId);
+    }
+
+    @Test
+    void shouldRejectAdminTokenOnCustomerValidation() {
+        // Subject ids overlap between the customer and admin tables, so this must be
+        // rejected by claim type - not just "any signed token with a numeric subject".
+        String adminToken = service.generateAdminToken(1L, "admin@tallyn.com");
+        assertThrows(JwtException.class, () -> service.validateAndGetCustomerId(adminToken));
+    }
+
+    @Test
+    void shouldRejectCustomerTokenOnAdminValidation() {
+        String customerToken = service.generateToken(1L, "jane@example.com");
+        assertThrows(JwtException.class, () -> service.validateAndGetAdminId(customerToken));
+    }
 }

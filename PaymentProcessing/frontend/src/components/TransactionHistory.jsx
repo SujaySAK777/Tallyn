@@ -104,6 +104,10 @@ function getStatusMeta(status) {
     return { label: 'Cancelled', className: 'status-cancelled' };
   }
 
+  if (normalized === 'REFUNDED') {
+    return { label: 'Refunded', className: 'status-refunded' };
+  }
+
   return { label: 'Pending', className: 'status-pending' };
 }
 
@@ -112,7 +116,8 @@ const STATUS_FILTERS = [
   { key: 'COMPLETED', label: 'Completed' },
   { key: 'PENDING', label: 'Pending' },
   { key: 'FAILED', label: 'Failed' },
-  { key: 'CANCELLED', label: 'Cancelled' }
+  { key: 'CANCELLED', label: 'Cancelled' },
+  { key: 'REFUNDED', label: 'Refunded' }
 ];
 
 function TransactionHistory({

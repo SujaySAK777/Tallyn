@@ -50,6 +50,7 @@ function PaymentJourney({
   setFormState,
   accounts,
   paymentId,
+  viewerAccountId,
   currency,
   onClose,
   onAuthorize,
@@ -384,6 +385,7 @@ function PaymentJourney({
       accounts={accounts}
       referenceNumber={referenceNumber}
       selectedDestination={selectedDestination}
+      viewerAccountId={viewerAccountId}
       goBack={goBack}
     />
   );

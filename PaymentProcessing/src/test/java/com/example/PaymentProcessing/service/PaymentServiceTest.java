@@ -43,6 +43,7 @@ class PaymentServiceTest {
     private CustomerRepository customerRepository;
     private CurrencyConversionService currencyConversionService;
     private NotificationService notificationService;
+    private PaymentSimulationService paymentSimulationService;
     private PaymentService service;
 
     private void setUp() {
@@ -54,8 +55,10 @@ class PaymentServiceTest {
         customerRepository = mock(CustomerRepository.class);
         currencyConversionService = mock(CurrencyConversionService.class);
         notificationService = mock(NotificationService.class);
+        paymentSimulationService = mock(PaymentSimulationService.class);
         service = new PaymentService(accountRepository, paymentRepository, paymentHistoryRepository,
-                entityManager, emailService, customerRepository, currencyConversionService, notificationService);
+                entityManager, emailService, customerRepository, currencyConversionService, notificationService,
+                paymentSimulationService, null);
     }
 
     private Account activeAccount(Long id, Long customerId, BigDecimal balance, String currency, String tpin) {
@@ -502,6 +505,89 @@ class PaymentServiceTest {
         verify(emailService, never()).sendMoneyDeductedEmail(any(), any(), any(), any(), any(), any());
         verify(emailService, never()).sendPaymentFailedEmail(any(), any(), any(), any(), any());
         verify(notificationService, never()).create(any(), any(), any(), any());
+    }
+
+    // ---- applyApprovedRefund ----
+    // Authorization (sender-raised ticket + admin approval) lives in RefundRequestServiceTest;
+    // this only covers the balance-reversal mechanics once approval has already happened.
+
+    private Payment completedPayment(Account source, Account dest, BigDecimal amount, BigDecimal settledAmount) {
+        Payment payment = paymentWithStatus(PaymentStatus.COMPLETED, source, dest);
+        payment.setAmount(amount);
+        payment.setSettledAmount(settledAmount);
+        return payment;
+    }
+
+    @Test
+    void shouldRejectRefundForMissingPayment() {
+        setUp();
+        when(paymentRepository.findById(1L)).thenReturn(Optional.empty());
+        ApiException ex = assertThrows(ApiException.class, () -> service.applyApprovedRefund(1L, "not happy"));
+        assertEquals("PAYMENT_NOT_FOUND", ex.getErrorCode());
+    }
+
+    @Test
+    void shouldRejectRefundForNonCompletedPayment() {
+        setUp();
+        Account source = activeAccount(1L, 5L, BigDecimal.valueOf(900), "INR", null);
+        Account dest = activeAccount(2L, 6L, BigDecimal.valueOf(300), "INR", null);
+        Payment payment = paymentWithStatus(PaymentStatus.PROCESSING, source, dest);
+        when(paymentRepository.findById(1L)).thenReturn(Optional.of(payment));
+
+        ApiException ex = assertThrows(ApiException.class, () -> service.applyApprovedRefund(1L, null));
+        assertEquals("INVALID_STATUS_TRANSITION", ex.getErrorCode());
+    }
+
+    @Test
+    void shouldRejectRefundWhenRecipientHasInsufficientBalance() {
+        setUp();
+        Account source = activeAccount(1L, 5L, BigDecimal.valueOf(900), "INR", null);
+        Account dest = activeAccount(2L, 6L, BigDecimal.valueOf(50), "INR", null);
+        Payment payment = completedPayment(source, dest, BigDecimal.valueOf(100), BigDecimal.valueOf(100));
+        when(paymentRepository.findById(1L)).thenReturn(Optional.of(payment));
+
+        ApiException ex = assertThrows(ApiException.class, () -> service.applyApprovedRefund(1L, null));
+        assertEquals("INSUFFICIENT_FUNDS_FOR_REFUND", ex.getErrorCode());
+    }
+
+    @Test
+    void shouldRefundPaymentAndReverseExactSettledAmount() {
+        setUp();
+        Account source = activeAccount(1L, 5L, BigDecimal.valueOf(900), "USD", null);
+        Account dest = activeAccount(2L, 6L, BigDecimal.valueOf(8550), "INR", null);
+        Payment payment = completedPayment(source, dest, BigDecimal.valueOf(100), BigDecimal.valueOf(8350));
+        when(paymentRepository.findById(1L)).thenReturn(Optional.of(payment));
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(customerRepository.findById(anyLong())).thenReturn(Optional.empty());
+
+        PaymentResponse response = service.applyApprovedRefund(1L, "duplicate charge");
+
+        assertEquals(PaymentStatus.REFUNDED, response.getStatus());
+        assertEquals("duplicate charge", response.getRefundReason());
+        assertEquals(0, BigDecimal.valueOf(1000).compareTo(source.getBalance()));
+        assertEquals(0, BigDecimal.valueOf(200).compareTo(dest.getBalance()));
+        verify(accountRepository).save(source);
+        verify(accountRepository).save(dest);
+        verify(notificationService).create(eq(6L), eq(NotificationType.REFUND_ISSUED), any(), any());
+        verify(notificationService).create(eq(5L), eq(NotificationType.REFUND_RECEIVED), any(), any());
+    }
+
+    @Test
+    void shouldFallBackToReconversionWhenSettledAmountMissing() {
+        setUp();
+        Account source = activeAccount(1L, 5L, BigDecimal.valueOf(900), "USD", null);
+        Account dest = activeAccount(2L, 6L, BigDecimal.valueOf(8550), "INR", null);
+        Payment payment = completedPayment(source, dest, BigDecimal.valueOf(100), null);
+        when(paymentRepository.findById(1L)).thenReturn(Optional.of(payment));
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(currencyConversionService.convert(BigDecimal.valueOf(100), "USD", "INR")).thenReturn(BigDecimal.valueOf(8350));
+        when(customerRepository.findById(anyLong())).thenReturn(Optional.empty());
+
+        PaymentResponse response = service.applyApprovedRefund(1L, null);
+
+        assertEquals(PaymentStatus.REFUNDED, response.getStatus());
+        assertEquals(0, BigDecimal.valueOf(1000).compareTo(source.getBalance()));
+        assertEquals(0, BigDecimal.valueOf(200).compareTo(dest.getBalance()));
     }
 
     // ---- listPayments ----
