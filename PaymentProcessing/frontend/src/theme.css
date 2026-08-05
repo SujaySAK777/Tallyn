@@ -1,0 +1,368 @@
+/* ==========================================================================
+   Tallyn — design tokens
+   Direction: Material-you clarity (Google Sites), banked in teal & brass
+   instead of the default fintech indigo.
+
+   Everything visual in the app resolves to a token in this file.
+   Change a value here and it changes everywhere, light and dark.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* ---- Neutrals — warm-cool grey with a teal undertone ------------------ */
+  --c-n-0:   #ffffff;
+  --c-n-25:  #fafcfc;
+  --c-n-50:  #f3f7f7;
+  --c-n-100: #e9efef;
+  --c-n-200: #dbe4e4;
+  --c-n-300: #c4d1d1;
+  --c-n-400: #a2b2b3;
+  --c-n-500: #7b8d8e;
+  --c-n-600: #5a6c6e;
+  --c-n-700: #3f5153;
+  --c-n-800: #26383a;
+  --c-n-900: #16292b;
+  --c-n-950: #0c1b1d;
+
+  /* ---- Primary — deep teal --------------------------------------------- */
+  --c-p-50:  #e8f4f4;
+  --c-p-100: #d2e9ea;
+  --c-p-200: #a9d5d8;
+  --c-p-300: #74b9bf;
+  --c-p-400: #3d97a0;
+  --c-p-500: #147a85;
+  --c-p-600: #0b5b65;
+  --c-p-700: #08464e;
+  --c-p-800: #06333a;
+  --c-p-900: #042227;
+
+  /* ---- Accent — brass ---------------------------------------------------- */
+  --c-a-50:  #fbf0dc;
+  --c-a-100: #f6e1b8;
+  --c-a-200: #edc77e;
+  --c-a-300: #dfa83f;
+  --c-a-400: #c98d14;
+  --c-a-500: #ae7402;
+  --c-a-600: #8e5d00;
+  --c-a-700: #6b4500;
+  --c-a-800: #4d3200;
+  --c-a-900: #332100;
+
+  /* ---- Success — sea green ---------------------------------------------- */
+  --c-s-50:  #e3f4ea;
+  --c-s-100: #c6e8d3;
+  --c-s-200: #93d2af;
+  --c-s-300: #55b683;
+  --c-s-400: #2a9a64;
+  --c-s-500: #14804f;
+  --c-s-600: #0e6540;
+  --c-s-700: #0a4c30;
+  --c-s-800: #073822;
+  --c-s-900: #052517;
+
+  /* ---- Error — burnt red ------------------------------------------------- */
+  --c-e-50:  #fbeae7;
+  --c-e-100: #f6d3cd;
+  --c-e-200: #eba79c;
+  --c-e-300: #db7a6b;
+  --c-e-400: #c55442;
+  --c-e-500: #ac3b2a;
+  --c-e-600: #8c2c1e;
+  --c-e-700: #6b2015;
+  --c-e-800: #4d170f;
+  --c-e-900: #33100a;
+
+  /* ---- Plum — the fifth data hue ---------------------------------------- */
+  --c-v-50:  #f6ebf3;
+  --c-v-100: #ecd6e7;
+  --c-v-200: #d9adce;
+  --c-v-300: #c083b0;
+  --c-v-400: #a25e90;
+  --c-v-500: #854374;
+  --c-v-600: #6b335c;
+  --c-v-700: #512546;
+  --c-v-800: #3a1a32;
+  --c-v-900: #251020;
+
+  /* ---- Semantic surface + text ------------------------------------------ */
+  --bg:            var(--c-n-50);
+  --surface:       var(--c-n-0);
+  --surface-sunk:  var(--c-n-50);
+  --surface-alt:   var(--c-n-100);
+  --border:        var(--c-n-200);
+  --border-strong: var(--c-n-300);
+  --text:          var(--c-n-900);
+  --text-muted:    var(--c-n-600);
+  --text-faint:    var(--c-n-500);
+
+  --brand:         var(--c-p-600);
+  --brand-hover:   var(--c-p-700);
+  --brand-soft:    var(--c-p-50);
+  --brand-soft-hi: var(--c-p-100);
+  --brand-text:    var(--c-p-700);
+  --on-brand:      #ffffff;
+
+  /* Warm surface — used once, on the promo panel */
+  --sand:          #f5efe3;
+  --sand-line:     #e6dcc7;
+
+  /* Icon well inside a tinted tile — lifts off whatever tint sits behind it */
+  --tile-icon-bg:  rgba(255, 255, 255, 0.62);
+
+  /* ---- Data palette — five distinguishable hues, one per category ------- */
+  --data-1: var(--c-p-600);
+  --data-2: var(--c-a-400);
+  --data-3: var(--c-s-400);
+  --data-4: var(--c-v-400);
+  --data-5: var(--c-n-500);
+
+  /* ---- Shape ------------------------------------------------------------ */
+  --r-xs:   8px;
+  --r-sm:   10px;
+  --r-md:   14px;
+  --r-lg:   20px;
+  --r-xl:   28px;
+  --r-pill: 999px;
+
+  /* ---- Elevation — hairline + two soft layers, never a coloured glow ---- */
+  --shadow-1: 0 1px 2px rgba(9, 32, 35, 0.06), 0 1px 3px rgba(9, 32, 35, 0.04);
+  --shadow-2: 0 2px 6px rgba(9, 32, 35, 0.07), 0 6px 16px rgba(9, 32, 35, 0.06);
+  --shadow-3: 0 8px 20px rgba(9, 32, 35, 0.10), 0 18px 44px rgba(9, 32, 35, 0.10);
+  --ring:     0 0 0 3px rgba(11, 91, 101, 0.22);
+  --scrim:    rgba(12, 27, 29, 0.42);
+
+  /* ---- Type ------------------------------------------------------------- */
+  --font-sans: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  /* Noto Sans Mono for figures: plain (unslashed) zero, and — unlike most
+     mono faces — it carries the rupee sign, which every amount here needs. */
+  --font-mono: 'Noto Sans Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --step-1: 0.75rem;
+  --step0:  0.875rem;
+  --step1:  1rem;
+  --step2:  1.25rem;
+  --step3:  1.625rem;
+  --step4:  2.125rem;
+
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* ==========================================================================
+   Dark theme — the ramps invert, nothing else has to change.
+   ========================================================================== */
+
+.dark-theme,
+.onboarding-shell.dark-theme {
+  color-scheme: dark;
+
+  --c-n-0:   #101d1f;
+  --c-n-25:  #142225;
+  --c-n-50:  #16292b;
+  --c-n-100: #1d3234;
+  --c-n-200: #26383a;
+  --c-n-300: #35494b;
+  --c-n-400: #57696b;
+  --c-n-500: #7f9092;
+  --c-n-600: #a3b3b4;
+  --c-n-700: #c2cfd0;
+  --c-n-800: #dde7e7;
+  --c-n-900: #eef4f4;
+  --c-n-950: #ffffff;
+
+  --c-p-50:  #0d2b30;
+  --c-p-100: #113a41;
+  --c-p-200: #17505a;
+  --c-p-300: #1e6c78;
+  --c-p-400: #2b8b97;
+  --c-p-500: #45a7b2;
+  --c-p-600: #6cc2cb;
+  --c-p-700: #93d6dd;
+  --c-p-800: #bae7eb;
+  --c-p-900: #dcf3f5;
+
+  --c-a-50:  #2e2005;
+  --c-a-100: #402c05;
+  --c-a-200: #573c05;
+  --c-a-300: #7a5507;
+  --c-a-400: #a8760f;
+  --c-a-500: #cf9722;
+  --c-a-600: #e3b452;
+  --c-a-700: #efcd8a;
+  --c-a-800: #f7e2b8;
+  --c-a-900: #fcf1dc;
+
+  --c-s-50:  #0a2a1c;
+  --c-s-100: #0d3a26;
+  --c-s-200: #114f33;
+  --c-s-300: #176c46;
+  --c-s-400: #22905d;
+  --c-s-500: #3aad77;
+  --c-s-600: #66c799;
+  --c-s-700: #96dbba;
+  --c-s-800: #bfead4;
+  --c-s-900: #dff5ea;
+
+  --c-e-50:  #331410;
+  --c-e-100: #451a14;
+  --c-e-200: #5e241a;
+  --c-e-300: #7f3223;
+  --c-e-400: #a5452f;
+  --c-e-500: #c46450;
+  --c-e-600: #db8a78;
+  --c-e-700: #eab0a3;
+  --c-e-800: #f4cec6;
+  --c-e-900: #fae7e3;
+
+  --c-v-50:  #2a1224;
+  --c-v-100: #3a1832;
+  --c-v-200: #4f2144;
+  --c-v-300: #6b2e5c;
+  --c-v-400: #8d4179;
+  --c-v-500: #ab5f96;
+  --c-v-600: #c384b1;
+  --c-v-700: #d7abc9;
+  --c-v-800: #e8cddf;
+  --c-v-900: #f4e7ef;
+
+  --bg:            #0c1719;
+  --surface:       #121f21;
+  --surface-sunk:  #16292b;
+  --surface-alt:   #1d3234;
+  --border:        #26383a;
+  --border-strong: #35494b;
+  --text:          #eef4f4;
+  --text-muted:    #a3b3b4;
+  --text-faint:    #7f9092;
+
+  --brand:         #45a7b2;
+  --brand-hover:   #6cc2cb;
+  --brand-soft:    #0f3238;
+  --brand-soft-hi: #164249;
+  --brand-text:    #93d6dd;
+  --on-brand:      #04262b;
+
+  --sand:          #241f18;
+  --sand-line:     #3a3226;
+
+  --tile-icon-bg:  rgba(255, 255, 255, 0.09);
+
+  --data-1: #45a7b2;
+  --data-2: #d4a445;
+  --data-3: #4fb488;
+  --data-4: #b878a4;
+  --data-5: #8fa0a2;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.36);
+  --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.4), 0 6px 16px rgba(0, 0, 0, 0.32);
+  --shadow-3: 0 8px 20px rgba(0, 0, 0, 0.46), 0 18px 44px rgba(0, 0, 0, 0.38);
+  --ring:     0 0 0 3px rgba(108, 194, 203, 0.3);
+  --scrim:    rgba(4, 12, 13, 0.62);
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--step0);
+  line-height: 1.5;
+  letter-spacing: -0.004em;
+  word-spacing: 0.02em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5 {
+  font-weight: 700;
+  /* Manrope sets a narrow word space; negative tracking closes it up further,
+     so the space is opened back out to keep two-word headings legible. */
+  letter-spacing: -0.015em;
+  word-spacing: 0.12em;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+button {
+  transition: background-color 0.18s var(--ease), color 0.18s var(--ease),
+    border-color 0.18s var(--ease), box-shadow 0.18s var(--ease);
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+code, kbd {
+  font-family: var(--font-mono);
+}
+
+/* Money, account numbers and references are set in mono so digits line up
+   column to column — the one place the app is allowed to look technical. */
+.amount,
+.tx-row strong,
+.history-table td.amount-cell,
+.balance-result-card strong,
+.review-amount,
+.summary-amount {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Quiet, consistent scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: var(--r-pill);
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

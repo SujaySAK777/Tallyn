@@ -13,6 +13,7 @@ import {
   FiLifeBuoy,
   FiLogOut,
   FiLock,
+  FiMenu,
   FiMoon,
   FiRefreshCw,
   FiRepeat,
@@ -21,7 +22,8 @@ import {
   FiSun,
   FiTarget,
   FiUser,
-  FiUsers
+  FiUsers,
+  FiX
 } from 'react-icons/fi';
 import { MdOutlinePayments } from 'react-icons/md';
 import './Dashboard.css';
@@ -126,6 +128,8 @@ function Dashboard({ session, onLogout }) {
   const supportedBanks = ['HDFC BANK', 'ICICI BANK', 'STATE BANK OF INDIA', 'AXIS BANK'];
 
   const [theme, setTheme] = useState('light');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [language, setLanguage] = useState('en');
   const [payments, setPayments] = useState([]);
   const [scheduledPayments, setScheduledPayments] = useState([]);
@@ -264,6 +268,8 @@ function Dashboard({ session, onLogout }) {
     showToast(budgetEnabled ? 'Monthly budget saved' : 'Monthly budget saved as optional');
     setActiveModal('');
   };
+
+  useEffect(() => {
     if (!notificationsOpen) {
       return;
     }
@@ -815,6 +821,7 @@ function Dashboard({ session, onLogout }) {
     setActiveModal('');
     setPaymentJourneyOpen(false);
     setBalanceJourneyOpen(false);
+    setMobileNavOpen(false);
   };
 
   const goToUpcomingPayments = () => {
@@ -1379,7 +1386,7 @@ function Dashboard({ session, onLogout }) {
     const c = b + values[2];
     const d = c + values[3];
     return {
-      background: `conic-gradient(#4762ff 0% ${a}%, #7c57ff ${a}% ${b}%, #ff8a24 ${b}% ${c}%, #f7aa2a ${c}% ${d}%, #697499 ${d}% 100%)`
+      background: `conic-gradient(var(--data-1) 0% ${a}%, var(--data-2) ${a}% ${b}%, var(--data-3) ${b}% ${c}%, var(--data-4) ${c}% ${d}%, var(--data-5) ${d}% 100%)`
     };
   }, [spendingStats]);
 
@@ -1424,9 +1431,43 @@ function Dashboard({ session, onLogout }) {
               : 'dashboard';
 
   return (
-    <div className={`smartpay-app ${theme === 'dark' ? 'dark-theme' : ''}`}>
-      <aside className="sidebar">
-        <div className="brand">
+    <div className={`smartpay-app ${theme === 'dark' ? 'dark-theme' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      <button
+        type="button"
+        className="icon-btn mobile-nav-toggle"
+        onClick={() => { setMobileNavOpen(true); setSidebarCollapsed(false); }}
+        aria-label="Open menu"
+      >
+        <FiMenu />
+      </button>
+
+      <div
+        className={`nav-backdrop ${mobileNavOpen ? 'nav-open' : ''}`}
+        onClick={() => setMobileNavOpen(false)}
+      />
+
+      <aside className={`sidebar ${mobileNavOpen ? 'nav-open' : ''}`}>
+        <button
+          type="button"
+          className="icon-btn sidebar-close"
+          onClick={() => setMobileNavOpen(false)}
+          aria-label="Close menu"
+        >
+          <FiX />
+        </button>
+
+        <div
+          className="brand"
+          role="button"
+          tabIndex={0}
+          onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              setSidebarCollapsed((collapsed) => !collapsed);
+            }
+          }}
+        >
           <div className="brand-icon">
             <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M6 17.5L14 21.5L26 8" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
@@ -1954,7 +1995,7 @@ function Dashboard({ session, onLogout }) {
             </header>
 
             <section className="hero-head">
-              <h1>Good morning, {customerName}!</h1>
+              <h1>Welcome, {customerName}!</h1>
             </section>
 
             <section className="top-grid">
@@ -2393,6 +2434,7 @@ function Dashboard({ session, onLogout }) {
               </div>
             </div>
           </section>
+        )}
         {activeModal === 'profile' && (
           <div className="modal-overlay" onClick={closeModal}>
             <div className="modal-card" onClick={(event) => event.stopPropagation()}>
