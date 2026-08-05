@@ -64,15 +64,12 @@ function PaymentJourney({
   sourceBalance = 0,
   onStepChange,
   beneficiaries = [],
-  onSaveBeneficiary
+  onSaveBeneficiary,
+  budget = { enabled: false, total: 0, categories: {}, spent: {} }
 }) {
   const [authenticating, setAuthenticating] = useState(false);
   const [processingStage, setProcessingStage] = useState(0);
   const [completedView, setCompletedView] = useState('processing');
-  const [monthlyBudget, setMonthlyBudget] = useState(() => {
-    const savedBudget = Number(window.localStorage.getItem('tallyn-monthly-payment-budget'));
-    return Number.isFinite(savedBudget) && savedBudget > 0 ? savedBudget : 50000;
-  });
 
   const flowSteps = [
     { id: 'method', label: 'Method' },
@@ -88,26 +85,8 @@ function PaymentJourney({
   const amountValue = Number(formState.amount || selectedAmount || 0);
   const grandTotal = amountValue;
   const referenceNumber = formState.referenceNumber || formState.reference || `REF${Date.now()}`;
-  const monthlySpent = useMemo(() => {
-    const now = new Date();
-    return payments
-      .filter((payment) => {
-        const createdAt = new Date(payment.createdAt || 0);
-        const status = String(payment.status || '').toUpperCase();
-        return createdAt.getFullYear() === now.getFullYear()
-          && createdAt.getMonth() === now.getMonth()
-          && status !== 'FAILED'
-          && status !== 'CANCELLED';
-      })
-      .reduce((total, payment) => total + Number(payment.amount || 0), 0);
-  }, [payments]);
-
-  const updateMonthlyBudget = (value) => {
-    const nextBudget = Number(value);
-    if (!Number.isFinite(nextBudget) || nextBudget < 0) return;
-    setMonthlyBudget(nextBudget);
-    window.localStorage.setItem('tallyn-monthly-payment-budget', String(nextBudget));
-  };
+  const monthlySpent = useMemo(() => Object.values(budget.spent || {}).reduce((total, amount) => total + Number(amount || 0), 0), [budget]);
+  const categoryKey = ({ BILL_PAYMENTS: 'Bill Payments', SHOPPING: 'Shopping', ENTERTAINMENT: 'Entertainment', FOOD: 'Food', UPI_PAYMENTS: 'Others', OTHERS: 'Others' }[formState.category] || 'Others');
 
   const duplicatePayment = useMemo(() => {
     const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
@@ -292,9 +271,13 @@ function PaymentJourney({
   };
 
   const setBankFormData = (nextData) => {
+    const sourceAccount = nextData.sourceAccountId
+      ? accounts.find((account) => String(account.accountId) === String(nextData.sourceAccountId))
+      : null;
     setFormState((prev) => ({
       ...prev,
       ...nextData,
+      currency: sourceAccount?.currency || prev.currency || 'INR',
       recipientName: nextData.accountHolder ?? prev.recipientName,
       ifscCode: nextData.ifsc ?? prev.ifscCode,
       referenceNumber: nextData.reference ?? prev.referenceNumber
@@ -340,8 +323,9 @@ function PaymentJourney({
       submitting={submitting}
       sourceBalance={sourceBalance}
       monthlySpent={monthlySpent}
-      monthlyBudget={monthlyBudget}
-      onBudgetChange={updateMonthlyBudget}
+      monthlyBudget={budget.enabled ? Number(budget.total || 0) : 0}
+      categoryBudget={Number(budget.categories?.[categoryKey] || 0)}
+      categorySpent={Number(budget.spent?.[categoryKey] || 0)}
       onBack={goBack}
       onConfirm={goNext}
       isSelfTransfer={isSelfTransfer}

@@ -33,18 +33,21 @@ public class GroupSplitService {
     private final AccountRepository accountRepository;
     private final CustomerRepository customerRepository;
     private final PaymentService paymentService;
+    private final CurrencyConversionService currencyConversionService;
 
     public GroupSplitService(
             GroupSplitRepository groupSplitRepository,
             GroupSplitMemberRepository groupSplitMemberRepository,
             AccountRepository accountRepository,
             CustomerRepository customerRepository,
-            PaymentService paymentService) {
+            PaymentService paymentService,
+            CurrencyConversionService currencyConversionService) {
         this.groupSplitRepository = groupSplitRepository;
         this.groupSplitMemberRepository = groupSplitMemberRepository;
         this.accountRepository = accountRepository;
         this.customerRepository = customerRepository;
         this.paymentService = paymentService;
+        this.currencyConversionService = currencyConversionService;
     }
 
     @Transactional
@@ -77,13 +80,16 @@ public class GroupSplitService {
                     .map(Account::getAccountId)
                     .orElse(null);
         }
+        Account sourceAccount = sourceAccountId == null ? null : accountRepository.findById(sourceAccountId).orElse(null);
+        if (sourceAccount == null) {
+            throw new ApiException("INVALID_ACCOUNT", "Choose a valid source account", HttpStatus.BAD_REQUEST);
+        }
 
         GroupSplit groupSplit = new GroupSplit();
         groupSplit.setCreatedByCustomerId(creatorCustomerId);
         groupSplit.setSourceAccountId(sourceAccountId);
         groupSplit.setTotalAmount(totalAmount);
-        groupSplit.setCurrency((request.getCurrency() == null || request.getCurrency().isBlank())
-                ? "INR" : request.getCurrency().toUpperCase());
+        groupSplit.setCurrency(sourceAccount.getCurrency().toUpperCase());
         groupSplit.setDescription(request.getDescription());
         groupSplit.setSplitType(splitType);
         groupSplit.setReferenceNumber("SPLIT-" + UUID.randomUUID());
@@ -233,8 +239,10 @@ public class GroupSplitService {
         CreatePaymentRequest paymentRequest = new CreatePaymentRequest();
         paymentRequest.setSourceAccountId(member.getAccountId());
         paymentRequest.setDestinationAccountId(split.getSourceAccountId());
-        paymentRequest.setAmount(member.getShareAmount());
-        paymentRequest.setCurrency(split.getCurrency());
+        Account memberAccount = accountRepository.findById(member.getAccountId())
+                .orElseThrow(() -> new ApiException("ACCOUNT_NOT_FOUND", "Member account not found", HttpStatus.BAD_REQUEST));
+        paymentRequest.setAmount(currencyConversionService.convert(member.getShareAmount(), split.getCurrency(), memberAccount.getCurrency()));
+        paymentRequest.setCurrency(memberAccount.getCurrency());
         paymentRequest.setReferenceNumber("SPLIT-PAY-" + UUID.randomUUID());
         paymentRequest.setRemarks("Settling split: " + split.getDescription());
         paymentRequest.setTpin(tpin);

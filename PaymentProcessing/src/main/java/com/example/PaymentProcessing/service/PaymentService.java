@@ -57,6 +57,7 @@ public class PaymentService {
     private final EntityManager entityManager;
     private final EmailService emailService;
     private final CustomerRepository customerRepository;
+    private final CurrencyConversionService currencyConversionService;
 
     public PaymentService(
             AccountRepository accountRepository,
@@ -64,7 +65,8 @@ public class PaymentService {
             PaymentHistoryRepository paymentHistoryRepository,
             EntityManager entityManager,
             EmailService emailService,
-            CustomerRepository customerRepository
+            CustomerRepository customerRepository,
+            CurrencyConversionService currencyConversionService
     ) {
         this.accountRepository = accountRepository;
         this.paymentRepository = paymentRepository;
@@ -72,6 +74,7 @@ public class PaymentService {
         this.entityManager = entityManager;
         this.emailService = emailService;
         this.customerRepository = customerRepository;
+        this.currencyConversionService = currencyConversionService;
     }
 
     private static final BCryptPasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder();
@@ -126,11 +129,9 @@ public class PaymentService {
             throw new ApiException("INVALID_ACCOUNT", "Both accounts must be ACTIVE", HttpStatus.BAD_REQUEST);
         }
 
-        String currency = request.getCurrency().toUpperCase();
-        if (!source.getCurrency().equalsIgnoreCase(currency)
-                || !destination.getCurrency().equalsIgnoreCase(currency)) {
-            throw new ApiException("INVALID_CURRENCY", "Currency must match account currencies", HttpStatus.BAD_REQUEST);
-        }
+        // The debit is always expressed in the source account's currency.
+        // The destination credit is converted automatically when it settles.
+        String currency = source.getCurrency().toUpperCase();
 
         Payment payment = new Payment();
         payment.setSourceAccount(source);
@@ -438,7 +439,6 @@ public class PaymentService {
                 || request.getSourceAccountId() == null
                 || request.getDestinationAccountId() == null
                 || request.getAmount() == null
-                || request.getCurrency() == null
                 || request.getReferenceNumber() == null
                 || request.getReferenceNumber().isBlank()
                 || (requireTpin && (request.getTpin() == null || request.getTpin().isBlank()))) {
@@ -460,7 +460,8 @@ public class PaymentService {
         }
 
         source.setBalance(source.getBalance().subtract(amount));
-        destination.setBalance(destination.getBalance().add(amount));
+        BigDecimal creditedAmount = currencyConversionService.convert(amount, source.getCurrency(), destination.getCurrency());
+        destination.setBalance(destination.getBalance().add(creditedAmount));
         accountRepository.save(source);
         accountRepository.save(destination);
     }

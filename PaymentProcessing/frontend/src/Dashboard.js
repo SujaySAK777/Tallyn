@@ -19,6 +19,7 @@ import {
   FiSearch,
   FiShield,
   FiSun,
+  FiTarget,
   FiUser,
   FiUsers
 } from 'react-icons/fi';
@@ -38,13 +39,17 @@ const HISTORY_STATUS_GROUPS = {
   PENDING: ['CREATED', 'VALIDATED', 'PROCESSING']
 };
 
-function currency(amount) {
+function currency(amount, currencyCode = 'INR') {
   const value = Number(amount || 0);
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0
-  }).format(value);
+  try {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: String(currencyCode || 'INR').toUpperCase(),
+      maximumFractionDigits: 0
+    }).format(value);
+  } catch {
+    return `${String(currencyCode || 'INR').toUpperCase()} ${value.toLocaleString('en-IN')}`;
+  }
 }
 
 function formatDateTime(input) {
@@ -169,6 +174,8 @@ function Dashboard({ session, onLogout }) {
   const [scheduleLookupError, setScheduleLookupError] = useState('');
   const [groupSplit, setGroupSplit] = useState({
     amount: '',
+    currency: 'INR',
+    sourceAccountId: '',
     description: '',
     splitType: 'EQUAL',
     members: [{ accountNumber: '', amount: '' }, { accountNumber: '', amount: '' }]
@@ -208,6 +215,13 @@ function Dashboard({ session, onLogout }) {
     tpin: '',
     confirmTpin: ''
   });
+  const [budgetMonth, setBudgetMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [budgetCurrency, setBudgetCurrency] = useState('INR');
+  const [budgetEnabled, setBudgetEnabled] = useState(false);
+  const [budgetTotal, setBudgetTotal] = useState('');
+  const [categoryBudgets, setCategoryBudgets] = useState({
+    'Bill Payments': '', Shopping: '', Entertainment: '', Food: '', Others: ''
+  });
 
   useEffect(() => {
     const savedTheme = window.localStorage.getItem('dashboard-theme');
@@ -220,6 +234,33 @@ function Dashboard({ session, onLogout }) {
       setLanguage(savedLanguage);
     }
   }, []);
+
+  useEffect(() => {
+    const savedBudget = window.localStorage.getItem('tallyn-monthly-budget');
+    if (!savedBudget) return;
+    try {
+      const parsed = JSON.parse(savedBudget);
+      setBudgetMonth(parsed.month || new Date().toISOString().slice(0, 7));
+      setBudgetCurrency(parsed.currency || 'INR');
+      setBudgetEnabled(Boolean(parsed.enabled));
+      setBudgetTotal(parsed.total || '');
+      setCategoryBudgets(parsed.categories || {});
+    } catch {
+      // Ignore an invalid saved preference and use the defaults.
+    }
+  }, []);
+
+  const saveBudget = () => {
+    window.localStorage.setItem('tallyn-monthly-budget', JSON.stringify({
+      month: budgetMonth,
+      currency: budgetCurrency,
+      enabled: budgetEnabled,
+      total: budgetTotal,
+      categories: categoryBudgets
+    }));
+    showToast(budgetEnabled ? 'Monthly budget saved' : 'Monthly budget saved as optional');
+    setActiveModal('');
+  };
 
   useEffect(() => {
     loadPayments();
@@ -260,6 +301,7 @@ function Dashboard({ session, onLogout }) {
     try {
       const payload = {
         amount: Number(groupSplit.amount || 0),
+        source_account_id: Number(groupSplit.sourceAccountId),
         description: groupSplit.description,
         split_type: groupSplit.splitType,
         members: groupSplit.members
@@ -271,7 +313,7 @@ function Dashboard({ session, onLogout }) {
       };
       await apiRequest('/group-splits', { method: 'POST', body: JSON.stringify(payload) });
       showToast(t('splitCreated'));
-      setGroupSplit({ amount: '', description: '', splitType: 'EQUAL', members: [{ accountNumber: '', amount: '' }, { accountNumber: '', amount: '' }] });
+      setGroupSplit({ amount: '', currency: 'INR', sourceAccountId: '', description: '', splitType: 'EQUAL', members: [{ accountNumber: '', amount: '' }, { accountNumber: '', amount: '' }] });
       closeModal();
       loadGroupSplitHistory();
       loadGroupSplitCreated();
@@ -693,6 +735,31 @@ function Dashboard({ session, onLogout }) {
     };
   }, [payments, selectedMonth]);
 
+  const budgetSpending = useMemo(() => {
+    const totals = { 'Bill Payments': 0, Shopping: 0, Entertainment: 0, Food: 0, Others: 0 };
+    for (const payment of payments) {
+      if (String(payment.status || '').toUpperCase() !== 'COMPLETED') continue;
+      const date = new Date(payment.createdAt || Date.now());
+      if (date.toISOString().slice(0, 7) !== budgetMonth) continue;
+      const label = payment.category
+        ? ({ UPI_PAYMENTS: 'Others', BILL_PAYMENTS: 'Bill Payments', SHOPPING: 'Shopping', ENTERTAINMENT: 'Entertainment', FOOD: 'Food', OTHERS: 'Others' }[payment.category] || 'Others')
+        : getPaymentCategory(payment);
+      totals[label] = (totals[label] || 0) + Number(payment.amount || 0);
+    }
+    return totals;
+  }, [payments, budgetMonth]);
+
+  const activeBudget = useMemo(() => {
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const total = Number(budgetTotal || 0);
+    return {
+      enabled: budgetEnabled && budgetMonth === currentMonth && total > 0,
+      total,
+      categories: categoryBudgets,
+      spent: budgetSpending
+    };
+  }, [budgetEnabled, budgetMonth, budgetTotal, categoryBudgets, budgetSpending]);
+
   const goToSection = (section) => {
     setActiveSection(section);
     setActiveModal('');
@@ -723,7 +790,8 @@ function Dashboard({ session, onLogout }) {
       ...initialFormState,
       sourceAccountId: String(linkedAccount?.accountId || ''),
       sourceAccountNumber: linkedAccount?.accountNumber || '',
-      sourceAccountHolder: linkedAccount?.accountHolderName || ''
+      sourceAccountHolder: linkedAccount?.accountHolderName || '',
+      currency: linkedAccount?.currency || 'INR'
     });
     setActiveModal('');
     setError('');
@@ -787,7 +855,12 @@ function Dashboard({ session, onLogout }) {
       return;
     }
     if (action === 'groupSplit') {
-      setActiveModal('groupSplit');
+      openGroupSplitFlow();
+      return;
+    }
+    if (action === 'budget') {
+      setBudgetCurrency(activeAccounts[0]?.currency || 'INR');
+      setActiveModal('budget');
     }
   };
 
@@ -797,7 +870,7 @@ function Dashboard({ session, onLogout }) {
     setScheduleDate('');
     setScheduleStep('details');
     setScheduledReceipt(null);
-    setGroupSplit({ amount: '', description: '', splitType: 'EQUAL', members: [{ accountNumber: '', amount: '' }, { accountNumber: '', amount: '' }] });
+    setGroupSplit({ amount: '', currency: 'INR', sourceAccountId: '', description: '', splitType: 'EQUAL', members: [{ accountNumber: '', amount: '' }, { accountNumber: '', amount: '' }] });
     setError('');
     setScheduleLookupError('');
     setAccountError('');
@@ -834,6 +907,12 @@ function Dashboard({ session, onLogout }) {
       tpin: '',
       confirmTpin: ''
     });
+  };
+
+  const openGroupSplitFlow = () => {
+    const source = activeAccounts.find((account) => String(account.accountId) === String(session?.accountId)) || activeAccounts[0];
+    setGroupSplit({ amount: '', currency: source?.currency || 'INR', sourceAccountId: String(source?.accountId || ''), description: '', splitType: 'EQUAL', members: [{ accountNumber: '', amount: '' }, { accountNumber: '', amount: '' }] });
+    setActiveModal('groupSplit');
   };
 
   const openCheckBalanceFlow = () => {
@@ -909,7 +988,6 @@ function Dashboard({ session, onLogout }) {
           bank_name: accountForm.bankName,
           mobile_number: accountForm.mobileNumber.trim(),
           account_holder_name: accountForm.accountHolderName.trim() || undefined,
-          currency: accountForm.currency.trim() || 'INR',
           customer_id: session?.customerId
         };
 
@@ -1052,7 +1130,10 @@ function Dashboard({ session, onLogout }) {
 
   const handleFormChange = (event) => {
     const { name, value } = event.target;
-    setFormState((prev) => ({ ...prev, [name]: value }));
+    const account = name === 'sourceAccountId'
+      ? activeAccounts.find((item) => String(item.accountId) === String(value))
+      : null;
+    setFormState((prev) => ({ ...prev, [name]: value, ...(account ? { currency: account.currency || 'INR' } : {}) }));
   };
 
   const handleDestinationAccountNumberChange = (event) => {
@@ -1333,7 +1414,7 @@ function Dashboard({ session, onLogout }) {
         </div>
       </aside>
 
-      <main className={`main-content ${(paymentJourneyOpen || balanceJourneyOpen || activeModal === 'schedule') ? 'journey-mode' : ''}`}>
+      <main className={`main-content ${(paymentJourneyOpen || balanceJourneyOpen || ['schedule', 'groupSplit', 'account', 'budget'].includes(activeModal)) ? 'journey-mode' : ''}`}>
         {activeModal === 'schedule' && (
           <section className="payment-journey">
             <div className="journey-breadcrumb">
@@ -1423,10 +1504,6 @@ function Dashboard({ session, onLogout }) {
                       <label className="field-col">
                         <span>{t('amount')}</span>
                         <input name="amount" placeholder={t('amount')} type="number" value={formState.amount} onChange={handleFormChange} />
-                      </label>
-                      <label className="field-col">
-                        <span>{t('currency')}</span>
-                        <input name="currency" placeholder={t('currency')} value={formState.currency} onChange={handleFormChange} />
                       </label>
                       <label className="field-col field-col-span2">
                         <span><FiFileText /> {t('description')}</span>
@@ -1672,7 +1749,7 @@ function Dashboard({ session, onLogout }) {
                       <div className="info-row"><span>{t('destinationAccount')}</span><strong>{scheduledReceipt ? getAccountLabel(scheduledReceipt.destinationAccountId) : (formState.scheduleDestinationAccountNumber || '-')}</strong></div>
                       <div className="info-row"><span>{t('receiverBankName')}</span><strong>{scheduledReceipt?.receiverBankName ?? formState.receiverBankName ?? '-'}</strong></div>
                       <div className="info-row"><span>{t('receiverIfsc')}</span><strong>{scheduledReceipt?.receiverIfsc ?? formState.receiverIfsc ?? '-'}</strong></div>
-                      <div className="info-row"><span>{t('amount')}</span><strong>{currency(scheduledReceipt?.amount ?? formState.amount)}</strong></div>
+                      <div className="info-row"><span>{t('amount')}</span><strong>{currency(scheduledReceipt?.amount ?? formState.amount, scheduledReceipt?.currency || formState.currency)}</strong></div>
                       <div className="info-row"><span>{t('scheduleDateTime')}</span><strong>{formatDateTime(scheduledReceipt?.scheduledAt ?? scheduleDate)}</strong></div>
                       <div className="info-row">
                         <span>{t('executionType')}</span>
@@ -1717,6 +1794,7 @@ function Dashboard({ session, onLogout }) {
             accounts={activeAccounts}
             paymentId={journeyPaymentId}
             currency={currency}
+            budget={activeBudget}
             onClose={closePaymentJourney}
             onAuthorize={(pin) => createPayment('payment', pin)}
             onValidate={validateJourneyPayment}
@@ -1755,7 +1833,7 @@ function Dashboard({ session, onLogout }) {
           />
         )}
 
-        {activeSection === 'dashboard' && !paymentJourneyOpen && !balanceJourneyOpen && activeModal !== 'schedule' && (
+        {activeSection === 'dashboard' && !paymentJourneyOpen && !balanceJourneyOpen && !activeModal && (
           <>
             <header className="topbar">
               <div className="search-wrap">
@@ -1821,6 +1899,10 @@ function Dashboard({ session, onLogout }) {
                     <span className="action-icon"><FiUsers /></span>
                     <span className="action-label">{t('groupSplit')}</span>
                   </button>
+                  <button className="action action-btn a6" onClick={() => handleQuickAction('budget')}>
+                    <span className="action-icon"><FiTarget /></span>
+                    <span className="action-label">Monthly Budget</span>
+                  </button>
                 </div>
               </article>
             </section>
@@ -1863,7 +1945,7 @@ function Dashboard({ session, onLogout }) {
                             <br />
                             <small>{payment.status} • {formatDateTime(payment.createdAt)}</small>
                           </span>
-                          <strong className={txType.className}>{txType.sign} {currency(payment.amount)}</strong>
+                          <strong className={txType.className}>{txType.sign} {currency(payment.amount, payment.currency)}</strong>
                         </div>
                       );
                     })}
@@ -1898,7 +1980,7 @@ function Dashboard({ session, onLogout }) {
                       <div className="spend-category" key={item.label}>
                         <div className="spend-category-head">
                           <span className="spend-category-name"><span className={`dot d${index + 1}`} /> {item.label}</span>
-                          <b>{currency(item.amount)}</b>
+                          <b>{currency(item.amount, item.currency)}</b>
                         </div>
                         <div className="spend-progress" aria-hidden="true">
                           <span className={`spend-progress-fill d${index + 1}`} style={{ width: `${item.pct}%` }} />
@@ -1910,6 +1992,11 @@ function Dashboard({ session, onLogout }) {
                 </div>
 
                 <div className="insight">{t('insight')}</div>
+                {activeBudget.enabled && (() => {
+                  const spent = Object.values(activeBudget.spent).reduce((sum, value) => sum + value, 0);
+                  const progress = Math.min((spent / activeBudget.total) * 100, 100);
+                  return <div className="budget-dashboard-card"><span><FiTarget /></span><div><small>Monthly budget</small><strong>{currency(Math.max(activeBudget.total - spent, 0), budgetCurrency)} left</strong><div className="budget-dashboard-track"><i style={{ width: `${progress}%` }} /></div></div><b>{Math.round(progress)}%</b></div>;
+                })()}
               </article>
             </section>
 
@@ -1933,7 +2020,7 @@ function Dashboard({ session, onLogout }) {
                       </small>
                     </span>
                     <span className="sch-right">
-                      <strong>{currency(payment.amount)}</strong>
+                      <strong>{currency(payment.amount, payment.currency)}</strong>
                       <button
                         className="cancel-btn"
                         disabled={cancellingId === payment.scheduledPaymentId}
@@ -1967,7 +2054,7 @@ function Dashboard({ session, onLogout }) {
                       <small>By {split.createdByName} • {formatDateTime(split.createdAt)}{!split.seen ? ' • New' : ''}</small>
                     </span>
                     <span className="sch-right">
-                      <strong>{currency(split.shareAmount)}</strong>
+                      <strong>{currency(split.shareAmount, split.currency)}</strong>
                       {split.paid ? (
                         <span className="status-pill status-completed">Paid</span>
                       ) : (
@@ -2073,24 +2160,27 @@ function Dashboard({ session, onLogout }) {
         {toast && <div className="toast-msg">{toast}</div>}
 
         {activeModal === 'groupSplit' && (
-          <div className="modal-overlay" onClick={closeModal}>
-            <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-              <h3>{t('groupSplit')}</h3>
-
-              <div className="form-grid">
-                <input
+          <section className="payment-journey group-split-page">
+            <div className="journey-breadcrumb"><span>{t('dashboard')}<FiChevronRight /></span><span className="current">{t('groupSplit')}</span></div>
+            <div className="journey-hero premium-hero"><div><h1>Split an expense</h1><p>Settle shared plans without the back-and-forth.</p></div><button className="back-btn" onClick={closeModal}><FiArrowLeft /> {t('backToDashboard')}</button></div>
+            <div className="journey-shell premium-shell">
+              <div className="group-split-layout">
+              <section className="flow-panel group-split-form-panel">
+              <div className="form-grid group-split-top-grid">
+                <label className="field-col"><span>Total amount</span><input
                   type="number"
                   placeholder={t('totalAmount')}
                   value={groupSplit.amount}
                   onChange={(event) => setGroupSplit((prev) => ({ ...prev, amount: event.target.value }))}
-                />
-                <input
+                /></label>
+                <label className="field-col"><span>What’s this for?</span><input
                   type="text"
                   placeholder={t('splitDescription')}
                   value={groupSplit.description}
                   onChange={(event) => setGroupSplit((prev) => ({ ...prev, description: event.target.value }))}
-                />
+                /></label>
               </div>
+              <label className="field-col"><span><FiCreditCard /> Pay from</span><select value={groupSplit.sourceAccountId} onChange={(event) => { const account = activeAccounts.find((item) => String(item.accountId) === event.target.value); setGroupSplit((prev) => ({ ...prev, sourceAccountId: event.target.value, currency: account?.currency || 'INR' })); }}>{activeAccounts.map((account) => <option key={account.accountId} value={account.accountId}>{account.bankName} •••• {String(account.accountNumber).slice(-4)}</option>)}</select></label>
 
               <div className="split-type-toggle">
                 <button
@@ -2109,13 +2199,14 @@ function Dashboard({ session, onLogout }) {
                 </button>
               </div>
 
-              <p className="split-result">{t('numberOfPeople')}: <strong>{groupSplit.members.length}</strong></p>
-
+              <div className="group-split-members-head"><h3>Members</h3><span className="group-split-pill">{groupSplit.members.length} people</span></div>
+              <div className="group-split-member-list">
               {groupSplit.members.map((member, index) => (
-                <div className="form-grid" key={index}>
+                <div className="form-grid group-split-member-row" key={index}>
+                  <div className="split-member-label"><span>{String(index + 1).padStart(2, '0')}</span><strong>Member {index + 1}</strong></div>
                   <input
                     type="text"
-                    placeholder={t('memberAccountNumber')}
+                    placeholder="Account number"
                     value={member.accountNumber}
                     onChange={(event) => updateGroupSplitMember(index, 'accountNumber', event.target.value)}
                   />
@@ -2127,19 +2218,16 @@ function Dashboard({ session, onLogout }) {
                       onChange={(event) => updateGroupSplitMember(index, 'amount', event.target.value)}
                     />
                   )}
-                  {groupSplit.members.length > 2 && (
-                    <button type="button" className="link-btn" onClick={() => removeGroupSplitMember(index)}>
-                      {t('removeMember')}
-                    </button>
-                  )}
+                  {groupSplit.members.length > 2 && <button type="button" className="group-split-remove-btn" onClick={() => removeGroupSplitMember(index)}>Remove</button>}
                 </div>
               ))}
+              </div>
 
               <button type="button" className="link-btn" onClick={addGroupSplitMember}>{t('addMember')}</button>
 
               {groupSplit.splitType === 'EQUAL' && groupSplit.amount && groupSplit.members.length > 0 && (
                 <p className="split-result">
-                  {t('perPerson')}: <strong>{currency(Number(groupSplit.amount) / groupSplit.members.length)}</strong>
+                  {t('perPerson')}: <strong>{currency(Number(groupSplit.amount) / groupSplit.members.length, groupSplit.currency)}</strong>
                 </p>
               )}
 
@@ -2151,8 +2239,11 @@ function Dashboard({ session, onLogout }) {
                   {t('createSplit')}
                 </button>
               </div>
+              </section>
+              <aside className="group-split-summary-panel"><div className="group-split-summary-card"><h3>Split summary</h3><div className="group-split-stat"><span>Total</span><strong>{currency(groupSplit.amount, groupSplit.currency)}</strong></div><div className="group-split-stat"><span>Split type</span><strong>{groupSplit.splitType === 'EQUAL' ? 'Equal shares' : 'Custom shares'}</strong></div><div className="group-split-stat"><span>Members</span><strong>{groupSplit.members.length}</strong></div><p className="group-split-hint">Add at least two account numbers. Members receive their individual share after you create the split.</p></div></aside>
+              </div>
             </div>
-          </div>
+          </section>
         )}
 
         {activeModal === 'settings' && (
@@ -2197,6 +2288,28 @@ function Dashboard({ session, onLogout }) {
           </div>
         )}
 
+        {activeModal === 'budget' && (
+          <section className="payment-journey budget-page">
+            <div className="journey-breadcrumb"><span>{t('dashboard')}<FiChevronRight /></span><span className="current">Monthly budget</span></div>
+            <div className="journey-hero premium-hero"><div><h1>Plan your month</h1><p>Set a spending limit and optional category guardrails.</p></div><button className="back-btn" onClick={closeModal}><FiArrowLeft /> {t('backToDashboard')}</button></div>
+            <div className="journey-shell premium-shell">
+              <div className="budget-layout">
+                <section className="flow-panel budget-form-panel">
+                  <div className="form-grid"><label className="field-col"><span>Month</span><input type="month" value={budgetMonth} onChange={(event) => setBudgetMonth(event.target.value)} /></label></div>
+                  <label className="budget-toggle"><input type="checkbox" checked={budgetEnabled} onChange={(event) => setBudgetEnabled(event.target.checked)} /><span><strong>Set a monthly spending budget</strong><small>This is optional. You can save category limits without an overall limit.</small></span></label>
+                  {budgetEnabled && <label className="field-col"><span>Total monthly budget</span><input type="number" min="0" placeholder="e.g. 50000" value={budgetTotal} onChange={(event) => setBudgetTotal(event.target.value)} /></label>}
+                  <div className="budget-section-head"><div><h3>Category budgets</h3><p>Optional limits for the categories you want to watch.</p></div></div>
+                  <div className="budget-category-grid">
+                    {Object.keys(categoryBudgets).map((category) => <label className="budget-category" key={category}><span>{category}</span><input type="number" min="0" placeholder="No limit" value={categoryBudgets[category] || ''} onChange={(event) => setCategoryBudgets((prev) => ({ ...prev, [category]: event.target.value }))} /><small>Spent: {currency(budgetSpending[category], budgetCurrency)}</small></label>)}
+                  </div>
+                  <div className="modal-actions"><button className="secondary-btn" onClick={closeModal}>Cancel</button><button className="primary-btn" onClick={saveBudget}>Save budget</button></div>
+                </section>
+                <aside className="budget-summary-card"><h3>Your plan</h3><div className="group-split-stat"><span>Monthly limit</span><strong>{budgetEnabled && budgetTotal ? currency(budgetTotal, budgetCurrency) : 'Not set'}</strong></div><div className="group-split-stat"><span>Spent this month</span><strong>{currency(Object.values(budgetSpending).reduce((sum, value) => sum + value, 0), budgetCurrency)}</strong></div><p className="group-split-hint">Budgets are saved privately on this device. You can update or turn them off at any time.</p></aside>
+              </div>
+            </div>
+          </section>
+        )}
+
         {activeModal === 'paySplit' && (
           <div className="modal-overlay" onClick={closePaySplit}>
             <div className="modal-card" onClick={(event) => event.stopPropagation()}>
@@ -2225,7 +2338,7 @@ function Dashboard({ session, onLogout }) {
               <h3>You've been added to a split</h3>
               <p>
                 {splitPromptQueue[0].createdByName} added you to "{splitPromptQueue[0].description}" — your share:{' '}
-                {currency(splitPromptQueue[0].shareAmount)}
+                {currency(splitPromptQueue[0].shareAmount, splitPromptQueue[0].currency)}
               </p>
               <div className="modal-actions">
                 <button className="secondary-btn" onClick={skipSplitPrompt}>Skip</button>
@@ -2236,10 +2349,13 @@ function Dashboard({ session, onLogout }) {
         )}
 
         {activeModal === 'account' && (
-          <div className="modal-overlay" onClick={closeModal}>
-            <div className="modal-card account-modal" onClick={(event) => event.stopPropagation()}>
+          <section className="payment-journey account-page">
+            <div className="journey-breadcrumb"><span>{t('dashboard')}<FiChevronRight /></span><span className="current">Account</span></div>
+            <div className="journey-hero premium-hero"><div><h1>Your accounts</h1><p>Add a bank account or finish setting up one you already have.</p></div><button className="back-btn" onClick={closeModal}><FiArrowLeft /> {t('backToDashboard')}</button></div>
+            <div className="journey-shell premium-shell account-flow-inner">
+            <div className="flow-panel account-modal">
               <div className="card-title-row account-modal-head">
-                <h3>Add / Activate Account</h3>
+                <div><span className="flow-eyebrow">Account setup</span><h3>Choose how you’d like to continue</h3></div>
                 <div className="account-mode-toggle">
                   <button
                     type="button"
@@ -2295,15 +2411,6 @@ function Dashboard({ session, onLogout }) {
                             name="accountHolderName"
                             placeholder="Full name"
                             value={accountForm.accountHolderName}
-                            onChange={handleAccountFormChange}
-                          />
-                        </label>
-                        <label className="field-col">
-                          <span>Currency</span>
-                          <input
-                            name="currency"
-                            placeholder="INR"
-                            value={accountForm.currency}
                             onChange={handleAccountFormChange}
                           />
                         </label>
@@ -2406,7 +2513,8 @@ function Dashboard({ session, onLogout }) {
                 </>
               )}
             </div>
-          </div>
+            </div>
+          </section>
         )}
 
       </main>
