@@ -6,12 +6,8 @@
   <component name="ChangeListManager">
     <list default="true" id="c05d6212-cc28-40ef-8b40-fc6a3fd721b7" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PaymentProcessing/frontend/src/Dashboard.css" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/frontend/src/Dashboard.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PaymentProcessing/frontend/src/components/PaymentJourney.js" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/frontend/src/components/PaymentJourney.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PaymentProcessing/frontend/src/components/TransactionDetails.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/frontend/src/components/TransactionDetails.jsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PaymentProcessing/frontend/src/components/TransactionHistory.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/frontend/src/components/TransactionHistory.jsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PaymentProcessing/src/main/java/com/example/PaymentProcessing/api/PaymentReceiptResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/src/main/java/com/example/PaymentProcessing/api/PaymentReceiptResponse.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PaymentProcessing/src/main/java/com/example/PaymentProcessing/api/PaymentResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/src/main/java/com/example/PaymentProcessing/api/PaymentResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PaymentProcessing/src/main/java/com/example/PaymentProcessing/service/PaymentService.java" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/src/main/java/com/example/PaymentProcessing/service/PaymentService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PaymentProcessing/src/main/java/com/example/PaymentProcessing/service/ScheduledPaymentService.java" beforeDir="false" afterPath="$PROJECT_DIR$/PaymentProcessing/src/main/java/com/example/PaymentProcessing/service/ScheduledPaymentService.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

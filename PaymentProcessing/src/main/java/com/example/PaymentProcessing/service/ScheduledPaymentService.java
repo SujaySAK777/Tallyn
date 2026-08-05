@@ -45,7 +45,6 @@ public class ScheduledPaymentService {
             AccountRepository accountRepository,
             PaymentService paymentService,
             CustomerRepository customerRepository,
-            EmailService emailService) {
             EmailService emailService,
             NotificationService notificationService) {
         this.scheduledPaymentRepository = scheduledPaymentRepository;
@@ -61,7 +60,6 @@ public class ScheduledPaymentService {
             ScheduledPaymentRepository scheduledPaymentRepository,
             AccountRepository accountRepository,
             PaymentService paymentService) {
-        this(scheduledPaymentRepository, accountRepository, paymentService, null, null);
         this(scheduledPaymentRepository, accountRepository, paymentService, null, null, null);
     }
 

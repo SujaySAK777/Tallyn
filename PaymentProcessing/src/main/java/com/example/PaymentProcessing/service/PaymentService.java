@@ -68,7 +68,7 @@ public class PaymentService {
             EntityManager entityManager,
             EmailService emailService,
             CustomerRepository customerRepository,
-            CurrencyConversionService currencyConversionService
+                CurrencyConversionService currencyConversionService,
             NotificationService notificationService
     ) {
         this.accountRepository = accountRepository;
