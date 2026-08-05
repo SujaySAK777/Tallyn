@@ -216,6 +216,7 @@ function Dashboard({ session, onLogout }) {
   const [balanceSubmitting, setBalanceSubmitting] = useState(false);
   const [accountForm, setAccountForm] = useState({
     bankName: 'HDFC BANK',
+    accountNumber: '',
     mobileNumber: '',
     accountHolderName: '',
     currency: 'INR',
@@ -936,6 +937,7 @@ function Dashboard({ session, onLogout }) {
     setCreatedAccount(null);
     setAccountForm({
       bankName: 'HDFC BANK',
+      accountNumber: '',
       mobileNumber: '',
       accountHolderName: '',
       currency: 'INR',
@@ -958,6 +960,7 @@ function Dashboard({ session, onLogout }) {
     setAccountSubmitting(false);
     setAccountForm({
       bankName: 'HDFC BANK',
+      accountNumber: '',
       mobileNumber: '',
       accountHolderName: '',
       currency: 'INR',
@@ -1033,14 +1036,14 @@ function Dashboard({ session, onLogout }) {
   const submitAccountEntry = async () => {
     setAccountError('');
 
-    if (!validateMobile(accountForm.mobileNumber)) {
-      setAccountError('Please enter a valid 10-digit mobile number.');
-      return;
-    }
-
     setAccountSubmitting(true);
     try {
       if (accountMode === 'simulate') {
+        if (!validateMobile(accountForm.mobileNumber)) {
+          setAccountError('Please enter a valid 10-digit mobile number.');
+          return;
+        }
+
         const payload = {
           bank_name: accountForm.bankName,
           mobile_number: accountForm.mobileNumber.trim(),
@@ -1059,6 +1062,10 @@ function Dashboard({ session, onLogout }) {
         return;
       }
 
+      if (!String(accountForm.accountNumber || '').trim()) {
+        setAccountError('Please enter your account number.');
+        return;
+      }
       if (!/^\d{6}$/.test(String(accountForm.tpin || '').trim())) {
         setAccountError('TPIN must be exactly 6 digits.');
         return;
@@ -1068,11 +1075,14 @@ function Dashboard({ session, onLogout }) {
         return;
       }
 
-      const activated = await apiRequest('/accounts/activate', {
+      const existing = await apiRequest(`/accounts/number/${encodeURIComponent(accountForm.accountNumber.trim())}`);
+      if (!existing?.accountId) {
+        throw new Error('Account not found.');
+      }
+
+      const activated = await apiRequest(`/accounts/${existing.accountId}/tpin`, {
         method: 'POST',
         body: JSON.stringify({
-          bank_name: accountForm.bankName,
-          mobile_number: accountForm.mobileNumber.trim(),
           tpin: accountForm.tpin.trim(),
           confirm_tpin: accountForm.confirmTpin.trim()
         })
@@ -2594,23 +2604,27 @@ function Dashboard({ session, onLogout }) {
               {accountStep === 'entry' && (
                 <>
                   <div className="form-grid">
-                    <label className="field-col">
-                      <span>Bank</span>
-                      <select name="bankName" value={accountForm.bankName} onChange={handleAccountFormChange}>
-                        {supportedBanks.map((bank) => (
-                          <option key={bank} value={bank}>{bank}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="field-col">
-                      <span>Mobile Number</span>
-                      <input
-                        name="mobileNumber"
-                        placeholder="10-digit mobile"
-                        value={accountForm.mobileNumber}
-                        onChange={handleAccountFormChange}
-                      />
-                    </label>
+                    {accountMode === 'simulate' && (
+                      <>
+                        <label className="field-col">
+                          <span>Bank</span>
+                          <select name="bankName" value={accountForm.bankName} onChange={handleAccountFormChange}>
+                            {supportedBanks.map((bank) => (
+                              <option key={bank} value={bank}>{bank}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="field-col">
+                          <span>Mobile Number</span>
+                          <input
+                            name="mobileNumber"
+                            placeholder="10-digit mobile"
+                            value={accountForm.mobileNumber}
+                            onChange={handleAccountFormChange}
+                          />
+                        </label>
+                      </>
+                    )}
 
                     {accountMode === 'simulate' && (
                       <>
@@ -2628,6 +2642,15 @@ function Dashboard({ session, onLogout }) {
 
                     {accountMode === 'activate' && (
                       <>
+                        <label className="field-col">
+                          <span>Account Number</span>
+                          <input
+                            name="accountNumber"
+                            placeholder="Enter account number"
+                            value={accountForm.accountNumber}
+                            onChange={handleAccountFormChange}
+                          />
+                        </label>
                         <label className="field-col">
                           <span>TPIN</span>
                           <input

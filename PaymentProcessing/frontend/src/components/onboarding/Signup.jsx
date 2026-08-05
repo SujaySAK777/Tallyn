@@ -5,6 +5,7 @@ import Shell from './Shell';
 import TermsModal from './TermsModal';
 
 const steps = ['Register', 'Link account', 'Set TPIN', 'Complete'];
+const bankOptions = ['HDFC BANK', 'ICICI BANK', 'STATE BANK OF INDIA', 'AXIS BANK'];
 
 const initial = {
   fullName: '',
@@ -14,8 +15,6 @@ const initial = {
   confirmPassword: '',
   acceptedTerms: false,
   bankName: '',
-  accountHolderName: '',
-  accountNumber: '',
   tpin: '',
   confirmTpin: ''
 };
@@ -93,9 +92,10 @@ export default function Signup({ onSwitchToLogin }) {
   };
 
   const submitLinkAccount = async () => {
+    if (!form.bankName) throw new Error('Please select a bank to continue.');
     await apiRequest(`/onboarding/${customerId}/link-account`, {
       method: 'POST',
-      body: JSON.stringify({ ...form, balance: '0' })
+      body: JSON.stringify({ bankName: form.bankName })
     });
     setStep(2);
   };
@@ -184,18 +184,23 @@ export default function Signup({ onSwitchToLogin }) {
 
         {step === 1 && (
           <div className="onboarding-form-grid">
-            <label className="field-span2">
-              Bank name
-              <input name="bankName" value={form.bankName} onChange={change} required />
-            </label>
-            <label>
-              Account holder name
-              <input name="accountHolderName" value={form.accountHolderName} onChange={change} required />
-            </label>
-            <label>
-              Account number
-              <input name="accountNumber" value={form.accountNumber} onChange={change} required />
-            </label>
+            <div className="field-span2">
+              <label>Choose bank</label>
+              <div className="bank-toggle-group" role="radiogroup" aria-label="Choose bank">
+                {bankOptions.map((bank) => (
+                  <button
+                    key={bank}
+                    type="button"
+                    role="radio"
+                    aria-checked={form.bankName === bank}
+                    className={`bank-toggle-btn ${form.bankName === bank ? 'active' : ''}`}
+                    onClick={() => setForm((v) => ({ ...v, bankName: bank }))}
+                  >
+                    {bank}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
