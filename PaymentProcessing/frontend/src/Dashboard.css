@@ -656,31 +656,33 @@
 }
 
 .status-pill {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 20px;
+  display: inline-block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  text-align: right;
   text-transform: capitalize;
+  white-space: nowrap;
 }
 
 .status-pending {
-  background: #fff4e0;
-  color: #b8710a;
+  color: #b56f00;
 }
 
 .status-completed {
-  background: #e6f9ef;
-  color: #0e9f57;
+  color: #0b8f53;
 }
 
 .status-failed {
-  background: #fde9ec;
-  color: #d23a52;
+  color: #cb2f4e;
 }
 
 .status-cancelled {
-  background: #f0f1f5;
-  color: #5c6479;
+  color: #5e6880;
 }
 
 .cancel-btn {
@@ -2694,13 +2696,11 @@
   color: #5f6b86;
 }
 
-.receipt-actions.vertical-actions,
-.history-pagination {
+.receipt-actions.vertical-actions {
   flex-direction: column;
 }
 
-.receipt-actions.vertical-actions button,
-.history-pagination button {
+.receipt-actions.vertical-actions button {
   width: 100%;
   justify-content: center;
 }
@@ -2894,6 +2894,39 @@
   flex-wrap: wrap;
   align-items: flex-start;
   gap: 10px;
+}
+
+.history-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.history-status-filter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.history-status-filter button {
+  border: 1px solid #dfe6fa;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: #ffffff;
+  color: #52617f;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
+}
+
+.history-status-filter button.active {
+  border-color: #4b5cff;
+  background: #f3f5ff;
+  color: #2f45ea;
+  box-shadow: 0 8px 18px rgba(75, 92, 255, 0.12);
 }
 
 .history-toolbar .history-search {
@@ -3234,6 +3267,94 @@
   border-radius: 18px;
 }
 
+.history-list-wrap {
+  display: grid;
+  gap: 12px;
+}
+
+.history-list-empty {
+  border: 1px solid #e6ebf6;
+  border-radius: 18px;
+  background: #fbfcff;
+  padding: 24px;
+  color: #6e78a1;
+  text-align: center;
+  font-size: 14px;
+}
+
+.history-item-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 18px;
+  border: 1px solid #e6ebf6;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(25, 39, 84, 0.05);
+}
+
+.history-item-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.history-item-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: #eef2ff;
+  color: #4b5cff;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.history-item-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.history-item-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.history-item-copy strong {
+  color: #1d2946;
+  font-size: 15px;
+}
+
+.history-item-copy span {
+  color: #52617f;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.history-item-copy small {
+  color: #7e8aa8;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-item-side {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+  min-width: 132px;
+  flex: 0 0 auto;
+}
+
+.history-item-amount {
+  color: #1d2946;
+  font-size: 16px;
+}
+
 .history-table {
   width: 100%;
   border-collapse: collapse;
@@ -3268,131 +3389,6 @@
   font-size: 11px;
 }
 
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 96px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.status-pill.completed {
-  background: #ecfdf5;
-  color: #10b981;
-}
-
-.status-pill.processing {
-  background: #fff7ed;
-  color: #f59e0b;
-}
-
-.status-pill.failed {
-  background: #fee2e2;
-  color: #ef4444;
-}
-
-.status-pill.created,
-.status-pill.validated {
-  background: #e0f2fe;
-  color: #2563eb;
-}
-
-.status-pill.pending {
-  background: #fff7ed;
-  color: #f59e0b;
-}
-
-.status-pill.cancelled {
-  background: #eef1f8;
-  color: #64708c;
-}
-
-.history-stats {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 14px;
-  margin-bottom: 18px;
-}
-
-.stat-tile {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 18px;
-  border-radius: 18px;
-  border: 1px solid transparent;
-  cursor: pointer;
-  text-align: left;
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
-}
-
-.stat-tile:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 16px 30px rgba(20, 30, 70, 0.1);
-}
-
-.stat-tile.active {
-  border-color: currentColor;
-  box-shadow: 0 16px 30px rgba(20, 30, 70, 0.14);
-}
-
-.stat-tile-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.6);
-  font-size: 18px;
-}
-
-.stat-tile-label {
-  font-size: 13px;
-  font-weight: 700;
-  opacity: 0.85;
-}
-
-.stat-tile-value {
-  font-size: 26px;
-  font-weight: 800;
-}
-
-.stat-tile-amount {
-  font-size: 13px;
-  font-weight: 700;
-  opacity: 0.75;
-}
-
-.stat-tile-total {
-  background: linear-gradient(135deg, #e9eeff, #f6f8ff);
-  color: #2f45ea;
-}
-
-.stat-tile-success {
-  background: linear-gradient(135deg, #e4fbf3, #f2fffb);
-  color: #0f9d68;
-}
-
-.stat-tile-failed {
-  background: linear-gradient(135deg, #ffeaf0, #fff5f7);
-  color: #e0405e;
-}
-
-.stat-tile-pending {
-  background: linear-gradient(135deg, #fff4e3, #fffaf1);
-  color: #c9770f;
-}
-
-.stat-tile-cancelled {
-  background: linear-gradient(135deg, #eef1f8, #f7f8fc);
-  color: #64708c;
-}
-
 .history-footer {
   display: flex;
   justify-content: space-between;
@@ -3401,7 +3397,10 @@
 }
 
 .history-pagination {
+  display: flex;
   flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .history-page-size {
@@ -3498,6 +3497,15 @@
   .history-toolbar {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .history-item-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .history-item-side {
+    justify-items: start;
   }
 
   .journey-actions.premium-actions {

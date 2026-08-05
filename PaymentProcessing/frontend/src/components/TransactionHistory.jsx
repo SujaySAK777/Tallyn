@@ -1,17 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   FiArrowDown,
   FiArrowUp,
   FiCalendar,
-  FiCheckCircle,
-  FiClock,
   FiDownload,
-  FiEye,
   FiFilter,
   FiFileText,
   FiSearch,
-  FiSlash,
-  FiXCircle
 } from 'react-icons/fi';
 import { RiBankLine } from 'react-icons/ri';
 
@@ -52,15 +47,27 @@ function formatDateShort(value) {
   return new Date(`${value}T00:00:00`).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
 }
 
-function formatDateOnly(value) {
-  if (!value) {
-    return 'N/A';
+function toInputDateValue(value) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function matchesStatusFilter(status, statusFilter) {
+  const normalized = String(status || '').toUpperCase();
+  if (!statusFilter) {
+    return true;
   }
-  return new Date(value).toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  });
+  if (statusFilter === 'PENDING') {
+    return ['CREATED', 'VALIDATED', 'PROCESSING', 'PENDING'].includes(normalized);
+  }
+  return normalized === statusFilter;
+}
+
+function derivePaymentMethod(payment, accounts) {
+  const ownedAccountIds = new Set((accounts || []).map((account) => String(account.accountId)));
+  return ownedAccountIds.has(String(payment.destinationAccountId)) ? 'SELF_TRANSFER' : 'BANK_TRANSFER';
 }
 
 function toDateOnlyValue(value) {
@@ -82,16 +89,35 @@ function escapeCsvCell(value) {
   return text;
 }
 
-const STAT_TILES = [
-  { key: null, label: 'Total Payments', icon: FiClock, accent: 'total' },
-  { key: 'COMPLETED', label: 'Successful', icon: FiCheckCircle, accent: 'success' },
-  { key: 'FAILED', label: 'Failed', icon: FiXCircle, accent: 'failed' },
-  { key: 'PENDING', label: 'Pending', icon: FiClock, accent: 'pending' },
-  { key: 'CANCELLED', label: 'Cancelled', icon: FiSlash, accent: 'cancelled' }
+function getStatusMeta(status) {
+  const normalized = String(status || '').toUpperCase();
+
+  if (normalized === 'COMPLETED') {
+    return { label: 'Completed', className: 'status-completed' };
+  }
+
+  if (normalized === 'FAILED') {
+    return { label: 'Failed', className: 'status-failed' };
+  }
+
+  if (normalized === 'CANCELLED') {
+    return { label: 'Cancelled', className: 'status-cancelled' };
+  }
+
+  return { label: 'Pending', className: 'status-pending' };
+}
+
+const STATUS_FILTERS = [
+  { key: null, label: 'All' },
+  { key: 'COMPLETED', label: 'Completed' },
+  { key: 'PENDING', label: 'Pending' },
+  { key: 'FAILED', label: 'Failed' },
+  { key: 'CANCELLED', label: 'Cancelled' }
 ];
 
 function TransactionHistory({
   summary,
+  allTransactions = [],
   historyStatusFilter,
   setHistoryStatusFilter,
   historyQuery,
@@ -106,6 +132,12 @@ function TransactionHistory({
   setHistoryMaxAmount,
   historySenderAccountId,
   setHistorySenderAccountId,
+  historyCategory = 'All',
+  setHistoryCategory = () => {},
+  historyPaymentMethod = 'All',
+  setHistoryPaymentMethod = () => {},
+  historyMonth = '',
+  setHistoryMonth = () => {},
   historySortDateEnabled,
   setHistorySortDateEnabled,
   historySortDateDir,
@@ -134,41 +166,115 @@ function TransactionHistory({
   const [statementToDate, setStatementToDate] = useState(historyToDate || '');
   const [statementStatus, setStatementStatus] = useState(historyStatusFilter || 'ALL');
   const [statementMessage, setStatementMessage] = useState('');
+  const [localHistoryCategory, setLocalHistoryCategory] = useState(historyCategory || 'All');
+  const [localHistoryPaymentMethod, setLocalHistoryPaymentMethod] = useState(historyPaymentMethod || 'All');
+  const [localHistoryMonth, setLocalHistoryMonth] = useState(historyMonth || '');
 
-  const pageNumbers = Array.from({ length: pagination.totalPages }, (_, index) => index);
-  const activeExtraFilters = [historySenderAccountId !== 'All', Boolean(historyMinAmount), Boolean(historyMaxAmount)].filter(Boolean).length;
+  useEffect(() => {
+    setLocalHistoryCategory(historyCategory || 'All');
+  }, [historyCategory]);
+
+  useEffect(() => {
+    setLocalHistoryPaymentMethod(historyPaymentMethod || 'All');
+  }, [historyPaymentMethod]);
+
+  useEffect(() => {
+    setLocalHistoryMonth(historyMonth || '');
+  }, [historyMonth]);
+
+  const activeExtraFilters = [historySenderAccountId !== 'All', Boolean(historyMinAmount), Boolean(historyMaxAmount), localHistoryCategory !== 'All', localHistoryPaymentMethod !== 'All', Boolean(localHistoryMonth)].filter(Boolean).length;
   const selectedSenderAccount = historySenderAccountId !== 'All' ? getAccount(accounts, historySenderAccountId) : null;
-  const filterLabel = selectedSenderAccount ? selectedSenderAccount.accountHolderName : 'Filter';
+  const filterLabel = selectedSenderAccount ? (selectedSenderAccount.bankName || 'Unknown Bank') : 'Filter';
   const dateLabel = historyFromDate || historyToDate
     ? (dateMode === 'single'
         ? formatDateShort(historyFromDate || historyToDate)
         : `${historyFromDate ? formatDateShort(historyFromDate) : 'Any'} – ${historyToDate ? formatDateShort(historyToDate) : 'Any'}`)
     : 'Date';
 
-  const tileValue = (key) => {
-    if (key === null) return summary.total;
-    if (key === 'COMPLETED') return summary.completed;
-    if (key === 'FAILED') return summary.failed;
-    if (key === 'CANCELLED') return summary.cancelled;
-    return summary.pending;
-  };
-
-  const tileAmount = (key) => {
-    if (key === null) return summary.totalAmount;
-    if (key === 'COMPLETED') return summary.completedAmount;
-    if (key === 'FAILED') return summary.failedAmount;
-    if (key === 'CANCELLED') return summary.cancelledAmount;
-    return summary.pendingAmount;
-  };
-
-  const toggleStatusTile = (key) => {
-    setHistoryStatusFilter(historyStatusFilter === key ? null : key);
-  };
-
   const handleSingleDateChange = (value) => {
+    setLocalHistoryMonth('');
+    setHistoryMonth('');
     setHistoryFromDate(value);
     setHistoryToDate(value);
   };
+
+  const monthOptions = Array.from({ length: 12 }, (_, index) => {
+    const base = new Date();
+    base.setDate(1);
+    base.setMonth(base.getMonth() - index);
+    const value = `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, '0')}`;
+    const label = base.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+    return { value, label };
+  });
+
+  const handleMonthChange = (value) => {
+    setLocalHistoryMonth(value);
+    setHistoryMonth(value);
+    if (!value) {
+      setHistoryFromDate('');
+      setHistoryToDate('');
+      return;
+    }
+
+    const [yearText, monthText] = value.split('-');
+    const year = Number(yearText);
+    const monthIndex = Number(monthText) - 1;
+    const start = new Date(year, monthIndex, 1);
+    const end = new Date(year, monthIndex + 1, 0);
+    setHistoryFromDate(toInputDateValue(start));
+    setHistoryToDate(toInputDateValue(end));
+  };
+
+  const handleCategoryChange = (value) => {
+    setLocalHistoryCategory(value);
+    setHistoryCategory(value);
+  };
+
+  const handlePaymentMethodChange = (value) => {
+    setLocalHistoryPaymentMethod(value);
+    setHistoryPaymentMethod(value);
+  };
+
+  const sourceTransactions = (allTransactions && allTransactions.length > 0) ? allTransactions : results;
+  const usingFullTransactionList = Array.isArray(allTransactions) && allTransactions.length > 0;
+
+  const filteredResults = useMemo(() => {
+    const query = historyQuery.trim().toLowerCase();
+    const from = historyFromDate ? new Date(`${historyFromDate}T00:00:00`) : null;
+    const to = historyToDate ? new Date(`${historyToDate}T23:59:59`) : null;
+
+    return (sourceTransactions || []).filter((payment) => {
+      const amount = Number(payment.amount || 0);
+      const createdAt = payment.createdAt ? new Date(payment.createdAt) : null;
+      const destinationAccount = getAccount(accounts, payment.destinationAccountId);
+      const destinationName = payment.destinationAccountHolderName || destinationAccount?.accountHolderName || '';
+      const haystack = `${payment.referenceNumber || ''} ${payment.remarks || ''} ${amount} ${destinationName}`.toLowerCase();
+
+      if (query && !haystack.includes(query)) return false;
+      if (!matchesStatusFilter(payment.status, historyStatusFilter)) return false;
+      if (from && (!createdAt || createdAt < from)) return false;
+      if (to && (!createdAt || createdAt > to)) return false;
+      if (historyMinAmount && amount < Number(historyMinAmount)) return false;
+      if (historyMaxAmount && amount > Number(historyMaxAmount)) return false;
+      if (historySenderAccountId !== 'All' && String(payment.sourceAccountId) !== String(historySenderAccountId)) return false;
+      if (localHistoryCategory !== 'All' && String(payment.category || 'OTHERS').toUpperCase() !== localHistoryCategory) return false;
+      if (localHistoryPaymentMethod !== 'All' && derivePaymentMethod(payment, accounts) !== localHistoryPaymentMethod) return false;
+      return true;
+    });
+  }, [sourceTransactions, accounts, historyQuery, historyStatusFilter, historyFromDate, historyToDate, historyMinAmount, historyMaxAmount, historySenderAccountId, localHistoryCategory, localHistoryPaymentMethod]);
+
+  const localTotalPages = Math.ceil(filteredResults.length / historyPageSize) || 0;
+  const totalPages = usingFullTransactionList ? localTotalPages : (pagination.totalPages || localTotalPages);
+  const currentPage = Math.min(pagination.page || 0, Math.max(totalPages - 1, 0));
+  const pagedResults = useMemo(() => {
+    if (!usingFullTransactionList) {
+      return filteredResults;
+    }
+    const start = currentPage * historyPageSize;
+    return filteredResults.slice(start, start + historyPageSize);
+  }, [filteredResults, currentPage, historyPageSize, usingFullTransactionList]);
+
+  const pageNumbers = Array.from({ length: totalPages }, (_, index) => index);
 
   const handleToggleDateSort = (checked) => {
     setHistorySortDateEnabled(checked);
@@ -180,7 +286,7 @@ function TransactionHistory({
     if (checked) setHistorySortPrimary('amount');
   };
 
-  const statementRows = results.filter((payment) => {
+  const statementRows = filteredResults.filter((payment) => {
     if (statementAccountId !== 'All' && String(payment.sourceAccountId) !== String(statementAccountId)) {
       return false;
     }
@@ -253,128 +359,21 @@ function TransactionHistory({
     <div className="journey-page history-page">
       <div className="page-heading premium-heading">
         <div className="heading-copy">
-          <span className="eyebrow">Payments History</span>
           <h2>Payments History</h2>
-          <p>Search, filter, and review every payment across your accounts.</p>
+          <div className="history-status-filter">
+            {STATUS_FILTERS.map((filter) => (
+              <button
+                key={filter.label}
+                type="button"
+                className={historyStatusFilter === filter.key ? 'active' : ''}
+                onClick={() => setHistoryStatusFilter(historyStatusFilter === filter.key ? null : filter.key)}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
-
-      <div className="history-stats">
-        {STAT_TILES.map((tile) => {
-          const Icon = tile.icon;
-          const isActive = historyStatusFilter === tile.key;
-          return (
-            <button
-              key={tile.label}
-              type="button"
-              className={`stat-tile stat-tile-${tile.accent} ${isActive ? 'active' : ''}`}
-              onClick={() => toggleStatusTile(tile.key)}
-            >
-              <span className="stat-tile-icon"><Icon /></span>
-              <span className="stat-tile-label">{tile.label}</span>
-              <span className="stat-tile-value">{tileValue(tile.key)}</span>
-              <span className="stat-tile-amount">{currency(tileAmount(tile.key))}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="history-panel premium-card">
-        <div className="history-toolbar">
-          <div className="history-search">
-            <FiSearch />
-            <input value={historyQuery} onChange={(event) => setHistoryQuery(event.target.value)} placeholder="Search by receiver name, amount, or reference ID" />
-          </div>
-
-          <div className="history-popover-wrap">
-            <button type="button" className="toolbar-btn" onClick={() => { setDateOpen((open) => !open); setFilterOpen(false); }}>
-              <FiCalendar /> {dateLabel}
-            </button>
-            {dateOpen && (
-              <div className="history-popover">
-                <div className="date-mode-toggle">
-                  <button type="button" className={dateMode === 'single' ? 'active' : ''} onClick={() => setDateMode('single')}>Single date</button>
-                  <button type="button" className={dateMode === 'range' ? 'active' : ''} onClick={() => setDateMode('range')}>Date range</button>
-                </div>
-                {dateMode === 'single' ? (
-                  <label>Date<input type="date" value={historyFromDate} onChange={(event) => handleSingleDateChange(event.target.value)} /></label>
-                ) : (
-                  <>
-                    <label>From<input type="date" value={historyFromDate} onChange={(event) => setHistoryFromDate(event.target.value)} /></label>
-                    <label>To<input type="date" value={historyToDate} onChange={(event) => setHistoryToDate(event.target.value)} /></label>
-                  </>
-                )}
-                <div className="popover-actions">
-                  <button type="button" className="popover-clear" onClick={() => { setHistoryFromDate(''); setHistoryToDate(''); }}>Clear</button>
-                  <button type="button" className="popover-done" onClick={() => setDateOpen(false)}>Done</button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="history-popover-wrap">
-            <button type="button" className={`toolbar-btn ${activeExtraFilters > 0 ? 'active' : ''}`} onClick={() => { setFilterOpen((open) => !open); setDateOpen(false); }}>
-              <FiFilter /> {filterLabel} {activeExtraFilters > 0 && <span className="toolbar-badge">{activeExtraFilters}</span>}
-            </button>
-            {filterOpen && (
-              <div className="history-popover">
-                <label>
-                  Sender Account
-                  <select value={historySenderAccountId} onChange={(event) => setHistorySenderAccountId(event.target.value)}>
-                    <option value="All">All Accounts</option>
-                    {(accounts || []).map((account) => (
-                      <option key={account.accountId} value={account.accountId}>
-                        {account.bankName || 'Unknown Bank'}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>Min amount<input type="number" min="0" value={historyMinAmount} onChange={(event) => setHistoryMinAmount(event.target.value)} /></label>
-                <label>Max amount<input type="number" min="0" value={historyMaxAmount} onChange={(event) => setHistoryMaxAmount(event.target.value)} /></label>
-                <div className="popover-actions">
-                  <button type="button" className="popover-clear" onClick={() => { setHistorySenderAccountId('All'); setHistoryMinAmount(''); setHistoryMaxAmount(''); }}>Clear</button>
-                  <button type="button" className="popover-done" onClick={() => setFilterOpen(false)}>Done</button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="history-sort">
-            <span className="history-sort-label">Sort by</span>
-            <label className="sort-checkbox">
-              <input type="checkbox" checked={historySortDateEnabled} onChange={(event) => handleToggleDateSort(event.target.checked)} />
-              Date
-              {historySortDateEnabled && historySortAmountEnabled && (
-                <span className="sort-priority">{historySortPrimary === 'date' ? 1 : 2}</span>
-              )}
-            </label>
-            {historySortDateEnabled && (
-              <button
-                type="button"
-                className="toolbar-btn active"
-                onClick={() => setHistorySortDateDir(historySortDateDir === 'asc' ? 'desc' : 'asc')}
-              >
-                {historySortDateDir === 'asc' ? <FiArrowUp /> : <FiArrowDown />}
-              </button>
-            )}
-            <label className="sort-checkbox">
-              <input type="checkbox" checked={historySortAmountEnabled} onChange={(event) => handleToggleAmountSort(event.target.checked)} />
-              Amount
-              {historySortDateEnabled && historySortAmountEnabled && (
-                <span className="sort-priority">{historySortPrimary === 'amount' ? 1 : 2}</span>
-              )}
-            </label>
-            {historySortAmountEnabled && (
-              <button
-                type="button"
-                className="toolbar-btn active"
-                onClick={() => setHistorySortAmountDir(historySortAmountDir === 'asc' ? 'desc' : 'asc')}
-              >
-                {historySortAmountDir === 'asc' ? <FiArrowUp /> : <FiArrowDown />}
-              </button>
-            )}
-          </div>
-
+        <div className="history-heading-actions">
           <div className="history-popover-wrap">
             <button type="button" className={`toolbar-btn ${statementOpen ? 'active' : ''}`} onClick={handleOpenStatement}>
               <FiFileText /> Account Statement
@@ -423,59 +422,178 @@ function TransactionHistory({
             )}
           </div>
         </div>
+      </div>
 
-        <div className="history-table-wrap">
-          <table className="history-table">
-            <thead>
-              <tr>
-                <th>Date &amp; Time</th>
-                <th>Sender</th>
-                <th>Receiver</th>
-                <th>Payment Method</th>
-                <th>Reference ID</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>View</th>
-              </tr>
-            </thead>
-            <tbody>
-              {results.length === 0 && (
-                <tr>
-                  <td colSpan="8">No matching transactions found.</td>
-                </tr>
+      <div className="history-panel premium-card">
+        <div className="history-toolbar">
+          <div className="history-search">
+            <FiSearch />
+            <input value={historyQuery} onChange={(event) => setHistoryQuery(event.target.value)} placeholder="Search by receiver name, amount, or reference ID" />
+          </div>
+
+          <div className="history-popover-wrap">
+            <button type="button" className="toolbar-btn" onClick={() => { setDateOpen((open) => !open); setFilterOpen(false); }}>
+              <FiCalendar /> {dateLabel}
+            </button>
+            {dateOpen && (
+              <div className="history-popover">
+                <div className="date-mode-toggle">
+                  <button type="button" className={dateMode === 'single' ? 'active' : ''} onClick={() => setDateMode('single')}>Single date</button>
+                  <button type="button" className={dateMode === 'range' ? 'active' : ''} onClick={() => setDateMode('range')}>Date range</button>
+                </div>
+                {dateMode === 'single' ? (
+                  <label>Date<input type="date" value={historyFromDate} onChange={(event) => handleSingleDateChange(event.target.value)} /></label>
+                ) : (
+                  <>
+                    <label>From<input type="date" value={historyFromDate} onChange={(event) => setHistoryFromDate(event.target.value)} /></label>
+                    <label>To<input type="date" value={historyToDate} onChange={(event) => setHistoryToDate(event.target.value)} /></label>
+                  </>
+                )}
+                <div className="popover-actions">
+                  <button type="button" className="popover-clear" onClick={() => { setHistoryFromDate(''); setHistoryToDate(''); }}>Clear</button>
+                  <button type="button" className="popover-done" onClick={() => setDateOpen(false)}>Done</button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="history-popover-wrap">
+            <button type="button" className={`toolbar-btn ${activeExtraFilters > 0 ? 'active' : ''}`} onClick={() => { setFilterOpen((open) => !open); setDateOpen(false); }}>
+              <FiFilter /> {filterLabel} {activeExtraFilters > 0 && <span className="toolbar-badge">{activeExtraFilters}</span>}
+            </button>
+            {filterOpen && (
+              <div className="history-popover">
+                <label>
+                  Account
+                  <select value={historySenderAccountId} onChange={(event) => setHistorySenderAccountId(event.target.value)}>
+                    <option value="All">All Accounts</option>
+                    {(accounts || []).map((account) => (
+                      <option key={account.accountId} value={account.accountId}>
+                        {account.bankName || 'Unknown Bank'}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Payment Method
+                  <select value={localHistoryPaymentMethod} onChange={(event) => handlePaymentMethodChange(event.target.value)}>
+                    <option value="All">All Methods</option>
+                    <option value="BANK_TRANSFER">Bank Transfer</option>
+                    <option value="SELF_TRANSFER">Self Transfer</option>
+                  </select>
+                </label>
+                <label>
+                  Category
+                  <select value={localHistoryCategory} onChange={(event) => handleCategoryChange(event.target.value)}>
+                    <option value="All">All Categories</option>
+                    <option value="BILL_PAYMENTS">Bills</option>
+                    <option value="SHOPPING">Shopping</option>
+                    <option value="ENTERTAINMENT">Entertainment</option>
+                    <option value="FOOD">Food</option>
+                    <option value="OTHERS">Others</option>
+                  </select>
+                </label>
+                <label>
+                  Month
+                  <select value={localHistoryMonth} onChange={(event) => handleMonthChange(event.target.value)}>
+                    <option value="">All Months</option>
+                    {monthOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>Min amount<input type="number" min="0" value={historyMinAmount} onChange={(event) => setHistoryMinAmount(event.target.value)} /></label>
+                <label>Max amount<input type="number" min="0" value={historyMaxAmount} onChange={(event) => setHistoryMaxAmount(event.target.value)} /></label>
+                <div className="popover-actions">
+                  <button type="button" className="popover-clear" onClick={() => { setHistorySenderAccountId('All'); setLocalHistoryPaymentMethod('All'); setHistoryPaymentMethod('All'); setLocalHistoryCategory('All'); setHistoryCategory('All'); setLocalHistoryMonth(''); setHistoryMonth(''); setHistoryFromDate(''); setHistoryToDate(''); setHistoryMinAmount(''); setHistoryMaxAmount(''); }}>Clear</button>
+                  <button type="button" className="popover-done" onClick={() => setFilterOpen(false)}>Done</button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="history-sort">
+            <span className="history-sort-label">Sort by</span>
+            <label className="sort-checkbox">
+              <input type="checkbox" checked={historySortDateEnabled} onChange={(event) => handleToggleDateSort(event.target.checked)} />
+              Date
+              {historySortDateEnabled && historySortAmountEnabled && (
+                <span className="sort-priority">{historySortPrimary === 'date' ? 1 : 2}</span>
               )}
-              {results.map((payment) => {
-                const destinationAccount = getAccount(accounts, payment.destinationAccountId);
-                const cancelledRow = isCancelledRow(payment);
-                return (
-                  <tr key={payment.paymentId}>
-                    <td>{formatDateTime(payment.createdAt)}<small className="history-date-inline">{formatDateOnly(payment.createdAt)}</small></td>
-                    <td>{getAccountNumberLabel(accounts, payment.sourceAccountId, payment.sourceAccountNumber)}</td>
-                    <td>{getAccountNumberLabel(accounts, payment.destinationAccountId, payment.destinationAccountNumber)}</td>
-                    <td>
-                      <div className="method-cell">
-                        <RiBankLine />
-                        <div>
-                          <div>Bank Transfer</div>
-                          {destinationAccount?.bankName && <small>{destinationAccount.bankName}</small>}
-                        </div>
-                      </div>
-                    </td>
-                    <td>{payment.referenceNumber || '—'}</td>
-                    <td>{currency(payment.amount)}</td>
-                    <td><span className={`status-pill ${(payment.status || 'Created').toLowerCase()}`}>{payment.status || 'Created'}</span></td>
-                    <td>
-                      {cancelledRow ? (
-                        <span className="table-action-disabled">—</span>
-                      ) : (
-                        <button type="button" className="table-action history-view-action" onClick={() => onViewTransaction(payment)} aria-label="View transaction details" title="View transaction details"><FiEye /></button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+            </label>
+            {historySortDateEnabled && (
+              <button
+                type="button"
+                className="toolbar-btn active"
+                onClick={() => setHistorySortDateDir(historySortDateDir === 'asc' ? 'desc' : 'asc')}
+              >
+                {historySortDateDir === 'asc' ? <FiArrowUp /> : <FiArrowDown />}
+              </button>
+            )}
+            <label className="sort-checkbox">
+              <input type="checkbox" checked={historySortAmountEnabled} onChange={(event) => handleToggleAmountSort(event.target.checked)} />
+              Amount
+              {historySortDateEnabled && historySortAmountEnabled && (
+                <span className="sort-priority">{historySortPrimary === 'amount' ? 1 : 2}</span>
+              )}
+            </label>
+            {historySortAmountEnabled && (
+              <button
+                type="button"
+                className="toolbar-btn active"
+                onClick={() => setHistorySortAmountDir(historySortAmountDir === 'asc' ? 'desc' : 'asc')}
+              >
+                {historySortAmountDir === 'asc' ? <FiArrowUp /> : <FiArrowDown />}
+              </button>
+            )}
+          </div>
+
+        </div>
+
+        <div className="history-list-wrap">
+          {pagedResults.length === 0 && (
+            <div className="history-list-empty">No matching transactions found.</div>
+          )}
+          {pagedResults.map((payment) => {
+            const destinationAccount = getAccount(accounts, payment.destinationAccountId);
+            const cancelledRow = isCancelledRow(payment);
+            const receiverName = payment.destinationAccountHolderName || destinationAccount?.accountHolderName || 'Recipient';
+            const receiverBank = payment.destinationBankName || destinationAccount?.bankName || 'Bank transfer';
+            const receiverAccount = getAccountNumberLabel(accounts, payment.destinationAccountId, payment.destinationAccountNumber);
+            const statusMeta = getStatusMeta(payment.status || 'CREATED');
+            return (
+              <article
+                key={payment.paymentId}
+                className={`history-item-card ${cancelledRow ? 'disabled' : 'clickable'}`}
+                onClick={cancelledRow ? undefined : () => onViewTransaction(payment)}
+                onKeyDown={cancelledRow ? undefined : (event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onViewTransaction(payment);
+                  }
+                }}
+                role={cancelledRow ? undefined : 'button'}
+                tabIndex={cancelledRow ? -1 : 0}
+                aria-label={cancelledRow ? undefined : `Open transaction details for ${receiverName}`}
+              >
+                <div className="history-item-main">
+                  <div className="history-item-icon"><RiBankLine /></div>
+                  <div className="history-item-copy">
+                    <strong>{receiverName}</strong>
+                    <span>{receiverBank}</span>
+                    <small>{receiverAccount} • {formatDateTime(payment.createdAt)}</small>
+                  </div>
+                </div>
+                <div className="history-item-side">
+                  <strong className="history-item-amount">{currency(payment.amount)}</strong>
+                  <span className={`status-pill ${statusMeta.className}`}>
+                    {statusMeta.label}
+                  </span>
+                  {cancelledRow && <span className="table-action-disabled">—</span>}
+                </div>
+              </article>
+            );
+          })}
         </div>
 
         <div className="history-footer">
@@ -493,7 +611,7 @@ function TransactionHistory({
                 <button
                   key={pageNumber}
                   type="button"
-                  className={pageNumber === pagination.page ? 'active' : ''}
+                  className={pageNumber === currentPage ? 'active' : ''}
                   onClick={() => onPageChange(pageNumber)}
                 >
                   {pageNumber + 1}
