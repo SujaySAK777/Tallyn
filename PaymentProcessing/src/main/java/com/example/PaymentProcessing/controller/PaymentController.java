@@ -7,6 +7,7 @@ import com.example.PaymentProcessing.api.PaymentResponse;
 import com.example.PaymentProcessing.api.PaymentSearchResponse;
 import com.example.PaymentProcessing.api.PaymentSummaryResponse;
 import com.example.PaymentProcessing.api.UpdatePaymentStatusRequest;
+import com.example.PaymentProcessing.model.PaymentCategory;
 import com.example.PaymentProcessing.model.PaymentStatus;
 import com.example.PaymentProcessing.service.PaymentService;
 import java.math.BigDecimal;
@@ -62,6 +63,8 @@ public class PaymentController {
             @RequestParam(required = false) BigDecimal minAmount,
             @RequestParam(required = false) BigDecimal maxAmount,
             @RequestParam(required = false) Long senderAccountId,
+            @RequestParam(required = false) PaymentCategory category,
+            @RequestParam(required = false) String paymentMethod,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String sortDateDir,
             @RequestParam(required = false) String sortAmountDir,
@@ -69,7 +72,7 @@ public class PaymentController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        return paymentService.searchPayments(status, fromDate, toDate, minAmount, maxAmount, senderAccountId, search, sortDateDir, sortAmountDir, sortPrimary, page, size);
+        return paymentService.searchPayments(status, fromDate, toDate, minAmount, maxAmount, senderAccountId, category, paymentMethod, search, sortDateDir, sortAmountDir, sortPrimary, page, size);
     }
 
     @GetMapping("/summary")
@@ -79,9 +82,11 @@ public class PaymentController {
             @RequestParam(required = false) BigDecimal minAmount,
             @RequestParam(required = false) BigDecimal maxAmount,
             @RequestParam(required = false) Long senderAccountId,
+            @RequestParam(required = false) PaymentCategory category,
+            @RequestParam(required = false) String paymentMethod,
             @RequestParam(required = false) String search
     ) {
-        return paymentService.getSummary(fromDate, toDate, minAmount, maxAmount, senderAccountId, search);
+        return paymentService.getSummary(fromDate, toDate, minAmount, maxAmount, senderAccountId, category, paymentMethod, search);
     }
 
     @GetMapping("/{paymentId}/history")

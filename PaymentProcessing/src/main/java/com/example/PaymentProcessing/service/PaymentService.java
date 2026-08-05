@@ -183,6 +183,8 @@ public class PaymentService {
             BigDecimal minAmount,
             BigDecimal maxAmount,
             Long senderAccountId,
+            PaymentCategory category,
+            String paymentMethod,
             String search,
             String sortDateDir,
             String sortAmountDir,
@@ -190,7 +192,7 @@ public class PaymentService {
             int page,
             int size
     ) {
-        Specification<Payment> baseSpec = buildBaseSpec(fromDate, toDate, minAmount, maxAmount, senderAccountId, search);
+        Specification<Payment> baseSpec = buildBaseSpec(fromDate, toDate, minAmount, maxAmount, senderAccountId, category, paymentMethod, search);
         Specification<Payment> spec = withStatus(baseSpec, statuses);
 
         Pageable pageable = PageRequest.of(page, size, buildSort(sortDateDir, sortAmountDir, sortPrimary));
@@ -230,9 +232,11 @@ public class PaymentService {
             BigDecimal minAmount,
             BigDecimal maxAmount,
             Long senderAccountId,
+            PaymentCategory category,
+            String paymentMethod,
             String search
     ) {
-        Specification<Payment> baseSpec = buildBaseSpec(fromDate, toDate, minAmount, maxAmount, senderAccountId, search);
+        Specification<Payment> baseSpec = buildBaseSpec(fromDate, toDate, minAmount, maxAmount, senderAccountId, category, paymentMethod, search);
         Specification<Payment> completedSpec = withStatus(baseSpec, List.of(PaymentStatus.COMPLETED));
         Specification<Payment> failedSpec = withStatus(baseSpec, List.of(PaymentStatus.FAILED));
         Specification<Payment> pendingSpec = withStatus(baseSpec,
@@ -273,6 +277,8 @@ public class PaymentService {
             BigDecimal minAmount,
             BigDecimal maxAmount,
             Long senderAccountId,
+            PaymentCategory category,
+            String paymentMethod,
             String search
     ) {
         LocalDateTime from = fromDate == null ? null : fromDate.atStartOfDay();
@@ -282,6 +288,8 @@ public class PaymentService {
                 PaymentSpecifications.createdBetween(from, to),
                 PaymentSpecifications.amountBetween(minAmount, maxAmount),
                 PaymentSpecifications.hasSourceAccount(senderAccountId),
+            PaymentSpecifications.hasCategory(category),
+            PaymentSpecifications.hasPaymentMethod(paymentMethod),
                 PaymentSpecifications.matchesSearch(search)
         ).filter(Objects::nonNull).toList();
 
