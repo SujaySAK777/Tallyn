@@ -12,6 +12,7 @@ import com.example.PaymentProcessing.model.ScheduledPayment;
 import com.example.PaymentProcessing.model.ScheduledPaymentExecutionType;
 import com.example.PaymentProcessing.model.ScheduledPaymentRecurrenceType;
 import com.example.PaymentProcessing.model.ScheduledPaymentStatus;
+import com.example.PaymentProcessing.model.NotificationType;
 import com.example.PaymentProcessing.repository.AccountRepository;
 import com.example.PaymentProcessing.repository.ScheduledPaymentRepository;
 import com.example.PaymentProcessing.repository.CustomerRepository;
@@ -36,6 +37,7 @@ public class ScheduledPaymentService {
     private final PaymentService paymentService;
     private final CustomerRepository customerRepository;
     private final EmailService emailService;
+    private final NotificationService notificationService;
 
     @Autowired
     public ScheduledPaymentService(
@@ -43,12 +45,14 @@ public class ScheduledPaymentService {
             AccountRepository accountRepository,
             PaymentService paymentService,
             CustomerRepository customerRepository,
-            EmailService emailService) {
+            EmailService emailService,
+            NotificationService notificationService) {
         this.scheduledPaymentRepository = scheduledPaymentRepository;
         this.accountRepository = accountRepository;
         this.paymentService = paymentService;
         this.customerRepository = customerRepository;
         this.emailService = emailService;
+        this.notificationService = notificationService;
     }
 
     // Backwards-compatible constructor used by existing tests and callers.
@@ -56,7 +60,7 @@ public class ScheduledPaymentService {
             ScheduledPaymentRepository scheduledPaymentRepository,
             AccountRepository accountRepository,
             PaymentService paymentService) {
-        this(scheduledPaymentRepository, accountRepository, paymentService, null, null);
+        this(scheduledPaymentRepository, accountRepository, paymentService, null, null, null);
     }
 
     @Transactional
@@ -95,13 +99,18 @@ public class ScheduledPaymentService {
             if (sourceAccount != null && sourceAccount.getCustomerId() != null) {
                 var customer = customerRepository.findById(sourceAccount.getCustomerId()).orElse(null);
                 if (customer != null) {
+                    String amount = saved.getAmount() == null ? "" : saved.getAmount().toPlainString();
+                    String scheduledAt = saved.getScheduledAt() == null ? "" : saved.getScheduledAt().toString();
                     emailService.sendPaymentScheduledEmail(
                             customer.getEmail(),
                             customer.getFirstName(),
-                            saved.getAmount() == null ? "" : saved.getAmount().toPlainString(),
-                            saved.getScheduledAt() == null ? "" : saved.getScheduledAt().toString(),
+                            amount,
+                            scheduledAt,
                             saved.getReferenceNumber()
                     );
+                    notificationService.create(sourceAccount.getCustomerId(), NotificationType.PAYMENT_SCHEDULED,
+                            "Payment scheduled", "Rs. " + amount + " scheduled for " + scheduledAt
+                                    + " (ref " + saved.getReferenceNumber() + ")");
                 }
             }
         } catch (Exception ex) {
