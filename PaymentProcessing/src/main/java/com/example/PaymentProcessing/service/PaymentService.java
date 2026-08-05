@@ -14,6 +14,7 @@ import com.example.PaymentProcessing.model.Payment;
 import com.example.PaymentProcessing.model.PaymentCategory;
 import com.example.PaymentProcessing.model.PaymentHistory;
 import com.example.PaymentProcessing.model.PaymentStatus;
+import com.example.PaymentProcessing.model.NotificationType;
 import com.example.PaymentProcessing.repository.AccountRepository;
 import com.example.PaymentProcessing.repository.PaymentHistoryRepository;
 import com.example.PaymentProcessing.repository.PaymentRepository;
@@ -58,6 +59,7 @@ public class PaymentService {
     private final EmailService emailService;
     private final CustomerRepository customerRepository;
     private final CurrencyConversionService currencyConversionService;
+    private final NotificationService notificationService;
 
     public PaymentService(
             AccountRepository accountRepository,
@@ -67,6 +69,7 @@ public class PaymentService {
             EmailService emailService,
             CustomerRepository customerRepository,
             CurrencyConversionService currencyConversionService
+            NotificationService notificationService
     ) {
         this.accountRepository = accountRepository;
         this.paymentRepository = paymentRepository;
@@ -75,6 +78,7 @@ public class PaymentService {
         this.emailService = emailService;
         this.customerRepository = customerRepository;
         this.currencyConversionService = currencyConversionService;
+        this.notificationService = notificationService;
     }
 
     private static final BCryptPasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder();
@@ -384,6 +388,10 @@ public class PaymentService {
                 String available = dest.getBalance() == null ? "" : dest.getBalance().toPlainString();
                 emailService.sendMoneyDeductedEmail(senderEmail, srcName, amount, dstName, ref, remaining);
                 emailService.sendMoneyReceivedEmail(recipientEmail, dstName, amount, srcName, ref, available);
+                notificationService.create(source.getCustomerId(), NotificationType.MONEY_DEBITED,
+                        "Money debited", "Rs. " + amount + " sent to " + dstName + " (ref " + ref + ")");
+                notificationService.create(dest.getCustomerId(), NotificationType.MONEY_CREDITED,
+                        "Money credited", "Rs. " + amount + " received from " + srcName + " (ref " + ref + ")");
             } catch (Exception ex) {
                 // EmailService handles its own logging; swallow any unexpected errors here.
             }
@@ -395,6 +403,8 @@ public class PaymentService {
                 String ref = saved.getReferenceNumber();
                 String reason = saved.getErrorCode() == null ? "FAILED" : saved.getErrorCode();
                 emailService.sendPaymentFailedEmail(senderEmail, source.getAccountHolderName(), amount, reason, ref);
+                notificationService.create(source.getCustomerId(), NotificationType.PAYMENT_FAILED,
+                        "Payment failed", "Your payment of Rs. " + amount + " (ref " + ref + ") failed: " + reason);
             } catch (Exception ex) {
             }
         }
@@ -423,6 +433,15 @@ public class PaymentService {
                 emailService.sendMoneyReceivedEmail(recipientEmail, dstName, amount, srcName, ref, available);
             } else if (status == PaymentStatus.FAILED) {
                 emailService.sendPaymentFailedEmail(senderEmail, srcName, amount, payment.getErrorCode() == null ? "FAILED" : payment.getErrorCode(), ref);
+                notificationService.create(source.getCustomerId(), NotificationType.MONEY_DEBITED,
+                        "Money debited", "Rs. " + amount + " sent to " + dstName + " (ref " + ref + ")");
+                notificationService.create(dest.getCustomerId(), NotificationType.MONEY_CREDITED,
+                        "Money credited", "Rs. " + amount + " received from " + srcName + " (ref " + ref + ")");
+            } else if (status == PaymentStatus.FAILED) {
+                String reason = payment.getErrorCode() == null ? "FAILED" : payment.getErrorCode();
+                emailService.sendPaymentFailedEmail(senderEmail, srcName, amount, reason, ref);
+                notificationService.create(source.getCustomerId(), NotificationType.PAYMENT_FAILED,
+                        "Payment failed", "Your payment of Rs. " + amount + " (ref " + ref + ") failed: " + reason);
             }
         } catch (Exception ex) {
             // swallow - EmailService logs any errors

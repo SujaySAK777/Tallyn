@@ -340,6 +340,92 @@
   place-items: center;
 }
 
+.notification-wrap {
+  position: relative;
+}
+
+.notification-menu {
+  position: absolute;
+  right: 0;
+  top: 40px;
+  z-index: 25;
+  width: 320px;
+  max-height: 380px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e2e7f2;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 18px 38px rgba(27, 44, 92, .16);
+  overflow: hidden;
+}
+
+.notification-menu-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid #edf0f7;
+}
+
+.notification-menu-head strong {
+  font-size: 13px;
+  color: #25304b;
+}
+
+.notification-list {
+  overflow-y: auto;
+}
+
+.notification-empty {
+  padding: 24px 14px;
+  text-align: center;
+  color: #8893b3;
+  font-size: 13px;
+}
+
+.notification-item {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #f2f4fb;
+  background: transparent;
+  text-align: left;
+  padding: 10px 14px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-item:hover {
+  background: #f7f8fd;
+}
+
+.notification-item.unread {
+  background: #f2f5ff;
+}
+
+.notification-title {
+  font-size: 13px;
+  font-weight: 650;
+  color: #1e2b50;
+}
+
+.notification-message {
+  font-size: 12px;
+  color: #56638a;
+  margin-top: 2px;
+}
+
+.notification-time {
+  font-size: 11px;
+  color: #97a1c0;
+  margin-top: 4px;
+}
+
 .profile {
   display: flex;
   align-items: center;
@@ -1607,6 +1693,38 @@
   color: #f2f4fb;
 }
 
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid #e8ecf6;
+}
+
+.settings-row:last-of-type {
+  border-bottom: none;
+}
+
+.settings-row strong {
+  display: block;
+  color: #1e2b50;
+}
+
+.settings-row p {
+  margin: 4px 0 0;
+  color: #697499;
+  font-size: 13px;
+}
+
+.smartpay-app.dark-theme .settings-row {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.smartpay-app.dark-theme .settings-row strong {
+  color: #f2f4fb;
+}
+
 .payment-journey .journey-shell .modal-card {
   width: 100%;
   max-width: none;
@@ -2166,9 +2284,28 @@
 .smartpay-app.dark-theme .icon-btn,
 .smartpay-app.dark-theme .card,
 .smartpay-app.dark-theme .modal-card,
+.smartpay-app.dark-theme .notification-menu,
 .smartpay-app.dark-theme .donut-center {
   background: #1a2338;
   border-color: #2a3555;
+}
+
+.smartpay-app.dark-theme .notification-menu-head,
+.smartpay-app.dark-theme .notification-item {
+  border-color: #2a3555;
+}
+
+.smartpay-app.dark-theme .notification-menu-head strong,
+.smartpay-app.dark-theme .notification-title {
+  color: #f2f4fb;
+}
+
+.smartpay-app.dark-theme .notification-item:hover {
+  background: #202b47;
+}
+
+.smartpay-app.dark-theme .notification-item.unread {
+  background: #202b52;
 }
 
 .smartpay-app.dark-theme .search-wrap input,

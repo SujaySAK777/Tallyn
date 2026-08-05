@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FiArrowLeft,
   FiBell,
@@ -191,6 +191,9 @@ function Dashboard({ session, onLogout }) {
   const [paySplitError, setPaySplitError] = useState('');
   const [paySplitSubmitting, setPaySplitSubmitting] = useState(false);
   const [toast, setToast] = useState('');
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const notificationWrapRef = useRef(null);
   const [submitting, setSubmitting] = useState(false);
   const [isSupportChatOpen, setIsSupportChatOpen] = useState(false);
   const [journeyPaymentId, setJourneyPaymentId] = useState(null);
@@ -261,6 +264,17 @@ function Dashboard({ session, onLogout }) {
     showToast(budgetEnabled ? 'Monthly budget saved' : 'Monthly budget saved as optional');
     setActiveModal('');
   };
+    if (!notificationsOpen) {
+      return;
+    }
+    const handleClickOutside = (event) => {
+      if (notificationWrapRef.current && !notificationWrapRef.current.contains(event.target)) {
+        setNotificationsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [notificationsOpen]);
 
   useEffect(() => {
     loadPayments();
@@ -270,10 +284,12 @@ function Dashboard({ session, onLogout }) {
     loadBeneficiaries();
     loadGroupSplitHistory();
     loadGroupSplitCreated();
+    loadNotifications();
 
     const pollInterval = window.setInterval(() => {
       loadPayments({ silent: true });
       loadScheduledPayments();
+      loadNotifications();
     }, 15000);
 
     return () => window.clearInterval(pollInterval);
@@ -409,6 +425,40 @@ function Dashboard({ session, onLogout }) {
     await apiRequest(`/beneficiaries/${beneficiaryId}`, { method: 'DELETE' });
     setBeneficiaries((prev) => prev.filter((beneficiary) => beneficiary.beneficiaryId !== beneficiaryId));
     showToast('Beneficiary removed');
+  };
+
+  const loadNotifications = async () => {
+    try {
+      const data = await apiRequest('/notifications');
+      setNotifications(Array.isArray(data) ? data : []);
+    } catch (err) {
+      // silent — notifications shouldn't block the dashboard from loading
+    }
+  };
+
+  const toggleNotifications = () => {
+    setNotificationsOpen((open) => !open);
+  };
+
+  const markNotificationRead = async (notificationId) => {
+    setNotifications((prev) => prev.map((item) => (
+      item.notificationId === notificationId ? { ...item, read: true } : item
+    )));
+    setNotificationsOpen(false);
+    try {
+      await apiRequest(`/notifications/${notificationId}/read`, { method: 'PUT' });
+    } catch (err) {
+      // best-effort; local state already reflects read
+    }
+  };
+
+  const markAllNotificationsRead = async () => {
+    setNotifications((prev) => prev.map((item) => ({ ...item, read: true })));
+    try {
+      await apiRequest('/notifications/read-all', { method: 'PUT' });
+    } catch (err) {
+      // best-effort; local state already reflects read
+    }
   };
 
   const loadGroupSplitNotifications = async () => {
@@ -1357,6 +1407,8 @@ function Dashboard({ session, onLogout }) {
     return accounts.find((account) => String(account.accountNumber || '').trim().toLowerCase() === normalized) || null;
   };
 
+  const unreadNotifications = notifications.filter((item) => !item.read);
+
   const activeNav = paymentJourneyOpen
     ? 'payments'
     : activeModal === 'schedule'
@@ -1843,7 +1895,40 @@ function Dashboard({ session, onLogout }) {
               </div>
 
               <div className="top-right">
-                <div className="icon-btn"><FiBell /><span className="badge">3</span></div>
+                <div className="notification-wrap" ref={notificationWrapRef}>
+                  <button className="icon-btn" onClick={toggleNotifications} aria-label="Notifications" aria-expanded={notificationsOpen}>
+                    <FiBell />
+                    {unreadNotifications.length > 0 && (
+                      <span className="badge">{unreadNotifications.length}</span>
+                    )}
+                  </button>
+                  {notificationsOpen && (
+                    <div className="notification-menu">
+                      <div className="notification-menu-head">
+                        <strong>Notifications</strong>
+                        {unreadNotifications.length > 0 && (
+                          <button className="link-btn" onClick={markAllNotificationsRead}>Mark all read</button>
+                        )}
+                      </div>
+                      <div className="notification-list">
+                        {unreadNotifications.length === 0 && (
+                          <div className="notification-empty">No new notifications</div>
+                        )}
+                        {unreadNotifications.map((item) => (
+                          <button
+                            key={item.notificationId}
+                            className="notification-item unread"
+                            onClick={() => markNotificationRead(item.notificationId)}
+                          >
+                            <div className="notification-title">{item.title}</div>
+                            <div className="notification-message">{item.message}</div>
+                            <div className="notification-time">{formatDateTime(item.createdAt)}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <button className="icon-btn theme-btn" onClick={toggleTheme} aria-label="Toggle theme">
                   {theme === 'light' ? <FiMoon /> : <FiSun />}
                 </button>
@@ -1861,7 +1946,7 @@ function Dashboard({ session, onLogout }) {
                 {profileOpen && <div className="profile-menu">
                   <div className="profile-menu-head"><strong>{customerName}</strong><span>{session?.email}</span></div>
                   <button onClick={() => { setProfileOpen(false); setActiveModal('profile'); }}>My profile</button>
-                  <button onClick={() => showToast('Notification preferences are saved automatically.')}>Notifications</button>
+                  <button onClick={() => { setProfileOpen(false); setNotificationsOpen(true); }}>Notifications</button>
                   <button onClick={() => { setProfileOpen(false); setActiveModal('settings'); }}>Settings</button>
                   <button className="logout-btn" onClick={onLogout}><FiLogOut /> Log out</button>
                 </div>}
@@ -2308,6 +2393,88 @@ function Dashboard({ session, onLogout }) {
               </div>
             </div>
           </section>
+        {activeModal === 'profile' && (
+          <div className="modal-overlay" onClick={closeModal}>
+            <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+              <h3>My Profile</h3>
+
+              <div className="settings-row">
+                <div>
+                  <strong>Name</strong>
+                  <p>{customerName}</p>
+                </div>
+              </div>
+
+              <div className="settings-row">
+                <div>
+                  <strong>Email</strong>
+                  <p>{session?.email || '-'}</p>
+                </div>
+              </div>
+
+              <div className="settings-row">
+                <div>
+                  <strong>Customer ID</strong>
+                  <p>{session?.customerId || '-'}</p>
+                </div>
+              </div>
+
+              {session?.accountNumber && (
+                <div className="settings-row">
+                  <div>
+                    <strong>Linked Account</strong>
+                    <p>{session.accountNumber} — {session.bankName}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="modal-actions">
+                <button className="primary-btn" onClick={closeModal}>{t('close')}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeModal === 'settings' && (
+          <div className="modal-overlay" onClick={closeModal}>
+            <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+              <h3>Settings</h3>
+
+              <div className="settings-row">
+                <div>
+                  <strong>Theme</strong>
+                  <p>Switch between light and dark mode.</p>
+                </div>
+                <button className="secondary-btn" onClick={toggleTheme}>
+                  {theme === 'dark' ? <><FiSun /> Light</> : <><FiMoon /> Dark</>}
+                </button>
+              </div>
+
+              <div className="settings-row">
+                <div>
+                  <strong>Language</strong>
+                  <p>Choose your preferred language.</p>
+                </div>
+                <select className="lang-select" value={language} onChange={handleLanguageChange} aria-label="Language selector">
+                  {languageOptions.map((option) => (
+                    <option key={option.code} value={option.code}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="settings-row">
+                <div>
+                  <strong>Account</strong>
+                  <p>{session?.email}</p>
+                </div>
+                <button className="secondary-btn" onClick={onLogout}><FiLogOut /> Log out</button>
+              </div>
+
+              <div className="modal-actions">
+                <button className="primary-btn" onClick={closeModal}>{t('close')}</button>
+              </div>
+            </div>
+          </div>
         )}
 
         {activeModal === 'paySplit' && (
