@@ -46,11 +46,11 @@ class ScheduledPaymentServiceTest {
 
         when(repository.findByStatusAndScheduledAtLessThanEqual(any(), any(LocalDateTime.class))).thenReturn(List.of(scheduledPayment));
         when(repository.save(any(ScheduledPayment.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(paymentService.createPayment(any(CreatePaymentRequest.class))).thenReturn(new PaymentResponse());
+        when(paymentService.createScheduledExecutionPayment(any(CreatePaymentRequest.class))).thenReturn(new PaymentResponse());
 
         service.processDuePayments();
 
-        verify(paymentService).createPayment(any(CreatePaymentRequest.class));
+        verify(paymentService).createScheduledExecutionPayment(any(CreatePaymentRequest.class));
         assertEquals(ScheduledPaymentStatus.COMPLETED, scheduledPayment.getStatus());
     }
 

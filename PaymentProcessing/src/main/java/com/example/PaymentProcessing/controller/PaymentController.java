@@ -6,10 +6,13 @@ import com.example.PaymentProcessing.api.PaymentReceiptResponse;
 import com.example.PaymentProcessing.api.PaymentResponse;
 import com.example.PaymentProcessing.api.PaymentSearchResponse;
 import com.example.PaymentProcessing.api.PaymentSummaryResponse;
+import com.example.PaymentProcessing.api.RefundRequestResponse;
 import com.example.PaymentProcessing.api.UpdatePaymentStatusRequest;
 import com.example.PaymentProcessing.model.PaymentCategory;
 import com.example.PaymentProcessing.model.PaymentStatus;
+import com.example.PaymentProcessing.model.RefundRequestType;
 import com.example.PaymentProcessing.service.PaymentService;
+import com.example.PaymentProcessing.service.RefundRequestService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -31,9 +34,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final RefundRequestService refundRequestService;
 
-    public PaymentController(PaymentService paymentService) {
+    public PaymentController(PaymentService paymentService, RefundRequestService refundRequestService) {
         this.paymentService = paymentService;
+        this.refundRequestService = refundRequestService;
     }
 
     @PostMapping
@@ -102,6 +107,37 @@ public class PaymentController {
     @PutMapping("/{paymentId}/status")
     public PaymentResponse updateStatus(@PathVariable Long paymentId, @RequestBody UpdatePaymentStatusRequest request) {
         return paymentService.updateStatus(paymentId, request);
+    }
+
+    // Sender raises a ticket asking for a COMPLETED payment to be reversed. No money moves
+    // here - an admin must approve it (see AdminController) before the receiver is debited.
+    @PostMapping("/{paymentId}/refund-requests")
+    @ResponseStatus(HttpStatus.CREATED)
+    public RefundRequestResponse requestRefund(
+            @PathVariable Long paymentId,
+            @RequestParam(required = false) String reason,
+            @RequestParam(required = false) RefundRequestType type,
+            @RequestAttribute("customerId") Long customerId
+    ) {
+        return refundRequestService.createRequest(paymentId, reason, type, customerId);
+    }
+
+    @GetMapping("/{paymentId}/refund-requests")
+    public List<RefundRequestResponse> listRefundRequests(
+            @PathVariable Long paymentId,
+            @RequestAttribute("customerId") Long customerId
+    ) {
+        return refundRequestService.listForPayment(paymentId, customerId);
+    }
+
+    // Demo/testing endpoint: completes a PROCESSING payment, optionally injecting a
+    // simulated mid-settlement failure. Keywords: SUCCESS (default), DB_FAILURE, TIMEOUT_FAILURE.
+    @PostMapping("/{paymentId}/simulate-processing")
+    public PaymentResponse simulateProcessing(
+            @PathVariable Long paymentId,
+            @RequestParam(defaultValue = "SUCCESS") String failureMode
+    ) {
+        return paymentService.simulateProcessingPayment(paymentId, failureMode);
     }
 
     @PostMapping("/{paymentId}/resend-notifications")

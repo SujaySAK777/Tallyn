@@ -1,0 +1,4 @@
+USE payment_processing;
+
+ALTER TABLE refund_request
+    ADD COLUMN type ENUM('WRONG_PAYMENT', 'MERCHANT_REFUND_REQUEST') NOT NULL DEFAULT 'WRONG_PAYMENT' AFTER reason;

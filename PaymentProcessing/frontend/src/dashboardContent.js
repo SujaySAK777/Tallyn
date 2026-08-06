@@ -38,7 +38,7 @@ export const translations = {
     needHelp: 'Need Help?',
     support: '24/7 Support',
     searchPlaceholder: 'Search by name, payment ID, account...',
-    greeting: 'Good Morning, Soumitha!',
+    greeting: 'Welcome, Soumitha!',
     greetingSub: "Here's what's happening with your account today.",
     quickActions: 'Quick Actions',
     customize: 'Customize',

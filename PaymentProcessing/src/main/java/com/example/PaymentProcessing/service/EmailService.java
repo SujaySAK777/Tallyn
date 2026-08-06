@@ -67,6 +67,43 @@ public class EmailService {
                         + "No amount has been deducted. Please try again or contact support if the issue persists.");
     }
 
+    public void sendRefundIssuedEmail(String toEmail, String accountHolderName, String amount,
+                                       String refundedToName, String referenceNumber, String reason, String remainingBalance) {
+        send(toEmail, "Refund issued on Tallyn",
+                "Hi " + accountHolderName + ",\n\n"
+                        + "Rs. " + amount + " was refunded to " + refundedToName + " for payment reference " + referenceNumber + ".\n"
+                        + "Reason: " + (reason == null || reason.isBlank() ? "Not specified" : reason) + "\n"
+                        + "Remaining balance: Rs. " + remainingBalance);
+    }
+
+    public void sendRefundReceivedEmail(String toEmail, String accountHolderName, String amount,
+                                         String refundedByName, String referenceNumber, String reason, String availableBalance) {
+        send(toEmail, "You received a refund on Tallyn",
+                "Hi " + accountHolderName + ",\n\n"
+                        + "Rs. " + amount + " was refunded to you by " + refundedByName + " for payment reference " + referenceNumber + ".\n"
+                        + "Reason: " + (reason == null || reason.isBlank() ? "Not specified" : reason) + "\n"
+                        + "Available balance: Rs. " + availableBalance);
+    }
+
+    public void sendRefundTicketRaisedEmail(String toEmail, String amount, String referenceNumber,
+                                             String requestedByName, String reason) {
+        send(toEmail, "New refund ticket needs review",
+                "A refund ticket was raised on Tallyn.\n\n"
+                        + "Payment reference: " + referenceNumber + "\n"
+                        + "Amount: Rs. " + amount + "\n"
+                        + "Requested by: " + requestedByName + "\n"
+                        + "Reason: " + (reason == null || reason.isBlank() ? "Not specified" : reason) + "\n\n"
+                        + "Log in to the admin panel to approve or reject this ticket.");
+    }
+
+    public void sendRefundRejectedEmail(String toEmail, String accountHolderName, String amount,
+                                         String referenceNumber, String rejectionReason) {
+        send(toEmail, "Your refund request was declined",
+                "Hi " + accountHolderName + ",\n\n"
+                        + "Your refund request for Rs. " + amount + " (reference " + referenceNumber + ") was declined.\n"
+                        + "Reason: " + (rejectionReason == null || rejectionReason.isBlank() ? "Not specified" : rejectionReason));
+    }
+
     public void sendPaymentScheduledEmail(String toEmail, String accountHolderName, String amount,
                                            String scheduledAt, String referenceNumber) {
         send(toEmail, "Payment scheduled on Tallyn",

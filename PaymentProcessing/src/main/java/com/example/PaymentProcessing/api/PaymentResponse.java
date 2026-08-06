@@ -25,6 +25,8 @@ public class PaymentResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String category;
+    private String refundReason;
+    private LocalDateTime refundedAt;
 
     public static PaymentResponse fromEntity(Payment payment) {
         PaymentResponse response = new PaymentResponse();
@@ -47,6 +49,8 @@ public class PaymentResponse {
         response.setCreatedAt(payment.getCreatedAt());
         response.setUpdatedAt(payment.getUpdatedAt());
         response.setCategory(payment.getCategory() == null ? null : payment.getCategory().name());
+        response.setRefundReason(payment.getRefundReason());
+        response.setRefundedAt(payment.getRefundedAt());
         return response;
     }
 
@@ -200,5 +204,21 @@ public class PaymentResponse {
 
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    public String getRefundReason() {
+        return refundReason;
+    }
+
+    public void setRefundReason(String refundReason) {
+        this.refundReason = refundReason;
+    }
+
+    public LocalDateTime getRefundedAt() {
+        return refundedAt;
+    }
+
+    public void setRefundedAt(LocalDateTime refundedAt) {
+        this.refundedAt = refundedAt;
     }
 }

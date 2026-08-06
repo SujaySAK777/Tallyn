@@ -8,6 +8,7 @@ import com.example.PaymentProcessing.api.PaymentSearchResponse;
 import com.example.PaymentProcessing.api.PaymentSummaryResponse;
 import com.example.PaymentProcessing.api.UpdatePaymentStatusRequest;
 import com.example.PaymentProcessing.exception.ApiException;
+import com.example.PaymentProcessing.exception.SimulatedProcessingFailureException;
 import com.example.PaymentProcessing.model.Account;
 import com.example.PaymentProcessing.model.AccountStatus;
 import com.example.PaymentProcessing.model.Payment;
@@ -41,6 +42,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -60,6 +62,12 @@ public class PaymentService {
     private final CustomerRepository customerRepository;
     private final CurrencyConversionService currencyConversionService;
     private final NotificationService notificationService;
+    private final PaymentSimulationService paymentSimulationService;
+    // Self-reference through the Spring proxy: simulateProcessingPayment() below calls
+    // updateStatus() on `self` rather than `this`, because a same-class call bypasses
+    // the CGLIB proxy entirely, which would silently skip @Transactional on updateStatus
+    // and blow up with "no session" the moment a lazy Account association is touched.
+    private final PaymentService self;
 
     public PaymentService(
             AccountRepository accountRepository,
@@ -68,8 +76,10 @@ public class PaymentService {
             EntityManager entityManager,
             EmailService emailService,
             CustomerRepository customerRepository,
-            CurrencyConversionService currencyConversionService
-            NotificationService notificationService
+            CurrencyConversionService currencyConversionService,
+            NotificationService notificationService,
+            PaymentSimulationService paymentSimulationService,
+            @Lazy PaymentService self
     ) {
         this.accountRepository = accountRepository;
         this.paymentRepository = paymentRepository;
@@ -78,7 +88,9 @@ public class PaymentService {
         this.emailService = emailService;
         this.customerRepository = customerRepository;
         this.currencyConversionService = currencyConversionService;
+        this.self = self;
         this.notificationService = notificationService;
+        this.paymentSimulationService = paymentSimulationService;
     }
 
     private static final BCryptPasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder();
@@ -469,19 +481,162 @@ public class PaymentService {
     }
 
     private void settleBalances(Payment payment) {
-        Account source = payment.getSourceAccount();
-        Account destination = payment.getDestinationAccount();
-        BigDecimal amount = payment.getAmount();
+        debitSource(payment);
+        creditDestination(payment);
+    }
 
+    private void debitSource(Payment payment) {
+        Account source = payment.getSourceAccount();
+        BigDecimal amount = payment.getAmount();
         if (source.getBalance().compareTo(amount) < 0) {
             throw new ApiException("INSUFFICIENT_FUNDS", "Insufficient source balance", HttpStatus.BAD_REQUEST);
         }
-
         source.setBalance(source.getBalance().subtract(amount));
-        BigDecimal creditedAmount = currencyConversionService.convert(amount, source.getCurrency(), destination.getCurrency());
-        destination.setBalance(destination.getBalance().add(creditedAmount));
         accountRepository.save(source);
+    }
+
+    private void creditDestination(Payment payment) {
+        Account source = payment.getSourceAccount();
+        Account destination = payment.getDestinationAccount();
+        BigDecimal creditedAmount = currencyConversionService.convert(payment.getAmount(), source.getCurrency(), destination.getCurrency());
+        destination.setBalance(destination.getBalance().add(creditedAmount));
+        payment.setSettledAmount(creditedAmount);
         accountRepository.save(destination);
+    }
+
+    /**
+     * Reverses a COMPLETED payment: money moves back from the destination account to the
+     * source account, and the payment becomes terminal (REFUNDED). Not exposed directly to
+     * either party - only RefundRequestService.approve() calls this, once an admin has
+     * approved the sender's refund ticket. Authorization lives entirely at that layer
+     * (admin-only endpoint); this method trusts its caller.
+     */
+    @Transactional
+    public PaymentResponse applyApprovedRefund(Long paymentId, String reason) {
+        Payment payment = findPayment(paymentId);
+
+        if (payment.getStatus() != PaymentStatus.COMPLETED) {
+            throw new ApiException(
+                    "INVALID_STATUS_TRANSITION",
+                    "Only a COMPLETED payment can be refunded, current status is " + payment.getStatus(),
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        Account source = payment.getSourceAccount();
+        Account destination = payment.getDestinationAccount();
+
+        if (source.getStatus() != AccountStatus.ACTIVE || destination.getStatus() != AccountStatus.ACTIVE) {
+            throw new ApiException("INVALID_ACCOUNT", "Both accounts must be ACTIVE", HttpStatus.BAD_REQUEST);
+        }
+
+        reverseSettlement(payment);
+
+        payment.setStatus(PaymentStatus.REFUNDED);
+        payment.setRefundReason(reason);
+        payment.setRefundedAt(LocalDateTime.now());
+        payment.setErrorCode(null);
+        payment.setErrorMessage(null);
+
+        Payment saved = paymentRepository.save(payment);
+        saveHistory(saved, PaymentStatus.COMPLETED, PaymentStatus.REFUNDED, reason);
+        sendRefundNotifications(saved);
+
+        return PaymentResponse.fromEntity(saved);
+    }
+
+    private void reverseSettlement(Payment payment) {
+        Account source = payment.getSourceAccount();
+        Account destination = payment.getDestinationAccount();
+        // Fall back to a fresh conversion only for payments settled before settledAmount existed.
+        BigDecimal settledAmount = payment.getSettledAmount() != null
+                ? payment.getSettledAmount()
+                : currencyConversionService.convert(payment.getAmount(), source.getCurrency(), destination.getCurrency());
+
+        if (destination.getBalance().compareTo(settledAmount) < 0) {
+            throw new ApiException("INSUFFICIENT_FUNDS_FOR_REFUND",
+                    "Recipient account does not have enough balance to refund this payment", HttpStatus.BAD_REQUEST);
+        }
+
+        destination.setBalance(destination.getBalance().subtract(settledAmount));
+        source.setBalance(source.getBalance().add(payment.getAmount()));
+        accountRepository.save(destination);
+        accountRepository.save(source);
+    }
+
+    private void sendRefundNotifications(Payment payment) {
+        try {
+            Account source = payment.getSourceAccount();
+            Account destination = payment.getDestinationAccount();
+            String sourceEmail = source.getCustomerId() == null ? null : customerRepository.findById(source.getCustomerId()).map(c -> c.getEmail()).orElse(null);
+            String destinationEmail = destination.getCustomerId() == null ? null : customerRepository.findById(destination.getCustomerId()).map(c -> c.getEmail()).orElse(null);
+            String amount = payment.getAmount().toPlainString();
+            String ref = payment.getReferenceNumber();
+            String srcName = source.getAccountHolderName();
+            String dstName = destination.getAccountHolderName();
+            String remaining = destination.getBalance() == null ? "" : destination.getBalance().toPlainString();
+            String available = source.getBalance() == null ? "" : source.getBalance().toPlainString();
+
+            emailService.sendRefundIssuedEmail(destinationEmail, dstName, amount, srcName, ref, payment.getRefundReason(), remaining);
+            emailService.sendRefundReceivedEmail(sourceEmail, srcName, amount, dstName, ref, payment.getRefundReason(), available);
+            notificationService.create(destination.getCustomerId(), NotificationType.REFUND_ISSUED,
+                    "Refund issued", "Rs. " + amount + " refunded to " + srcName + " (ref " + ref + ")");
+            notificationService.create(source.getCustomerId(), NotificationType.REFUND_RECEIVED,
+                    "Refund received", "Rs. " + amount + " refunded by " + dstName + " (ref " + ref + ")");
+        } catch (Exception ex) {
+            // EmailService/NotificationService handle their own logging; swallow any unexpected errors here.
+        }
+    }
+
+    /**
+     * Demo/testing entry point for simulating real-world processing failures.
+     * The payment must already be in PROCESSING (reached via the normal
+     * CREATED -> VALIDATED -> PROCESSING flow through updateStatus). Keywords:
+     * <ul>
+     *   <li>SUCCESS (default) — completes normally via the existing updateStatus(COMPLETED) path.</li>
+     *   <li>DB_FAILURE — debits the sender, then simulates a DB crash before the receiver
+     *       is credited. The debit is rolled back by Spring's transaction management,
+     *       and the payment is marked FAILED with errorCode=DB_FAILURE.</li>
+     *   <li>TIMEOUT_FAILURE — same rollback behavior, but represents a processing/gateway
+     *       timeout instead of a database crash; errorCode=TIMEOUT_FAILURE.</li>
+     * </ul>
+     * Deliberately NOT @Transactional itself: the debit attempt and the FAILED-status
+     * write below must run in separate transactions, since the first one is expected
+     * to roll back while the second one must still commit.
+     */
+    public PaymentResponse simulateProcessingPayment(Long paymentId, String failureMode) {
+        String mode = normalizeFailureMode(failureMode);
+
+        if ("SUCCESS".equals(mode)) {
+            UpdatePaymentStatusRequest request = new UpdatePaymentStatusRequest();
+            request.setStatus(PaymentStatus.COMPLETED);
+            return self.updateStatus(paymentId, request);
+        }
+
+        try {
+            paymentSimulationService.debitThenSimulateFailure(paymentId, mode);
+            // debitThenSimulateFailure always throws for DB_FAILURE/TIMEOUT_FAILURE; reaching
+            // here would mean the simulation itself is broken.
+            throw new IllegalStateException("Expected simulated failure did not occur for mode " + mode);
+        } catch (SimulatedProcessingFailureException ex) {
+            UpdatePaymentStatusRequest failRequest = new UpdatePaymentStatusRequest();
+            failRequest.setStatus(PaymentStatus.FAILED);
+            failRequest.setErrorCode(ex.getErrorCode());
+            failRequest.setErrorMessage(ex.getMessage());
+            return self.updateStatus(paymentId, failRequest);
+        }
+    }
+
+    private String normalizeFailureMode(String failureMode) {
+        String mode = failureMode == null || failureMode.isBlank() ? "SUCCESS" : failureMode.trim().toUpperCase();
+        if (!Set.of("SUCCESS", "DB_FAILURE", "TIMEOUT_FAILURE").contains(mode)) {
+            throw new ApiException(
+                    "INVALID_FAILURE_MODE",
+                    "failureMode must be SUCCESS, DB_FAILURE, or TIMEOUT_FAILURE",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+        return mode;
     }
 
     private void saveHistory(Payment payment, PaymentStatus previous, PaymentStatus current, String remarks) {

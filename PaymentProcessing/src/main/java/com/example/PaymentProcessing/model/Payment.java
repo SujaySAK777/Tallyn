@@ -34,6 +34,12 @@ public class Payment {
     @Column(name = "amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal amount;
 
+    // Amount actually credited to the destination account at COMPLETED time, in the
+    // destination's currency. Captured so a later refund reverses the exact amount
+    // that was moved, instead of re-running currency conversion at a possibly different rate.
+    @Column(name = "settled_amount", precision = 15, scale = 2)
+    private BigDecimal settledAmount;
+
     @Column(name = "currency", nullable = false, length = 3)
     private String currency;
 
@@ -56,6 +62,12 @@ public class Payment {
 
     @Column(name = "error_message", length = 255)
     private String errorMessage;
+
+    @Column(name = "refund_reason", length = 255)
+    private String refundReason;
+
+    @Column(name = "refunded_at")
+    private LocalDateTime refundedAt;
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -101,6 +113,14 @@ public class Payment {
 
     public void setCurrency(String currency) {
         this.currency = currency;
+    }
+
+    public BigDecimal getSettledAmount() {
+        return settledAmount;
+    }
+
+    public void setSettledAmount(BigDecimal settledAmount) {
+        this.settledAmount = settledAmount;
     }
 
     public PaymentStatus getStatus() {
@@ -157,5 +177,21 @@ public class Payment {
 
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
+    }
+
+    public String getRefundReason() {
+        return refundReason;
+    }
+
+    public void setRefundReason(String refundReason) {
+        this.refundReason = refundReason;
+    }
+
+    public LocalDateTime getRefundedAt() {
+        return refundedAt;
+    }
+
+    public void setRefundedAt(LocalDateTime refundedAt) {
+        this.refundedAt = refundedAt;
     }
 }

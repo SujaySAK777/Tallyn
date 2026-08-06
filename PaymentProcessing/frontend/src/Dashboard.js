@@ -30,6 +30,7 @@ import PaymentJourney from './components/PaymentJourney';
 import CheckBalanceJourney from './components/CheckBalanceJourney';
 import TransactionHistory from './components/TransactionHistory';
 import Beneficiaries from './components/Beneficiaries';
+import RefundHistory from './components/RefundHistory';
 import { apiRequest } from './services/api';
 import SupportChatbot from './SupportChatbot';
 import { initialFormState, languageOptions, translations } from './dashboardContent';
@@ -37,7 +38,8 @@ import { initialFormState, languageOptions, translations } from './dashboardCont
 const HISTORY_STATUS_GROUPS = {
   COMPLETED: ['COMPLETED'],
   FAILED: ['FAILED'],
-  PENDING: ['CREATED', 'VALIDATED', 'PROCESSING']
+  PENDING: ['CREATED', 'VALIDATED', 'PROCESSING'],
+  REFUNDED: ['REFUNDED']
 };
 
 function currency(amount, currencyCode = 'INR') {
@@ -257,6 +259,7 @@ function Dashboard({ session, onLogout }) {
   const [balanceSubmitting, setBalanceSubmitting] = useState(false);
   const [accountForm, setAccountForm] = useState({
     bankName: 'HDFC BANK',
+    accountNumber: '',
     mobileNumber: '',
     accountHolderName: '',
     currency: 'INR',
@@ -1017,6 +1020,7 @@ function Dashboard({ session, onLogout }) {
     setCreatedAccount(null);
     setAccountForm({
       bankName: 'HDFC BANK',
+      accountNumber: '',
       mobileNumber: '',
       accountHolderName: '',
       currency: 'INR',
@@ -1039,6 +1043,7 @@ function Dashboard({ session, onLogout }) {
     setAccountSubmitting(false);
     setAccountForm({
       bankName: 'HDFC BANK',
+      accountNumber: '',
       mobileNumber: '',
       accountHolderName: '',
       currency: 'INR',
@@ -1114,14 +1119,14 @@ function Dashboard({ session, onLogout }) {
   const submitAccountEntry = async () => {
     setAccountError('');
 
-    if (!validateMobile(accountForm.mobileNumber)) {
-      setAccountError('Please enter a valid 10-digit mobile number.');
-      return;
-    }
-
     setAccountSubmitting(true);
     try {
       if (accountMode === 'simulate') {
+        if (!validateMobile(accountForm.mobileNumber)) {
+          setAccountError('Please enter a valid 10-digit mobile number.');
+          return;
+        }
+
         const payload = {
           bank_name: accountForm.bankName,
           mobile_number: accountForm.mobileNumber.trim(),
@@ -1140,6 +1145,10 @@ function Dashboard({ session, onLogout }) {
         return;
       }
 
+      if (!String(accountForm.accountNumber || '').trim()) {
+        setAccountError('Please enter your account number.');
+        return;
+      }
       if (!/^\d{6}$/.test(String(accountForm.tpin || '').trim())) {
         setAccountError('TPIN must be exactly 6 digits.');
         return;
@@ -1149,11 +1158,14 @@ function Dashboard({ session, onLogout }) {
         return;
       }
 
-      const activated = await apiRequest('/accounts/activate', {
+      const existing = await apiRequest(`/accounts/number/${encodeURIComponent(accountForm.accountNumber.trim())}`);
+      if (!existing?.accountId) {
+        throw new Error('Account not found.');
+      }
+
+      const activated = await apiRequest(`/accounts/${existing.accountId}/tpin`, {
         method: 'POST',
         body: JSON.stringify({
-          bank_name: accountForm.bankName,
-          mobile_number: accountForm.mobileNumber.trim(),
           tpin: accountForm.tpin.trim(),
           confirm_tpin: accountForm.confirmTpin.trim()
         })
@@ -1545,7 +1557,9 @@ function Dashboard({ session, onLogout }) {
             ? 'transactions'
             : activeSection === 'beneficiaries'
               ? 'beneficiaries'
-              : 'dashboard';
+              : activeSection === 'refunds'
+                ? 'refunds'
+                : 'dashboard';
 
   return (
     <div className={`smartpay-app ${theme === 'dark' ? 'dark-theme' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
@@ -1601,6 +1615,7 @@ function Dashboard({ session, onLogout }) {
           <button className={`menu-item ${activeNav === 'groupSplit' ? 'active' : ''}`} onClick={() => handleQuickAction('groupSplit')}>{t('groupSplit')}</button>
           <button className={`menu-item ${activeNav === 'transactions' ? 'active' : ''}`} onClick={() => goToSection('transactions')}>Payment History</button>
           <button className={`menu-item ${activeNav === 'beneficiaries' ? 'active' : ''}`} onClick={() => goToSection('beneficiaries')}>{t('beneficiaries')}</button>
+          <button className={`menu-item ${activeNav === 'refunds' ? 'active' : ''}`} onClick={() => goToSection('refunds')}>Refunds</button>
           <button className={`menu-item ${activeNav === 'settings' ? 'active' : ''}`} onClick={() => setActiveModal('settings')}>Settings</button>
         </nav>
 
@@ -2015,6 +2030,7 @@ function Dashboard({ session, onLogout }) {
             setFormState={setFormState}
             accounts={activeAccounts}
             paymentId={journeyPaymentId}
+            viewerAccountId={session.accountId}
             currency={currency}
             budget={activeBudget}
             onClose={closePaymentJourney}
@@ -2365,6 +2381,16 @@ function Dashboard({ session, onLogout }) {
               onAdd={addBeneficiary}
               onDelete={deleteBeneficiary}
             />
+          </section>
+        )}
+
+        {activeSection === 'refunds' && !paymentJourneyOpen && !balanceJourneyOpen && activeModal !== 'schedule' && (
+          <section className="payment-journey">
+            <div className="journey-breadcrumb">
+              <span>{t('dashboard')}<FiChevronRight /></span>
+              <span className="current">Refunds</span>
+            </div>
+            <RefundHistory currency={currency} payments={payments} viewerAccountId={session.accountId} onTicketRaised={() => loadPayments({ silent: true })} />
           </section>
         )}
 
@@ -2731,23 +2757,27 @@ function Dashboard({ session, onLogout }) {
               {accountStep === 'entry' && (
                 <>
                   <div className="form-grid">
-                    <label className="field-col">
-                      <span>Bank</span>
-                      <select name="bankName" value={accountForm.bankName} onChange={handleAccountFormChange}>
-                        {supportedBanks.map((bank) => (
-                          <option key={bank} value={bank}>{bank}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="field-col">
-                      <span>Mobile Number</span>
-                      <input
-                        name="mobileNumber"
-                        placeholder="10-digit mobile"
-                        value={accountForm.mobileNumber}
-                        onChange={handleAccountFormChange}
-                      />
-                    </label>
+                    {accountMode === 'simulate' && (
+                      <>
+                        <label className="field-col">
+                          <span>Bank</span>
+                          <select name="bankName" value={accountForm.bankName} onChange={handleAccountFormChange}>
+                            {supportedBanks.map((bank) => (
+                              <option key={bank} value={bank}>{bank}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="field-col">
+                          <span>Mobile Number</span>
+                          <input
+                            name="mobileNumber"
+                            placeholder="10-digit mobile"
+                            value={accountForm.mobileNumber}
+                            onChange={handleAccountFormChange}
+                          />
+                        </label>
+                      </>
+                    )}
 
                     {accountMode === 'simulate' && (
                       <>
@@ -2765,6 +2795,15 @@ function Dashboard({ session, onLogout }) {
 
                     {accountMode === 'activate' && (
                       <>
+                        <label className="field-col">
+                          <span>Account Number</span>
+                          <input
+                            name="accountNumber"
+                            placeholder="Enter account number"
+                            value={accountForm.accountNumber}
+                            onChange={handleAccountFormChange}
+                          />
+                        </label>
                         <label className="field-col">
                           <span>TPIN</span>
                           <input
