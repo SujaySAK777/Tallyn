@@ -26,7 +26,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return path.startsWith("/api/onboarding/") || "OPTIONS".equalsIgnoreCase(request.getMethod());
+        return path.startsWith("/api/onboarding/")
+                || "/api/admin/login".equals(path)
+                || "OPTIONS".equalsIgnoreCase(request.getMethod());
     }
 
     @Override
@@ -37,9 +39,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             unauthorized(response, "Missing or invalid Authorization header");
             return;
         }
+        boolean isAdminRoute = request.getRequestURI().startsWith("/api/admin/");
         try {
-            Long customerId = jwtService.validateAndGetCustomerId(header.substring(7));
-            request.setAttribute("customerId", customerId);
+            String token = header.substring(7);
+            if (isAdminRoute) {
+                request.setAttribute("adminId", jwtService.validateAndGetAdminId(token));
+            } else {
+                request.setAttribute("customerId", jwtService.validateAndGetCustomerId(token));
+            }
         } catch (Exception ex) {
             unauthorized(response, "Invalid or expired token");
             return;

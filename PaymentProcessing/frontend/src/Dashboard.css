@@ -804,6 +804,11 @@
   color: var(--c-n-600);
 }
 
+.status-refunded {
+  background: var(--c-p-100);
+  color: var(--c-p-700);
+}
+
 .cancel-btn {
   border: 1px solid var(--c-e-200);
   background: var(--c-n-25);

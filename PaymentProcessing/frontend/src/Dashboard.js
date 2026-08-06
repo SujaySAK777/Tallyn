@@ -31,6 +31,7 @@ import PaymentJourney from './components/PaymentJourney';
 import CheckBalanceJourney from './components/CheckBalanceJourney';
 import TransactionHistory from './components/TransactionHistory';
 import Beneficiaries from './components/Beneficiaries';
+import RefundHistory from './components/RefundHistory';
 import { apiRequest } from './services/api';
 import SupportChatbot from './SupportChatbot';
 import { initialFormState, languageOptions, translations } from './dashboardContent';
@@ -38,7 +39,8 @@ import { initialFormState, languageOptions, translations } from './dashboardCont
 const HISTORY_STATUS_GROUPS = {
   COMPLETED: ['COMPLETED'],
   FAILED: ['FAILED'],
-  PENDING: ['CREATED', 'VALIDATED', 'PROCESSING']
+  PENDING: ['CREATED', 'VALIDATED', 'PROCESSING'],
+  REFUNDED: ['REFUNDED']
 };
 
 function currency(amount, currencyCode = 'INR') {
@@ -1438,7 +1440,9 @@ function Dashboard({ session, onLogout }) {
             ? 'transactions'
             : activeSection === 'beneficiaries'
               ? 'beneficiaries'
-              : 'dashboard';
+              : activeSection === 'refunds'
+                ? 'refunds'
+                : 'dashboard';
 
   return (
     <div className={`smartpay-app ${theme === 'dark' ? 'dark-theme' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
@@ -1494,6 +1498,7 @@ function Dashboard({ session, onLogout }) {
           <button className={`menu-item ${activeNav === 'groupSplit' ? 'active' : ''}`} onClick={() => handleQuickAction('groupSplit')}>{t('groupSplit')}</button>
           <button className={`menu-item ${activeNav === 'transactions' ? 'active' : ''}`} onClick={() => goToSection('transactions')}>Payment History</button>
           <button className={`menu-item ${activeNav === 'beneficiaries' ? 'active' : ''}`} onClick={() => goToSection('beneficiaries')}>{t('beneficiaries')}</button>
+          <button className={`menu-item ${activeNav === 'refunds' ? 'active' : ''}`} onClick={() => goToSection('refunds')}>Refunds</button>
           <button className={`menu-item ${activeNav === 'settings' ? 'active' : ''}`} onClick={() => setActiveModal('settings')}>Settings</button>
         </nav>
 
@@ -1896,6 +1901,7 @@ function Dashboard({ session, onLogout }) {
             setFormState={setFormState}
             accounts={activeAccounts}
             paymentId={journeyPaymentId}
+            viewerAccountId={session.accountId}
             currency={currency}
             budget={activeBudget}
             onClose={closePaymentJourney}
@@ -2246,6 +2252,16 @@ function Dashboard({ session, onLogout }) {
               onAdd={addBeneficiary}
               onDelete={deleteBeneficiary}
             />
+          </section>
+        )}
+
+        {activeSection === 'refunds' && !paymentJourneyOpen && !balanceJourneyOpen && activeModal !== 'schedule' && (
+          <section className="payment-journey">
+            <div className="journey-breadcrumb">
+              <span>{t('dashboard')}<FiChevronRight /></span>
+              <span className="current">Refunds</span>
+            </div>
+            <RefundHistory currency={currency} payments={payments} viewerAccountId={session.accountId} onTicketRaised={() => loadPayments({ silent: true })} />
           </section>
         )}
 
