@@ -217,6 +217,75 @@ class AccountServiceTest {
     }
 
     @Test
+    void shouldGenerateUpiIdFromMobileNumberWhenSimulatingAccount() {
+        AccountRepository repository = mock(AccountRepository.class);
+        AccountService service = new AccountService(repository);
+
+        when(repository.findByMobileNumber("9876543210")).thenReturn(Optional.empty());
+        when(repository.findByAccountNumber(anyString())).thenReturn(Optional.empty());
+        when(repository.findByUpiId(anyString())).thenReturn(Optional.empty());
+        when(repository.save(any(Account.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Account account = service.provisionSimulatedAccount("HDFC BANK", "Jane Doe", "INR", 5L, "9876543210");
+
+        assertTrue(account.getUpiId().matches("9876543210\\d{3}@tallyn"));
+    }
+
+    @Test
+    void shouldGenerateUpiIdFromNameWhenNoMobileNumber() {
+        AccountRepository repository = mock(AccountRepository.class);
+        AccountService service = new AccountService(repository);
+
+        when(repository.findByAccountNumber(anyString())).thenReturn(Optional.empty());
+        when(repository.findByUpiId(anyString())).thenReturn(Optional.empty());
+        when(repository.save(any(Account.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Account account = service.provisionSimulatedAccount("HDFC BANK", "Jane Doe", "INR", null, null);
+
+        assertTrue(account.getUpiId().matches("janedoe\\d{3}@tallyn"));
+    }
+
+    @Test
+    void shouldRetryUpiIdGenerationUntilUnique() {
+        AccountRepository repository = mock(AccountRepository.class);
+        AccountService service = new AccountService(repository);
+
+        when(repository.findByAccountNumber(anyString())).thenReturn(Optional.empty());
+        when(repository.findByUpiId(anyString()))
+                .thenReturn(Optional.of(new Account()))
+                .thenReturn(Optional.empty());
+        when(repository.save(any(Account.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Account account = service.provisionSimulatedAccount("HDFC BANK", "Jane Doe", "INR", null, null);
+
+        assertTrue(account.getUpiId().endsWith("@tallyn"));
+    }
+
+    @Test
+    void shouldLookupAccountByUpiId() {
+        AccountRepository repository = mock(AccountRepository.class);
+        AccountService service = new AccountService(repository);
+
+        Account account = new Account();
+        account.setUpiId("janedoe123@tallyn");
+        account.setAccountHolderName("Jane Doe");
+        when(repository.findByUpiId("janedoe123@tallyn")).thenReturn(Optional.of(account));
+
+        AccountResponse response = service.getAccountByUpiId("janedoe123@tallyn");
+        assertEquals("Jane Doe", response.getAccountHolderName());
+    }
+
+    @Test
+    void shouldReturnAccountNotFoundForUnknownUpiId() {
+        AccountRepository repository = mock(AccountRepository.class);
+        AccountService service = new AccountService(repository);
+        when(repository.findByUpiId("nobody@tallyn")).thenReturn(Optional.empty());
+
+        ApiException ex = assertThrows(ApiException.class, () -> service.getAccountByUpiId("nobody@tallyn"));
+        assertEquals("ACCOUNT_NOT_FOUND", ex.getErrorCode());
+    }
+
+    @Test
     void shouldSetTpinAndActivateAccount() {
         AccountRepository repository = mock(AccountRepository.class);
         AccountService service = new AccountService(repository);

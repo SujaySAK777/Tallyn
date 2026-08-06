@@ -49,6 +49,11 @@ public class AccountController {
         return accountService.getAccountByNumber(accountNumber);
     }
 
+    @GetMapping("/upi/{upiId}")
+    public AccountResponse lookupByUpi(@PathVariable String upiId) {
+        return accountService.getAccountByUpiId(upiId);
+    }
+
     @PostMapping("/balance")
     public BalanceResponse checkBalance(@RequestBody CheckBalanceRequest request) {
         return accountService.checkBalance(request);

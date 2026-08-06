@@ -15,7 +15,8 @@ function ReviewPayment({
   submitting,
   onBack,
   onConfirm,
-  isSelfTransfer = false
+  isSelfTransfer = false,
+  isUpi = false
 }) {
   const recipientName = formState.recipientName || formState.accountHolder || 'Recipient';
   const accountNumber = String(formState.destinationAccountNumber || formState.accountNumber || '');
@@ -52,8 +53,14 @@ function ReviewPayment({
               <div className="recipient-badge">{recipientName.slice(0, 2).toUpperCase()}</div>
               <div className="recipient-meta">
                 <strong>{recipientName}</strong>
-                <span>{formState.bankName || 'Bank details unavailable'} · {maskedAccount}</span>
-                <span>IFSC: {formState.ifscCode || formState.ifsc || '—'}</span>
+                {isUpi
+                  ? <span>{formState.bankName || 'Bank details unavailable'} · {formState.upiId || '—'}</span>
+                  : (
+                    <>
+                      <span>{formState.bankName || 'Bank details unavailable'} · {maskedAccount}</span>
+                      <span>IFSC: {formState.ifscCode || formState.ifsc || '—'}</span>
+                    </>
+                  )}
               </div>
               <span className="verified-badge"><FiCheckCircle /> Verified</span>
             </div>
@@ -67,7 +74,7 @@ function ReviewPayment({
 
           <section className="review-section review-detail-list">
             <div><span>From</span><strong>{formState.sourceAccountNumber ? `Account ending ${String(formState.sourceAccountNumber).slice(-4)}` : 'Linked account'}</strong></div>
-            <div><span>Transfer type</span><strong>{isSelfTransfer ? 'Self account transfer' : 'Immediate bank transfer'}</strong></div>
+            <div><span>Transfer type</span><strong>{isSelfTransfer ? 'Self account transfer' : isUpi ? 'UPI payment' : 'Immediate bank transfer'}</strong></div>
             <div><span>Remarks</span><strong>{formState.remarks || '—'}</strong></div>
           </section>
 

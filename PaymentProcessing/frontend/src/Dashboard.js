@@ -2278,10 +2278,13 @@ function Dashboard({ session, onLogout }) {
                   <button className="link-btn">{t('viewAll')}</button>
                 </div>
                 {upcomingPayments.length === 0 && <p className="empty-note">{t('noScheduled')}</p>}
-                {upcomingPayments.map((payment) => (
+                {upcomingPayments.map((payment) => {
+                  const destinationAccount = accounts.find((account) => String(account.accountId) === String(payment.destinationAccountId));
+                  const receiverName = destinationAccount?.accountHolderName || 'Recipient';
+                  return (
                   <div className="tx-row" key={`sch-${payment.scheduledPaymentId}`}>
                     <span>
-                      {payment.referenceNumber || `SCH-${payment.scheduledPaymentId}`}
+                      {receiverName}
                       {payment.executionType === 'RECURRING' && <span className="status-pill status-pending">{t('recurringBadge')}</span>}
                       <br />
                       <small>
@@ -2301,7 +2304,8 @@ function Dashboard({ session, onLogout }) {
                       </button>
                     </span>
                   </div>
-                ))}
+                  );
+                })}
               </article>
 
               <article className="promo-card">

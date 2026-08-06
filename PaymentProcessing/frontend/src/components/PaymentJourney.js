@@ -14,6 +14,7 @@ import * as ReviewPaymentModule from './ReviewPayment';
 import * as SelfTransferDetailsModule from './SelfTransferDetails';
 import * as SuccessPageModule from './SuccessPage';
 import * as TransactionDetailsModule from './TransactionDetails';
+import * as UpiDetailsModule from './UpiDetails';
 
 
 
@@ -41,6 +42,7 @@ const ReviewPayment = resolveComponent(ReviewPaymentModule, 'ReviewPayment');
 const SelfTransferDetails = resolveComponent(SelfTransferDetailsModule, 'SelfTransferDetails');
 const SuccessPage = resolveComponent(SuccessPageModule, 'SuccessPage');
 const TransactionDetails = resolveComponent(TransactionDetailsModule, 'TransactionDetails');
+const UpiDetails = resolveComponent(UpiDetailsModule, 'UpiDetails');
 
 function PaymentJourney({
   step,
@@ -260,6 +262,7 @@ function PaymentJourney({
     sourceAccountNumber: formState.sourceAccountNumber || '',
     destinationAccountId: formState.destinationAccountId || '',
     destinationAccountNumber: formState.destinationAccountNumber || '',
+    destinationCurrency: formState.destinationCurrency || '',
     accountHolder: formState.accountHolder || formState.recipientName || '',
     accountNumber: formState.accountNumber || '',
     confirmAccountNumber: formState.confirmAccountNumber || '',
@@ -268,7 +271,8 @@ function PaymentJourney({
     amount: formState.amount || '',
     category: formState.category || 'OTHERS',
     reference: formState.reference || formState.referenceNumber || '',
-    remarks: formState.remarks || ''
+    remarks: formState.remarks || '',
+    upiId: formState.upiId || ''
   };
 
   const setBankFormData = (nextData) => {
@@ -286,10 +290,11 @@ function PaymentJourney({
   };
 
   const isSelfTransfer = method === 'self';
+  const isUpi = method === 'upi';
 
-  const renderDetailsPage = () => (
-    isSelfTransfer
-      ? (
+  const renderDetailsPage = () => {
+    if (isSelfTransfer) {
+      return (
         <SelfTransferDetails
           formData={mapBankFormData}
           setFormData={setBankFormData}
@@ -298,19 +303,32 @@ function PaymentJourney({
           sourceBalance={sourceBalance}
           accounts={accounts}
         />
-        )
-      : (
-        <BankDetails
+      );
+    }
+    if (isUpi) {
+      return (
+        <UpiDetails
           formData={mapBankFormData}
           setFormData={setBankFormData}
           previousStep={goBack}
           nextStep={goNext}
           sourceBalance={sourceBalance}
           accounts={accounts}
-          beneficiaries={beneficiaries}
         />
-        )
-  );
+      );
+    }
+    return (
+      <BankDetails
+        formData={mapBankFormData}
+        setFormData={setBankFormData}
+        previousStep={goBack}
+        nextStep={goNext}
+        sourceBalance={sourceBalance}
+        accounts={accounts}
+        beneficiaries={beneficiaries}
+      />
+    );
+  };
 
   const renderReviewPage = () => (
     <ReviewPayment
@@ -330,6 +348,7 @@ function PaymentJourney({
       onBack={goBack}
       onConfirm={goNext}
       isSelfTransfer={isSelfTransfer}
+      isUpi={isUpi}
     />
   );
 
