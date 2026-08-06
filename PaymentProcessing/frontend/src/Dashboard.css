@@ -1300,6 +1300,34 @@
 .group-split-top-grid {
   margin-bottom: 4px;
 }
+.split-type-toggle {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin: 6px 0 14px;
+  border: 1px solid #dbe4f9;
+  border-radius: 999px;
+  background: #f3f6ff;
+}
+.split-type-toggle button {
+  border: 0;
+  background: transparent;
+  color: #3f4d74;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 9px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+.split-type-toggle button:hover {
+  color: #22315b;
+}
+.split-type-toggle button.active {
+  background: #4b5cff;
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(75, 92, 255, 0.25);
+}
 .group-split-members-head {
   margin: 16px 0 10px;
   display: flex;
@@ -1598,14 +1626,62 @@
 .middle-grid > .card:last-child { min-width: 0; overflow: hidden; }
 
 .account-page .journey-shell { padding: 10px 0 28px; }
-.account-page .account-modal { width: min(780px, 100%); margin: 0 auto; padding: 28px; }
+.account-page .account-modal {
+  width: min(780px, 100%);
+  margin: 0 auto;
+  padding: 28px;
+  border-radius: 18px;
+  border: 1px solid #dfe7f6;
+  background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
+  box-shadow: 0 18px 50px rgba(44, 67, 142, 0.1);
+}
 .account-page .account-modal-head { align-items: center; padding-bottom: 20px; border-bottom: 1px solid #e8ecf6; margin-bottom: 24px; }
 .account-page .account-modal-head h3 { margin: 4px 0 0; font-size: 20px; }
 .account-page .account-mode-toggle { padding: 4px; border: 1px solid #dce5fb; border-radius: 12px; background: #f3f6ff; }
-.account-page .mode-btn { border: 0; border-radius: 8px; padding: 9px 13px; background: transparent; }
+.account-page .mode-btn {
+  border: 0;
+  border-radius: 8px;
+  padding: 9px 13px;
+  background: transparent;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+.account-page .mode-btn:hover { transform: translateY(-1px); }
 .account-page .mode-btn.active { box-shadow: 0 5px 12px rgba(52, 75, 194, .25); }
 .account-page .field-col { padding: 4px 0; }
-.account-page .account-created-summary { padding: 18px; border-radius: 14px; }
+.account-page .field-col input,
+.account-page .field-col select {
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+.account-page .field-col input:focus,
+.account-page .field-col select:focus {
+  border-color: #4b5cff;
+  box-shadow: 0 0 0 3px rgba(75, 92, 255, 0.14);
+  outline: none;
+}
+.account-page .account-created-summary {
+  padding: 18px;
+  border-radius: 14px;
+  display: grid;
+  gap: 10px;
+  border: 1px solid #dce5fb;
+  background: linear-gradient(165deg, #ffffff 0%, #f4f8ff 100%);
+  box-shadow: 0 10px 26px rgba(37, 57, 116, 0.08);
+}
+.account-page .account-created-summary > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #dce4f5;
+  font-size: 14px;
+}
+.account-page .account-created-summary > div:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.account-page .account-created-summary strong:first-child { color: #5a688d; font-weight: 600; }
 
 .smartpay-app.dark-theme .fullscreen-flow { background: linear-gradient(135deg, #10182e, #16213c); }
 .smartpay-app.dark-theme .flow-panel, .smartpay-app.dark-theme .budget-summary-card { background: #17223d; border-color: rgba(255,255,255,.1); }

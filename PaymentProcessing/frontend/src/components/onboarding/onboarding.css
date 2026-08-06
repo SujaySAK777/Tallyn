@@ -22,13 +22,13 @@
   left: max(24px, 4vw);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   z-index: 10;
 }
 
 .onboarding-logo {
-  width: 40px;
-  height: 40px;
+  width: 56px;
+  height: 56px;
   display: grid;
   place-items: center;
   border-radius: var(--r-md);
@@ -39,10 +39,10 @@
   flex: 0 0 auto;
 }
 
-.onboarding-logo svg { width: 19px; height: 19px; }
+.onboarding-logo svg { width: 28px; height: 28px; }
 
 .onboarding-brand-name {
-  font-size: 18px;
+  font-size: 28px;
   font-weight: 800;
   letter-spacing: -0.03em;
   color: #fff;

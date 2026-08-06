@@ -9,6 +9,7 @@ import {
   FiSearch,
 } from 'react-icons/fi';
 import { RiBankLine } from 'react-icons/ri';
+import { downloadStatementPdf } from '../services/statement';
 
 function getAccount(accounts, accountId) {
   return (accounts || []).find((account) => String(account.accountId) === String(accountId));
@@ -79,14 +80,6 @@ function toDateOnlyValue(value) {
     return '';
   }
   return parsed.toISOString().slice(0, 10);
-}
-
-function escapeCsvCell(value) {
-  const text = String(value ?? '');
-  if (/[",\n]/.test(text)) {
-    return `"${text.replace(/"/g, '""')}"`;
-  }
-  return text;
 }
 
 function getStatusMeta(status) {
@@ -322,40 +315,28 @@ function TransactionHistory({
     setFilterOpen(false);
   };
 
-  const downloadStatementCsv = () => {
+  const downloadStatementPdfFile = () => {
     if (statementRows.length === 0) {
       setStatementMessage('No matching records for the selected statement filters.');
       return;
     }
 
-    const dataHeader = ['Date & Time', 'Reference ID', 'Sender Account Number', 'Receiver Account Number', 'Amount Deducted', 'Status'];
-    const dataRows = statementRows.map((payment) => [
-      formatDateTime(payment.createdAt),
-      payment.referenceNumber || '—',
-      getAccountNumberLabel(accounts, payment.sourceAccountId, payment.sourceAccountNumber),
-      getAccountNumberLabel(accounts, payment.destinationAccountId, payment.destinationAccountNumber),
-      currency(payment.amount),
-      payment.status || 'Created'
-    ]);
-
-    const csvContent = [dataHeader, ...dataRows]
-      .map((row) => row.map(escapeCsvCell).join(','))
-      .join('\n');
+    const rowsForPdf = statementRows.map((payment) => ({
+      ...payment,
+      sourceAccountNumber: getAccountNumberLabel(accounts, payment.sourceAccountId, payment.sourceAccountNumber),
+      destinationAccountNumber: getAccountNumberLabel(accounts, payment.destinationAccountId, payment.destinationAccountNumber)
+    }));
 
     const statementAccount = statementAccountId === 'All'
-      ? 'all-accounts'
+      ? 'All accounts'
       : String(getAccount(accounts, statementAccountId)?.accountNumber || statementAccountId);
-    const fileName = `Tallyn-Account-Statement-${statementAccount}-${new Date().toISOString().slice(0, 10)}.csv`;
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const objectUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
 
-    link.href = objectUrl;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(objectUrl);
+    downloadStatementPdf(rowsForPdf, {
+      accountLabel: statementAccount,
+      fromDate: statementFromDate,
+      toDate: statementToDate,
+      status: statementStatus === 'ALL' ? 'All' : statementStatus
+    });
 
     setStatementMessage(`Statement downloaded (${statementRows.length} records).`);
   };
@@ -417,8 +398,8 @@ function TransactionHistory({
                     </select>
                   </label>
                   <div className="popover-actions statement-actions">
-                    <button type="button" className="popover-done statement-download-btn" onClick={downloadStatementCsv}>
-                      <FiDownload /> Download CSV
+                    <button type="button" className="popover-done statement-download-btn" onClick={downloadStatementPdfFile}>
+                      <FiDownload /> Download PDF
                     </button>
                   </div>
                   {statementMessage && <p className="statement-message">{statementMessage}</p>}

@@ -105,7 +105,7 @@ class PaymentServiceTest {
     void shouldRejectDuplicateReferenceNumber() {
         setUp();
         CreatePaymentRequest request = validRequest();
-        when(paymentRepository.findByReferenceNumber("REF1")).thenReturn(Optional.of(new Payment()));
+        when(paymentRepository.existsByReferenceNumber("REF1")).thenReturn(true);
 
         ApiException ex = assertThrows(ApiException.class, () -> service.createPayment(request));
         assertEquals("DUPLICATE_PAYMENT", ex.getErrorCode());
@@ -115,7 +115,7 @@ class PaymentServiceTest {
     void shouldRejectUnknownSourceAccount() {
         setUp();
         CreatePaymentRequest request = validRequest();
-        when(paymentRepository.findByReferenceNumber("REF1")).thenReturn(Optional.empty());
+        when(paymentRepository.existsByReferenceNumber("REF1")).thenReturn(false);
         when(accountRepository.findById(1L)).thenReturn(Optional.empty());
 
         ApiException ex = assertThrows(ApiException.class, () -> service.createPayment(request));
@@ -128,7 +128,7 @@ class PaymentServiceTest {
         CreatePaymentRequest request = validRequest();
         Account source = activeAccount(1L, 5L, BigDecimal.valueOf(1000), "INR", "123456");
         Account dest = activeAccount(2L, 6L, BigDecimal.ZERO, "INR", null);
-        when(paymentRepository.findByReferenceNumber("REF1")).thenReturn(Optional.empty());
+        when(paymentRepository.existsByReferenceNumber("REF1")).thenReturn(false);
         when(accountRepository.findById(1L)).thenReturn(Optional.of(source));
         when(accountRepository.findById(2L)).thenReturn(Optional.of(dest));
 
@@ -143,7 +143,7 @@ class PaymentServiceTest {
         request.setTpin("000000");
         Account source = activeAccount(1L, 5L, BigDecimal.valueOf(1000), "INR", "123456");
         Account dest = activeAccount(2L, 6L, BigDecimal.ZERO, "INR", null);
-        when(paymentRepository.findByReferenceNumber("REF1")).thenReturn(Optional.empty());
+        when(paymentRepository.existsByReferenceNumber("REF1")).thenReturn(false);
         when(accountRepository.findById(1L)).thenReturn(Optional.of(source));
         when(accountRepository.findById(2L)).thenReturn(Optional.of(dest));
 
@@ -158,7 +158,7 @@ class PaymentServiceTest {
         request.setTpin(null); // scheduled execution doesn't require TPIN
         Account source = activeAccount(1L, 5L, BigDecimal.valueOf(1000), "INR", "123456");
         Account dest = activeAccount(2L, 6L, BigDecimal.ZERO, "INR", null);
-        when(paymentRepository.findByReferenceNumber("REF1")).thenReturn(Optional.empty());
+        when(paymentRepository.existsByReferenceNumber("REF1")).thenReturn(false);
         when(accountRepository.findById(1L)).thenReturn(Optional.of(source));
         when(accountRepository.findById(2L)).thenReturn(Optional.of(dest));
         when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -173,7 +173,7 @@ class PaymentServiceTest {
         CreatePaymentRequest request = validRequest();
         request.setDestinationAccountId(1L);
         Account source = activeAccount(1L, 5L, BigDecimal.valueOf(1000), "INR", "123456");
-        when(paymentRepository.findByReferenceNumber("REF1")).thenReturn(Optional.empty());
+        when(paymentRepository.existsByReferenceNumber("REF1")).thenReturn(false);
         when(accountRepository.findById(1L)).thenReturn(Optional.of(source));
 
         ApiException ex = assertThrows(ApiException.class, () -> service.createPayment(request, 5L));
@@ -187,7 +187,7 @@ class PaymentServiceTest {
         Account source = activeAccount(1L, 5L, BigDecimal.valueOf(1000), "INR", "123456");
         Account dest = activeAccount(2L, 6L, BigDecimal.ZERO, "INR", null);
         dest.setStatus(AccountStatus.INACTIVE);
-        when(paymentRepository.findByReferenceNumber("REF1")).thenReturn(Optional.empty());
+        when(paymentRepository.existsByReferenceNumber("REF1")).thenReturn(false);
         when(accountRepository.findById(1L)).thenReturn(Optional.of(source));
         when(accountRepository.findById(2L)).thenReturn(Optional.of(dest));
 
@@ -201,7 +201,7 @@ class PaymentServiceTest {
         CreatePaymentRequest request = validRequest();
         Account source = activeAccount(1L, 5L, BigDecimal.valueOf(1000), "INR", "123456");
         Account dest = activeAccount(2L, 6L, BigDecimal.ZERO, "INR", null);
-        when(paymentRepository.findByReferenceNumber("REF1")).thenReturn(Optional.empty());
+        when(paymentRepository.existsByReferenceNumber("REF1")).thenReturn(false);
         when(accountRepository.findById(1L)).thenReturn(Optional.of(source));
         when(accountRepository.findById(2L)).thenReturn(Optional.of(dest));
         when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -217,7 +217,7 @@ class PaymentServiceTest {
         request.setCategory("NOT_A_REAL_CATEGORY");
         Account source = activeAccount(1L, 5L, BigDecimal.valueOf(1000), "INR", "123456");
         Account dest = activeAccount(2L, 6L, BigDecimal.ZERO, "INR", null);
-        when(paymentRepository.findByReferenceNumber("REF1")).thenReturn(Optional.empty());
+        when(paymentRepository.existsByReferenceNumber("REF1")).thenReturn(false);
         when(accountRepository.findById(1L)).thenReturn(Optional.of(source));
         when(accountRepository.findById(2L)).thenReturn(Optional.of(dest));
         when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));

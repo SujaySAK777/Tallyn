@@ -1,90 +1,73 @@
 import { jsPDF } from 'jspdf';
 import { apiRequest } from './api';
-
-function formatCurrency(amount, currencyCode) {
-  const value = Number(amount || 0);
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: currencyCode || 'INR',
-    maximumFractionDigits: 2
-  }).format(value);
-}
-
-function formatDateTime(value) {
-  if (!value) {
-    return 'N/A';
-  }
-
-  return new Date(value).toLocaleString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  });
-}
-
-function addLine(doc, label, value, y) {
-  doc.setFont('helvetica', 'bold');
-  doc.text(`${label}:`, 20, y);
-  doc.setFont('helvetica', 'normal');
-  doc.text(String(value ?? 'N/A'), 70, y);
-}
+import { drawBrandHeader, drawStatusChip, drawTable, formatCurrency, formatDateTime } from './pdfUtils';
 
 function buildReceiptPdf(receipt) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
 
-  doc.setFillColor(240, 246, 255);
-  doc.rect(0, 0, 210, 40, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  doc.text('Tallyn Payment Receipt', 20, 22);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(11);
-  doc.text(`Generated: ${formatDateTime(new Date().toISOString())}`, 20, 32);
-
-  let y = 52;
-  doc.setFontSize(12);
-  addLine(doc, 'Payment ID', receipt.paymentId, y);
-  y += 9;
-  addLine(doc, 'Reference Number', receipt.referenceNumber, y);
-  y += 9;
-  addLine(doc, 'Status', receipt.status, y);
-  y += 9;
-  addLine(doc, 'Amount', formatCurrency(receipt.amount, receipt.currency), y);
-  y += 9;
-  addLine(doc, 'Created At', formatDateTime(receipt.createdAt), y);
-  y += 9;
-  addLine(doc, 'Updated At', formatDateTime(receipt.updatedAt), y);
-
-  y += 8;
-  doc.setDrawColor(210, 210, 210);
-  doc.line(20, y, 190, y);
+  let y = drawBrandHeader(doc, 'Payment Receipt', `Generated ${formatDateTime(new Date().toISOString())}`);
   y += 10;
 
+  // Big amount + status, the two things anyone opening this actually wants first.
   doc.setFont('helvetica', 'bold');
-  doc.text('From Account', 20, y);
-  y += 8;
-  addLine(doc, 'Account ID', receipt.sourceAccountId, y);
-  y += 9;
-  addLine(doc, 'Holder Name', receipt.sourceAccountHolderName, y);
-  y += 9;
-  addLine(doc, 'Bank Name', receipt.sourceBankName, y);
+  doc.setFontSize(24);
+  doc.text(formatCurrency(receipt.amount, receipt.currency), 14, y);
+  drawStatusChip(doc, receipt.status, pageWidth - 44, y - 7);
 
-  y += 12;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(90, 90, 90);
+  doc.text(`Reference: ${receipt.referenceNumber || '—'}`, 14, y + 7);
+  doc.setTextColor(20, 20, 20);
+
+  y += 16;
+
+  y = drawTable(doc, {
+    startY: y,
+    columns: [
+      { label: 'Detail', width: 55 },
+      { label: 'Value', width: 121 }
+    ],
+    rows: [
+      ['Payment ID', receipt.paymentId],
+      ['Status', receipt.status],
+      ['Created At', formatDateTime(receipt.createdAt)],
+      ['Updated At', formatDateTime(receipt.updatedAt)]
+    ]
+  });
+
+  y += 10;
   doc.setFont('helvetica', 'bold');
-  doc.text('To Account', 20, y);
-  y += 8;
-  addLine(doc, 'Account ID', receipt.destinationAccountId, y);
-  y += 9;
-  addLine(doc, 'Holder Name', receipt.destinationAccountHolderName, y);
-  y += 9;
-  addLine(doc, 'Bank Name', receipt.destinationBankName, y);
+  doc.setFontSize(11);
+  doc.text('Transfer Details', 14, y);
+  y += 5;
 
-  y += 12;
-  addLine(doc, 'Remarks', receipt.remarks || 'None', y);
+  y = drawTable(doc, {
+    startY: y,
+    columns: [
+      { label: 'Field', width: 40 },
+      { label: 'From Account', width: 68 },
+      { label: 'To Account', width: 68 }
+    ],
+    rows: [
+      ['Account ID', receipt.sourceAccountId, receipt.destinationAccountId],
+      ['Holder Name', receipt.sourceAccountHolderName, receipt.destinationAccountHolderName],
+      ['Bank Name', receipt.sourceBankName, receipt.destinationBankName]
+    ]
+  });
+
+  y += 10;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.text('Remarks', 14, y);
+  doc.setFont('helvetica', 'normal');
+  doc.text(receipt.remarks || 'None', 40, y);
+
+  const pageHeight = doc.internal.pageSize.getHeight();
+  doc.setFontSize(7.5);
+  doc.setTextColor(140, 140, 140);
+  doc.text('This is a system-generated receipt from Tallyn and does not require a signature.', 14, pageHeight - 12);
 
   return doc;
 }

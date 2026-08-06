@@ -456,8 +456,7 @@ function Dashboard({ session, onLogout }) {
     }
     setError('');
     try {
-      const customerQuery = session?.customerId ? `?customerId=${session.customerId}` : '';
-      const data = await apiRequest(`/payments${customerQuery}`);
+      const data = await apiRequest('/payments');
       setPayments(Array.isArray(data) ? data : []);
     } catch (err) {
       if (!silent) {
@@ -2209,10 +2208,11 @@ function Dashboard({ session, onLogout }) {
                   <div className="tx-list">
                     {recentPayments.map((payment) => {
                       const txType = classifyTransaction(payment);
+                      const receiverName = payment.destinationAccountHolderName || 'Recipient';
                       return (
                         <div className="tx-row" key={payment.paymentId}>
                           <span>
-                            Ref {payment.referenceNumber || `PAY-${payment.paymentId}`}
+                            {receiverName}
                             <br />
                             <small>{payment.status} • {formatDateTime(payment.createdAt)}</small>
                           </span>
@@ -2223,7 +2223,7 @@ function Dashboard({ session, onLogout }) {
                   </div>
                 )}
 
-                <button className="view-more">{t('viewAll')} →</button>
+                <button type="button" className="view-more" onClick={() => goToSection('transactions')}>{t('viewAll')} →</button>
               </article>
 
               <article className="card">
