@@ -78,6 +78,7 @@ public class ScheduledPaymentService {
         scheduledPayment.setAmount(request.getAmount());
         scheduledPayment.setCurrency(request.getCurrency().toUpperCase());
         scheduledPayment.setRemarks(request.getRemarks());
+        scheduledPayment.setCategory(request.getCategory());
         scheduledPayment.setReceiverBankName(request.getReceiverBankName());
         scheduledPayment.setReceiverIfsc(request.getReceiverIfsc());
         scheduledPayment.setScheduledAt(request.getScheduledAt());
@@ -166,7 +167,11 @@ public class ScheduledPaymentService {
                 paymentRequest.setDestinationAccountId(scheduledPayment.getDestinationAccountId());
                 paymentRequest.setAmount(scheduledPayment.getAmount());
                 paymentRequest.setCurrency(scheduledPayment.getCurrency());
-                paymentRequest.setReferenceNumber(scheduledPayment.getReferenceNumber());
+                String baseReference = scheduledPayment.getReferenceNumber() == null
+                    ? "SCH-" + scheduledPayment.getScheduledPaymentId()
+                    : scheduledPayment.getReferenceNumber();
+                String executionReference = baseReference + "-" + UUID.randomUUID().toString().substring(0, 8);
+                paymentRequest.setReferenceNumber(executionReference);
                 paymentRequest.setRemarks(scheduledPayment.getRemarks());
 
                 PaymentResponse response = paymentService.createScheduledExecutionPayment(paymentRequest);

@@ -4,6 +4,7 @@ import com.example.PaymentProcessing.model.ScheduledPayment;
 import com.example.PaymentProcessing.model.ScheduledPaymentExecutionType;
 import com.example.PaymentProcessing.model.ScheduledPaymentRecurrenceType;
 import com.example.PaymentProcessing.model.ScheduledPaymentStatus;
+import com.example.PaymentProcessing.model.PaymentCategory;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -14,6 +15,7 @@ public class ScheduledPaymentResponse {
     private BigDecimal amount;
     private String currency;
     private String remarks;
+    private PaymentCategory category;
     private String receiverBankName;
     private String receiverIfsc;
     private LocalDateTime scheduledAt;
@@ -36,6 +38,7 @@ public class ScheduledPaymentResponse {
         response.setAmount(payment.getAmount());
         response.setCurrency(payment.getCurrency());
         response.setRemarks(payment.getRemarks());
+        response.setCategory(payment.getCategory());
         response.setReceiverBankName(payment.getReceiverBankName());
         response.setReceiverIfsc(payment.getReceiverIfsc());
         response.setScheduledAt(payment.getScheduledAt());
@@ -69,6 +72,8 @@ public class ScheduledPaymentResponse {
 
     public String getRemarks() { return remarks; }
     public void setRemarks(String remarks) { this.remarks = remarks; }
+    public PaymentCategory getCategory() { return category; }
+    public void setCategory(PaymentCategory category) { this.category = category; }
 
     public String getReceiverBankName() { return receiverBankName; }
     public void setReceiverBankName(String receiverBankName) { this.receiverBankName = receiverBankName; }

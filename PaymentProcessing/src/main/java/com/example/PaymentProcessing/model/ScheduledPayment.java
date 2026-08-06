@@ -35,6 +35,10 @@ public class ScheduledPayment {
     @Column(name = "remarks", length = 255)
     private String remarks;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category", length = 32)
+    private PaymentCategory category;
+
     @Column(name = "receiver_bank_name", length = 100)
     private String receiverBankName;
 
@@ -94,6 +98,8 @@ public class ScheduledPayment {
 
     public String getRemarks() { return remarks; }
     public void setRemarks(String remarks) { this.remarks = remarks; }
+    public PaymentCategory getCategory() { return category; }
+    public void setCategory(PaymentCategory category) { this.category = category; }
 
     public String getReceiverBankName() { return receiverBankName; }
     public void setReceiverBankName(String receiverBankName) { this.receiverBankName = receiverBankName; }

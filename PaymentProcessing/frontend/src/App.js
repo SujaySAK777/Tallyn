@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import Dashboard from './Dashboard';
+import Dashboard from './components/DashboardEnhance';
 import OnboardingWizard from './components/OnboardingWizard';
 import AdminApp from './admin/AdminApp';
 

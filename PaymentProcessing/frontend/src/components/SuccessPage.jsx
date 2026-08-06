@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FiCheckCircle, FiDownload, FiExternalLink, FiRefreshCw, FiShare2 } from 'react-icons/fi';
 import { createReceiptPdfFile, downloadReceiptPdf, saveReceiptPdfFile } from '../services/receipt';
 
@@ -19,12 +19,87 @@ function SuccessPage({
   const [shareOpen, setShareOpen] = useState(false);
   const [sharingPdf, setSharingPdf] = useState(false);
   const [saveBeneficiaryStatus, setSaveBeneficiaryStatus] = useState('idle');
+  const hasPlayedNotificationRef = useRef(false);
   const beneficiaryName = formState.recipientName || formState.accountHolder || selectedDestination || 'Recipient';
   const accountNumber = formState.destinationAccountNumber || formState.accountNumber || '—';
   const bankName = formState.bankName || '—';
   const ifsc = formState.ifscCode || formState.ifsc || '—';
   const alreadySavedBeneficiary = beneficiaries.some((beneficiary) => beneficiary.accountNumber === accountNumber);
   const canShowBeneficiaryCard = !isSelfTransfer && accountNumber !== '—' && typeof onSaveBeneficiary === 'function';
+
+  useEffect(() => {
+    if (hasPlayedNotificationRef.current) {
+      return undefined;
+    }
+
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    let audioContext;
+    let resumeTimeoutId;
+
+    const playNotificationSound = () => {
+      if (hasPlayedNotificationRef.current) {
+        return;
+      }
+
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) {
+        return;
+      }
+
+      audioContext = new AudioCtx();
+      const now = audioContext.currentTime;
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(880, now);
+      oscillator.frequency.exponentialRampToValueAtTime(1320, now + 0.16);
+
+      gainNode.gain.setValueAtTime(0.0001, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.14, now + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.start(now);
+      oscillator.stop(now + 0.22);
+
+      hasPlayedNotificationRef.current = true;
+      oscillator.onended = () => {
+        if (audioContext && typeof audioContext.close === 'function') {
+          audioContext.close();
+        }
+      };
+    };
+
+    const playOnFirstInteraction = () => {
+      playNotificationSound();
+      window.removeEventListener('pointerdown', playOnFirstInteraction);
+      window.removeEventListener('keydown', playOnFirstInteraction);
+    };
+
+    playNotificationSound();
+
+    if (!hasPlayedNotificationRef.current) {
+      window.addEventListener('pointerdown', playOnFirstInteraction, { once: true });
+      window.addEventListener('keydown', playOnFirstInteraction, { once: true });
+      resumeTimeoutId = window.setTimeout(playNotificationSound, 250);
+    }
+
+    return () => {
+      if (resumeTimeoutId) {
+        window.clearTimeout(resumeTimeoutId);
+      }
+      window.removeEventListener('pointerdown', playOnFirstInteraction);
+      window.removeEventListener('keydown', playOnFirstInteraction);
+      if (audioContext && typeof audioContext.close === 'function' && audioContext.state !== 'closed') {
+        audioContext.close();
+      }
+    };
+  }, []);
 
   const handleSaveBeneficiary = async () => {
     setSaveBeneficiaryStatus('saving');

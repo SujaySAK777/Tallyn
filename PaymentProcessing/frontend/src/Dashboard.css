@@ -539,6 +539,10 @@
   letter-spacing: -0.035em;
 }
 
+.hero-name-highlight {
+  color: var(--brand-text);
+}
+
 .hero-head p {
   margin: 0 0 14px;
   color: var(--text-muted);
@@ -1723,6 +1727,100 @@
 
 .field-col-span2 {
   grid-column: span 2;
+}
+
+.beneficiary-selector {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: 9px;
+}
+
+.beneficiary-selector-search,
+.beneficiary-selector-dropdown {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--c-n-200);
+  border-radius: var(--r-sm);
+  color: var(--c-n-800);
+  font-size: 14px;
+  font-weight: 400;
+  background: var(--c-n-0);
+}
+
+.beneficiary-selector-search:focus,
+.beneficiary-selector-dropdown:focus {
+  outline: none;
+  border-color: var(--c-p-500);
+  box-shadow: 0 0 0 3px rgba(20, 122, 133, 0.12);
+}
+
+.beneficiary-selector-dropdown {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.beneficiary-selector .empty-note {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.beneficiary-selector-results {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 6px;
+  max-height: 172px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--c-n-200);
+  border-radius: var(--r-sm);
+  background: var(--c-n-0);
+}
+
+.beneficiary-selector-results button {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--c-n-800);
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.beneficiary-selector-results button:hover,
+.beneficiary-selector-results button:focus-visible {
+  outline: none;
+  background: var(--c-p-50);
+}
+
+.beneficiary-selector-results span {
+  color: var(--c-n-500);
+  font-size: 12px;
+}
+
+.fx-quote-card {
+  display: grid;
+  gap: 3px;
+  margin-top: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--c-p-100);
+  border-radius: var(--r-sm);
+  color: var(--c-p-700);
+  background: var(--c-p-50);
+  font-size: 12px;
+}
+
+.fx-quote-card span { color: var(--c-n-600); }
+
+@media (max-width: 640px) {
+  .beneficiary-selector {
+    grid-template-columns: 1fr;
+  }
 }
 
 .recipient-chip {
