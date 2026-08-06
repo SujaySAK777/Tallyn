@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FiCheckCircle, FiLoader, FiSearch, FiUsers, FiUserPlus, FiChevronLeft } from 'react-icons/fi';
 import { apiRequest } from '../services/api';
 
@@ -16,10 +16,31 @@ export default function BankDetails({
   const [transferMode, setTransferMode] = useState('new');
   const [beneficiarySearch, setBeneficiarySearch] = useState('');
   const [selectedBeneficiaryId, setSelectedBeneficiaryId] = useState(null);
+  const [fxQuote, setFxQuote] = useState(null);
+  const [fxQuoteError, setFxQuoteError] = useState('');
   const sourceId = String(formData.sourceAccountId || '').trim();
   const destinationId = String(formData.destinationAccountId || '').trim();
   const sourceIdValid = /^\d+$/.test(sourceId);
   const destinationIdValid = /^\d+$/.test(destinationId);
+  const sourceAccount = accounts.find((account) => String(account.accountId) === sourceId);
+  const destinationAccount = accounts.find((account) => String(account.accountId) === destinationId);
+  const destinationCurrency = formData.destinationCurrency || destinationAccount?.currency;
+
+  useEffect(() => {
+    const amount = Number(formData.amount);
+    const from = sourceAccount?.currency;
+    const to = destinationCurrency;
+    if (!from || !to || from === to || !Number.isFinite(amount) || amount <= 0) {
+      setFxQuote(null);
+      setFxQuoteError('');
+      return undefined;
+    }
+    let cancelled = false;
+    apiRequest(`/fx/quote?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&amount=${encodeURIComponent(amount)}`)
+      .then((quote) => { if (!cancelled) { setFxQuote(quote); setFxQuoteError(''); } })
+      .catch((err) => { if (!cancelled) { setFxQuote(null); setFxQuoteError(err.message || 'Unable to retrieve the FX quote.'); } });
+    return () => { cancelled = true; };
+  }, [formData.amount, sourceAccount?.currency, destinationCurrency]);
 
   const handleChange = (event) => {
     setFormData({
@@ -48,6 +69,7 @@ export default function BankDetails({
         ...formData,
         destinationAccountNumber: account.accountNumber,
         destinationAccountId: String(account.accountId),
+        destinationCurrency: account.currency || '',
         accountHolder: account.accountHolderName,
         bankName: account.bankName,
         ifsc: account.ifscCode || ''
@@ -77,6 +99,7 @@ export default function BankDetails({
       ...formData,
       destinationAccountNumber: beneficiary.accountNumber,
       destinationAccountId: '',
+      destinationCurrency: '',
       accountHolder: '',
       bankName: '',
       ifsc: ''
@@ -91,6 +114,7 @@ export default function BankDetails({
       ...formData,
       destinationAccountNumber: '',
       destinationAccountId: '',
+      destinationCurrency: '',
       accountHolder: '',
       bankName: '',
       ifsc: ''
@@ -291,6 +315,8 @@ export default function BankDetails({
                       <strong>INR {balanceAfterPayment.toLocaleString('en-IN')}</strong>
                     </div>
                   )}
+                  {fxQuote && <div className="fx-quote-card"><strong>{fxQuote.sourceAmount} {fxQuote.sourceCurrency} → {fxQuote.destinationAmount} {fxQuote.destinationCurrency}</strong><span>Rate: 1 {fxQuote.sourceCurrency} = {fxQuote.exchangeRate} {fxQuote.destinationCurrency}</span></div>}
+                  {fxQuoteError && <div className="error-msg">FX quote: {fxQuoteError}</div>}
                 </div>
 
                 <div className="field-group">

@@ -5,6 +5,7 @@ CREATE TABLE scheduled_payment (
     amount DECIMAL(15,2) NOT NULL,
     currency CHAR(3) NOT NULL,
     remarks VARCHAR(255),
+    category VARCHAR(32) NULL,
     receiver_bank_name VARCHAR(100),
     receiver_ifsc VARCHAR(20),
     scheduled_at DATETIME NOT NULL,

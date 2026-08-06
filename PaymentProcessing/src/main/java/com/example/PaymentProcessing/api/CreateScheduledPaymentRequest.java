@@ -2,6 +2,7 @@ package com.example.PaymentProcessing.api;
 
 import com.example.PaymentProcessing.model.ScheduledPaymentExecutionType;
 import com.example.PaymentProcessing.model.ScheduledPaymentRecurrenceType;
+import com.example.PaymentProcessing.model.PaymentCategory;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -11,6 +12,7 @@ public class CreateScheduledPaymentRequest {
     private BigDecimal amount;
     private String currency;
     private String remarks;
+    private PaymentCategory category;
     private String receiverBankName;
     private String receiverIfsc;
     private LocalDateTime scheduledAt;
@@ -33,6 +35,8 @@ public class CreateScheduledPaymentRequest {
 
     public String getRemarks() { return remarks; }
     public void setRemarks(String remarks) { this.remarks = remarks; }
+    public PaymentCategory getCategory() { return category; }
+    public void setCategory(PaymentCategory category) { this.category = category; }
 
     public String getReceiverBankName() { return receiverBankName; }
     public void setReceiverBankName(String receiverBankName) { this.receiverBankName = receiverBankName; }

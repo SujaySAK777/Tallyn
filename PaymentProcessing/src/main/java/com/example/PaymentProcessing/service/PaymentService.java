@@ -106,10 +106,9 @@ public class PaymentService {
     private PaymentResponse createPayment(CreatePaymentRequest request, boolean requireTpin, Long authenticatedCustomerId) {
         validateCreateRequest(request, requireTpin);
 
-        paymentRepository.findByReferenceNumber(request.getReferenceNumber())
-                .ifPresent(existing -> {
-                    throw new ApiException("DUPLICATE_PAYMENT", "referenceNumber already exists", HttpStatus.CONFLICT);
-                });
+        if (paymentRepository.existsByReferenceNumber(request.getReferenceNumber())) {
+            throw new ApiException("DUPLICATE_PAYMENT", "referenceNumber already exists", HttpStatus.CONFLICT);
+        }
 
         Account source = accountRepository.findById(request.getSourceAccountId())
                 .orElseThrow(() -> new ApiException("INVALID_ACCOUNT", "Source account not found", HttpStatus.BAD_REQUEST));

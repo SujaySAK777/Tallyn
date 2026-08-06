@@ -9,10 +9,10 @@ import {
   FiCreditCard,
   FiEye,
   FiFileText,
-  FiHash,
   FiLifeBuoy,
   FiLogOut,
   FiLock,
+  FiMenu,
   FiMoon,
   FiRefreshCw,
   FiRepeat,
@@ -21,7 +21,8 @@ import {
   FiSun,
   FiTarget,
   FiUser,
-  FiUsers
+  FiUsers,
+  FiX
 } from 'react-icons/fi';
 import { MdOutlinePayments } from 'react-icons/md';
 import './Dashboard.css';
@@ -64,6 +65,44 @@ function formatDateTime(input) {
     hour: '2-digit',
     minute: '2-digit'
   });
+}
+
+function BeneficiarySelector({ beneficiaries, search, onSearchChange, onSelect, selectedBeneficiaryId }) {
+  const filteredBeneficiaries = beneficiaries.filter((beneficiary) => {
+    const query = search.trim().toLowerCase();
+    if (!query) return true;
+    return [beneficiary.nickname, beneficiary.accountHolderName, beneficiary.accountNumber, beneficiary.bankName]
+      .some((value) => String(value || '').toLowerCase().includes(query));
+  });
+
+  return (
+    <div className="beneficiary-selector">
+      <input className="beneficiary-selector-search" value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Search beneficiaries by name, bank, or account" />
+      <select className="beneficiary-selector-dropdown" value={selectedBeneficiaryId || ''} onChange={(event) => onSelect(event.target.value)}>
+        <option value="">Choose a beneficiary</option>
+        {filteredBeneficiaries.map((beneficiary) => (
+          <option key={beneficiary.beneficiaryId} value={beneficiary.beneficiaryId}>
+            {beneficiary.nickname || beneficiary.accountHolderName} — {beneficiary.bankName} •••• {String(beneficiary.accountNumber || '').slice(-4)}
+          </option>
+        ))}
+      </select>
+      {search.trim() && filteredBeneficiaries.length > 0 && (
+        <div className="beneficiary-selector-results">
+          {filteredBeneficiaries.map((beneficiary) => (
+            <button type="button" key={beneficiary.beneficiaryId} onClick={() => onSelect(beneficiary.beneficiaryId)}>
+              <strong>{beneficiary.nickname || beneficiary.accountHolderName}</strong>
+              <span>{beneficiary.bankName} · •••• {String(beneficiary.accountNumber || '').slice(-4)}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {filteredBeneficiaries.length === 0 && (
+        <div className="empty-note">
+          {beneficiaries.length === 0 ? 'No saved beneficiaries yet. Add one from the Beneficiaries page.' : 'No beneficiaries match your search.'}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function getCancelledTransactionMatches(scheduledPayments, accounts, filters) {
@@ -126,6 +165,8 @@ function Dashboard({ session, onLogout }) {
   const supportedBanks = ['HDFC BANK', 'ICICI BANK', 'STATE BANK OF INDIA', 'AXIS BANK'];
 
   const [theme, setTheme] = useState('light');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [language, setLanguage] = useState('en');
   const [payments, setPayments] = useState([]);
   const [scheduledPayments, setScheduledPayments] = useState([]);
@@ -168,9 +209,13 @@ function Dashboard({ session, onLogout }) {
   const [formState, setFormState] = useState(initialFormState);
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduledReceipt, setScheduledReceipt] = useState(null);
+  const [scheduleFxQuote, setScheduleFxQuote] = useState(null);
+  const [scheduleFxQuoteError, setScheduleFxQuoteError] = useState('');
   const [accounts, setAccounts] = useState([]);
   const [beneficiaries, setBeneficiaries] = useState([]);
   const [beneficiariesLoading, setBeneficiariesLoading] = useState(false);
+  const [scheduleBeneficiarySearch, setScheduleBeneficiarySearch] = useState('');
+  const [groupSplitBeneficiarySearches, setGroupSplitBeneficiarySearches] = useState({});
   const [scheduleLookupError, setScheduleLookupError] = useState('');
   const [groupSplit, setGroupSplit] = useState({
     amount: '',
@@ -239,6 +284,23 @@ function Dashboard({ session, onLogout }) {
   }, []);
 
   useEffect(() => {
+    const source = accounts.find((account) => String(account.accountId) === String(formState.sourceAccountId));
+    const amount = Number(formState.amount);
+    const from = source?.currency;
+    const to = formState.scheduleDestinationCurrency;
+    if (!from || !to || from === to || !Number.isFinite(amount) || amount <= 0) {
+      setScheduleFxQuote(null);
+      setScheduleFxQuoteError('');
+      return undefined;
+    }
+    let cancelled = false;
+    apiRequest(`/fx/quote?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&amount=${encodeURIComponent(amount)}`)
+      .then((quote) => { if (!cancelled) { setScheduleFxQuote(quote); setScheduleFxQuoteError(''); } })
+      .catch((err) => { if (!cancelled) { setScheduleFxQuote(null); setScheduleFxQuoteError(err.message || 'Unable to retrieve the FX quote.'); } });
+    return () => { cancelled = true; };
+  }, [formState.sourceAccountId, formState.scheduleDestinationCurrency, formState.amount, accounts]);
+
+  useEffect(() => {
     const savedBudget = window.localStorage.getItem('tallyn-monthly-budget');
     if (!savedBudget) return;
     try {
@@ -264,6 +326,8 @@ function Dashboard({ session, onLogout }) {
     showToast(budgetEnabled ? 'Monthly budget saved' : 'Monthly budget saved as optional');
     setActiveModal('');
   };
+
+  useEffect(() => {
     if (!notificationsOpen) {
       return;
     }
@@ -311,6 +375,28 @@ function Dashboard({ session, onLogout }) {
     setGroupSplit((prev) => ({ ...prev, members: prev.members.filter((_, i) => i !== index) }));
   };
 
+  const getBeneficiaryByAccountNumber = (accountNumber) => {
+    const normalized = String(accountNumber || "").trim();
+    if (!normalized) {
+      return null;
+    }
+    return beneficiaries.find((beneficiary) => String(beneficiary.accountNumber || "").trim() === normalized) || null;
+  };
+
+  const chooseGroupSplitBeneficiary = (index, beneficiaryId) => {
+    if (beneficiaryId === '__manual__') {
+      updateGroupSplitMember(index, 'accountNumber', '');
+      return;
+    }
+
+    const selected = beneficiaries.find((beneficiary) => String(beneficiary.beneficiaryId) === String(beneficiaryId));
+    if (!selected?.accountNumber) {
+      return;
+    }
+
+    updateGroupSplitMember(index, 'accountNumber', String(selected.accountNumber));
+  };
+
   const submitGroupSplit = async () => {
     setGroupSplitError('');
     setGroupSplitSubmitting(true);
@@ -330,6 +416,7 @@ function Dashboard({ session, onLogout }) {
       await apiRequest('/group-splits', { method: 'POST', body: JSON.stringify(payload) });
       showToast(t('splitCreated'));
       setGroupSplit({ amount: '', currency: 'INR', sourceAccountId: '', description: '', splitType: 'EQUAL', members: [{ accountNumber: '', amount: '' }, { accountNumber: '', amount: '' }] });
+      setGroupSplitBeneficiarySearches({});
       closeModal();
       loadGroupSplitHistory();
       loadGroupSplitCreated();
@@ -815,6 +902,7 @@ function Dashboard({ session, onLogout }) {
     setActiveModal('');
     setPaymentJourneyOpen(false);
     setBalanceJourneyOpen(false);
+    setMobileNavOpen(false);
   };
 
   const goToUpcomingPayments = () => {
@@ -1194,13 +1282,48 @@ function Dashboard({ session, onLogout }) {
       scheduleDestinationAccountId: '',
       accountHolder: '',
       receiverBankName: '',
-      receiverIfsc: ''
+      receiverIfsc: '',
+      scheduleDestinationCurrency: ''
     }));
     setScheduleLookupError('');
   };
 
-  const lookupScheduleDestination = async () => {
-    const accountNumber = String(formState.scheduleDestinationAccountNumber || '').trim();
+  const chooseScheduleBeneficiary = async (beneficiaryId) => {
+    if (beneficiaryId === '__manual__') {
+      setFormState((prev) => ({
+        ...prev,
+        scheduleDestinationAccountNumber: '',
+        scheduleDestinationAccountId: '',
+        accountHolder: '',
+        receiverBankName: '',
+        receiverIfsc: '',
+        scheduleDestinationCurrency: ''
+      }));
+      setScheduleLookupError('');
+      return;
+    }
+
+    const selected = beneficiaries.find((beneficiary) => String(beneficiary.beneficiaryId) === String(beneficiaryId));
+    if (!selected?.accountNumber) {
+      return;
+    }
+
+    setScheduleBeneficiarySearch('');
+
+    setFormState((prev) => ({
+      ...prev,
+      scheduleDestinationAccountNumber: String(selected.accountNumber),
+      scheduleDestinationAccountId: '',
+      accountHolder: selected.accountHolderName || '',
+      receiverBankName: selected.bankName || '',
+      receiverIfsc: selected.ifscCode || ''
+    }));
+    setScheduleLookupError('');
+    await lookupScheduleDestination(String(selected.accountNumber));
+  };
+
+  const lookupScheduleDestination = async (accountNumberInput) => {
+    const accountNumber = String(accountNumberInput ?? formState.scheduleDestinationAccountNumber ?? '').trim();
     if (!accountNumber) return;
     try {
       const account = await apiRequest(`/accounts/number/${encodeURIComponent(accountNumber)}`);
@@ -1209,7 +1332,8 @@ function Dashboard({ session, onLogout }) {
         scheduleDestinationAccountId: String(account.accountId),
         accountHolder: account.accountHolderName,
         receiverBankName: account.bankName,
-        receiverIfsc: account.ifscCode || ''
+        receiverIfsc: account.ifscCode || '',
+        scheduleDestinationCurrency: account.currency || ''
       }));
       setScheduleLookupError('');
     } catch (err) {
@@ -1379,7 +1503,7 @@ function Dashboard({ session, onLogout }) {
     const c = b + values[2];
     const d = c + values[3];
     return {
-      background: `conic-gradient(#4762ff 0% ${a}%, #7c57ff ${a}% ${b}%, #ff8a24 ${b}% ${c}%, #f7aa2a ${c}% ${d}%, #697499 ${d}% 100%)`
+      background: `conic-gradient(var(--data-1) 0% ${a}%, var(--data-2) ${a}% ${b}%, var(--data-3) ${b}% ${c}%, var(--data-4) ${c}% ${d}%, var(--data-5) ${d}% 100%)`
     };
   }, [spendingStats]);
 
@@ -1424,9 +1548,43 @@ function Dashboard({ session, onLogout }) {
               : 'dashboard';
 
   return (
-    <div className={`smartpay-app ${theme === 'dark' ? 'dark-theme' : ''}`}>
-      <aside className="sidebar">
-        <div className="brand">
+    <div className={`smartpay-app ${theme === 'dark' ? 'dark-theme' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      <button
+        type="button"
+        className="icon-btn mobile-nav-toggle"
+        onClick={() => { setMobileNavOpen(true); setSidebarCollapsed(false); }}
+        aria-label="Open menu"
+      >
+        <FiMenu />
+      </button>
+
+      <div
+        className={`nav-backdrop ${mobileNavOpen ? 'nav-open' : ''}`}
+        onClick={() => setMobileNavOpen(false)}
+      />
+
+      <aside className={`sidebar ${mobileNavOpen ? 'nav-open' : ''}`}>
+        <button
+          type="button"
+          className="icon-btn sidebar-close"
+          onClick={() => setMobileNavOpen(false)}
+          aria-label="Close menu"
+        >
+          <FiX />
+        </button>
+
+        <div
+          className="brand"
+          role="button"
+          tabIndex={0}
+          onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              setSidebarCollapsed((collapsed) => !collapsed);
+            }
+          }}
+        >
           <div className="brand-icon">
             <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M6 17.5L14 21.5L26 8" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
@@ -1508,7 +1666,7 @@ function Dashboard({ session, onLogout }) {
                     </div>
                     <div className="form-grid">
                       <label className="field-col">
-                        <span><FiHash /> {t('sourceAccount')}</span>
+                        <span>{t('sourceAccount')}</span>
                         <select name="sourceAccountId" value={formState.sourceAccountId} onChange={handleFormChange}>
                           <option value="">{t('selectAccountPlaceholder')}</option>
                           {activeAccounts.map((account) => (
@@ -1518,23 +1676,27 @@ function Dashboard({ session, onLogout }) {
                           ))}
                         </select>
                       </label>
-                      <label className="field-col">
-                        <span><FiCreditCard /> {t('destinationAccount')}</span>
-                        <input
-                          name="scheduleDestinationAccountNumber"
-                          placeholder={t('destinationAccountNumberPlaceholder')}
-                          value={formState.scheduleDestinationAccountNumber}
-                          onChange={handleDestinationAccountNumberChange}
-                          onBlur={lookupScheduleDestination}
+                      <div className="field-col field-col-span2">
+                        <span>{t('chooseBeneficiary')}</span>
+                        <BeneficiarySelector
+                          beneficiaries={beneficiaries}
+                          search={scheduleBeneficiarySearch}
+                          onSearchChange={setScheduleBeneficiarySearch}
+                          onSelect={chooseScheduleBeneficiary}
+                          selectedBeneficiaryId={getBeneficiaryByAccountNumber(formState.scheduleDestinationAccountNumber)?.beneficiaryId}
                         />
+                      </div>
+                      <label className="field-col">
+                          <span>{t('destinationAccount')}</span>
+                        <input name="scheduleDestinationAccountNumber" placeholder={t('destinationAccountNumberPlaceholder')} value={formState.scheduleDestinationAccountNumber} onChange={handleDestinationAccountNumberChange} onBlur={() => lookupScheduleDestination()} />
                         {scheduleLookupError && <div className="error-msg">{scheduleLookupError}</div>}
                       </label>
                       <label className="field-col">
-                        <span><FiUser /> {t('accountHolderName')}</span>
+                        <span>{t('accountHolderName')}</span>
                         <input name="accountHolder" value={formState.accountHolder} readOnly />
                       </label>
                       <label className="field-col">
-                        <span><FiCreditCard /> {t('receiverBankName')}</span>
+                        <span>{t('receiverBankName')}</span>
                         <input
                           name="receiverBankName"
                           placeholder={t('receiverBankNamePlaceholder')}
@@ -1544,7 +1706,7 @@ function Dashboard({ session, onLogout }) {
                         />
                       </label>
                       <label className="field-col">
-                        <span><FiHash /> {t('receiverIfsc')}</span>
+                        <span>{t('receiverIfsc')}</span>
                         <input
                           name="receiverIfsc"
                           placeholder={t('receiverIfscPlaceholder')}
@@ -1556,9 +1718,17 @@ function Dashboard({ session, onLogout }) {
                       <label className="field-col">
                         <span>{t('amount')}</span>
                         <input name="amount" placeholder={t('amount')} type="number" value={formState.amount} onChange={handleFormChange} />
+                        {scheduleFxQuote && <div className="fx-quote-card"><strong>{scheduleFxQuote.sourceAmount} {scheduleFxQuote.sourceCurrency} → {scheduleFxQuote.destinationAmount} {scheduleFxQuote.destinationCurrency}</strong><span>Rate: 1 {scheduleFxQuote.sourceCurrency} = {scheduleFxQuote.exchangeRate} {scheduleFxQuote.destinationCurrency}</span></div>}
+                        {scheduleFxQuoteError && <div className="error-msg">FX quote: {scheduleFxQuoteError}</div>}
+                      </label>
+                      <label className="field-col">
+                        <span>Category</span>
+                        <select name="category" value={formState.category || 'OTHERS'} onChange={handleFormChange}>
+                          <option value="BILL_PAYMENTS">Bill payments</option><option value="SHOPPING">Shopping</option><option value="ENTERTAINMENT">Entertainment</option><option value="FOOD">Food</option><option value="UPI_PAYMENTS">UPI payments</option><option value="OTHERS">Others</option>
+                        </select>
                       </label>
                       <label className="field-col field-col-span2">
-                        <span><FiFileText /> {t('description')}</span>
+                        <span>{t('description')}</span>
                         <input name="remarks" placeholder={t('description')} value={formState.remarks} onChange={handleFormChange} />
                       </label>
                     </div>
@@ -1954,7 +2124,7 @@ function Dashboard({ session, onLogout }) {
             </header>
 
             <section className="hero-head">
-              <h1>Good morning, {customerName}!</h1>
+              <h1>Welcome, {customerName}!</h1>
             </section>
 
             <section className="top-grid">
@@ -2265,7 +2435,7 @@ function Dashboard({ session, onLogout }) {
                   onChange={(event) => setGroupSplit((prev) => ({ ...prev, description: event.target.value }))}
                 /></label>
               </div>
-              <label className="field-col"><span><FiCreditCard /> Pay from</span><select value={groupSplit.sourceAccountId} onChange={(event) => { const account = activeAccounts.find((item) => String(item.accountId) === event.target.value); setGroupSplit((prev) => ({ ...prev, sourceAccountId: event.target.value, currency: account?.currency || 'INR' })); }}>{activeAccounts.map((account) => <option key={account.accountId} value={account.accountId}>{account.bankName} •••• {String(account.accountNumber).slice(-4)}</option>)}</select></label>
+              <label className="field-col"><span>Pay from</span><select value={groupSplit.sourceAccountId} onChange={(event) => { const account = activeAccounts.find((item) => String(item.accountId) === event.target.value); setGroupSplit((prev) => ({ ...prev, sourceAccountId: event.target.value, currency: account?.currency || 'INR' })); }}>{activeAccounts.map((account) => <option key={account.accountId} value={account.accountId}>{account.bankName} •••• {String(account.accountNumber).slice(-4)}</option>)}</select></label>
 
               <div className="split-type-toggle">
                 <button
@@ -2289,12 +2459,20 @@ function Dashboard({ session, onLogout }) {
               {groupSplit.members.map((member, index) => (
                 <div className="form-grid group-split-member-row" key={index}>
                   <div className="split-member-label"><span>{String(index + 1).padStart(2, '0')}</span><strong>Member {index + 1}</strong></div>
-                  <input
-                    type="text"
-                    placeholder="Account number"
-                    value={member.accountNumber}
-                    onChange={(event) => updateGroupSplitMember(index, 'accountNumber', event.target.value)}
-                  />
+                  <div className="field-col field-col-span2">
+                    <span>{t('chooseBeneficiary')}</span>
+                    <BeneficiarySelector
+                      beneficiaries={beneficiaries}
+                      search={groupSplitBeneficiarySearches[index] || ''}
+                      onSearchChange={(value) => setGroupSplitBeneficiarySearches((prev) => ({ ...prev, [index]: value }))}
+                      onSelect={(beneficiaryId) => {
+                        setGroupSplitBeneficiarySearches((prev) => ({ ...prev, [index]: '' }));
+                        chooseGroupSplitBeneficiary(index, beneficiaryId);
+                      }}
+                      selectedBeneficiaryId={getBeneficiaryByAccountNumber(member.accountNumber)?.beneficiaryId}
+                    />
+                  </div>
+                  <input type="text" placeholder="Account number" value={member.accountNumber} onChange={(event) => updateGroupSplitMember(index, 'accountNumber', event.target.value)} />
                   {groupSplit.splitType === 'UNEQUAL' && (
                     <input
                       type="number"
@@ -2393,6 +2571,7 @@ function Dashboard({ session, onLogout }) {
               </div>
             </div>
           </section>
+        )}
         {activeModal === 'profile' && (
           <div className="modal-overlay" onClick={closeModal}>
             <div className="modal-card" onClick={(event) => event.stopPropagation()}>
@@ -2692,3 +2871,8 @@ function Dashboard({ session, onLogout }) {
 }
 
 export default Dashboard;
+
+
+
+
+
