@@ -15,6 +15,7 @@ function ProcessingPayment({
   onClose
 }) {
   const currentStage = stage || 1;
+  const paymentCurrencyCode = formState.currency || 'INR';
   const beneficiaryName = formState.recipientName || formState.accountHolder || 'Recipient';
   const accountNumber = formState.destinationAccountNumber || formState.accountNumber || '—';
   const bankName = formState.bankName || '—';
@@ -67,9 +68,9 @@ function ProcessingPayment({
           <div className="info-row"><span>To</span><strong>{beneficiaryName}</strong></div>
           <div className="info-row"><span>Account Number</span><strong>{accountNumber}</strong></div>
           <div className="info-row"><span>Bank Name</span><strong>{bankName}</strong></div>
-          <div className="info-row"><span>Amount</span><strong>{currency(amountValue)}</strong></div>
-          <div className="info-row"><span>Transfer Charges</span><strong>{currency(0)}</strong></div>
-          <div className="info-row total"><span>Total Payable</span><strong>{currency(amountValue)}</strong></div>
+          <div className="info-row"><span>Amount</span><strong>{currency(amountValue, paymentCurrencyCode)}</strong></div>
+          <div className="info-row"><span>Transfer Charges</span><strong>{currency(0, paymentCurrencyCode)}</strong></div>
+          <div className="info-row total"><span>Total Payable</span><strong>{currency(amountValue, paymentCurrencyCode)}</strong></div>
         </div>
 
         <div className="premium-card processing-info-card">

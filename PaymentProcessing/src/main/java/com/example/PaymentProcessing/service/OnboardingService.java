@@ -91,12 +91,15 @@ public class OnboardingService {
             throw new ApiException("ACCOUNT_ALREADY_LINKED", "An account is already linked to this customer", HttpStatus.CONFLICT);
         }
         String bankName = required(body, "bankName");
+        String selectedCurrency = (body.get("currency") == null || body.get("currency").isBlank())
+                ? "INR"
+                : body.get("currency").trim().toUpperCase();
         String holderName = ((c.getFirstName() == null ? "" : c.getFirstName()) + " " + (c.getLastName() == null ? "" : c.getLastName())).trim();
 
         // This is a payment gateway, not a bank: the customer already has an
         // existing account. We simulate fetching its IFSC, account number,
         // and pre-existing balance instead of asking them to type in a fake one.
-        Account a = accountService.provisionSimulatedAccount(bankName, holderName.isBlank() ? null : holderName, "INR", id, c.getPhoneNumber());
+        Account a = accountService.provisionSimulatedAccount(bankName, holderName.isBlank() ? null : holderName, selectedCurrency, id, c.getPhoneNumber());
 
         c.setOnboardingStatus("ACCOUNT_LINKED");
         String otp = String.valueOf(ThreadLocalRandom.current().nextInt(100000, 1000000));

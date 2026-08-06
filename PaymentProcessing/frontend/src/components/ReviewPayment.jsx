@@ -18,6 +18,7 @@ function ReviewPayment({
   isSelfTransfer = false,
   isUpi = false
 }) {
+  const paymentCurrencyCode = formState.currency || 'INR';
   const recipientName = formState.recipientName || formState.accountHolder || 'Recipient';
   const accountNumber = String(formState.destinationAccountNumber || formState.accountNumber || '');
   const maskedAccount = accountNumber ? `•••• ${accountNumber.slice(-4)}` : '—';
@@ -68,7 +69,7 @@ function ReviewPayment({
 
           <section className="review-section review-payment-amount">
             <span className="review-kv-label">{isSelfTransfer ? 'You are transferring' : 'You are paying'}</span>
-            <strong className="review-amount">{currency(amountValue)}</strong>
+            <strong className="review-amount">{currency(amountValue, paymentCurrencyCode)}</strong>
             <span className="review-reference">Reference: {referenceNumber}</span>
           </section>
 
@@ -89,21 +90,21 @@ function ReviewPayment({
         <aside className="summary-panel review-insights">
           <div className="payment-summary-box premium-card impact-card">
             <div className="section-label">Payment impact</div>
-            <div className="balance-impact"><span>Current balance</span><strong>{currency(sourceBalance)}</strong></div>
+            <div className="balance-impact"><span>Current balance</span><strong>{currency(sourceBalance, paymentCurrencyCode)}</strong></div>
             <div className="impact-arrow"><FiArrowDownRight /></div>
-            <div className={`balance-impact remaining ${remainingBalance < 0 ? 'negative' : ''}`}><span>Balance after payment</span><strong>{currency(remainingBalance)}</strong></div>
+            <div className={`balance-impact remaining ${remainingBalance < 0 ? 'negative' : ''}`}><span>Balance after payment</span><strong>{currency(remainingBalance, paymentCurrencyCode)}</strong></div>
           </div>
 
           {monthlyBudget > 0 && <div className="payment-summary-box premium-card budget-card">
             <div className="budget-heading"><div><span className="section-label">Monthly budget</span><strong className={spendingState.className}><FiTrendingUp /> {spendingState.label}</strong></div></div>
-            <div className="budget-amounts"><span>Spent after this payment</span><strong>{currency(projectedSpend)} / {currency(monthlyBudget)}</strong></div>
+            <div className="budget-amounts"><span>Spent after this payment</span><strong>{currency(projectedSpend, paymentCurrencyCode)} / {currency(monthlyBudget, paymentCurrencyCode)}</strong></div>
             <div className="budget-track"><span className={spendingState.className} style={{ width: `${budgetPercent}%` }} /></div>
-            {categoryBudget > 0 && <><div className="budget-amounts category-budget"><span>Category after payment</span><strong>{currency(projectedCategorySpend)} / {currency(categoryBudget)}</strong></div><div className="budget-track category-track"><span className={projectedCategorySpend > categoryBudget ? 'over' : 'healthy'} style={{ width: `${categoryPercent}%` }} /></div></>}
-            <small>{currency(amountValue)} will be added to this month’s outgoing payments.</small>
+            {categoryBudget > 0 && <><div className="budget-amounts category-budget"><span>Category after payment</span><strong>{currency(projectedCategorySpend, paymentCurrencyCode)} / {currency(categoryBudget, paymentCurrencyCode)}</strong></div><div className="budget-track category-track"><span className={projectedCategorySpend > categoryBudget ? 'over' : 'healthy'} style={{ width: `${categoryPercent}%` }} /></div></>}
+            <small>{currency(amountValue, paymentCurrencyCode)} will be added to this month’s outgoing payments.</small>
           </div>}
 
           <div className="payment-summary-box premium-card payable-card">
-            <span>Total payable</span><strong>{currency(grandTotal)}</strong>
+            <span>Total payable</span><strong>{currency(grandTotal, paymentCurrencyCode)}</strong>
             <small>No transfer fee</small>
           </div>
         </aside>

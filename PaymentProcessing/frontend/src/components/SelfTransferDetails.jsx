@@ -12,6 +12,7 @@ export default function SelfTransferDetails({
 }) {
   const [fxQuote, setFxQuote] = useState(null);
   const [fxQuoteError, setFxQuoteError] = useState('');
+  const currencyOptions = ['INR', 'USD', 'EUR', 'GBP'];
   const sourceId = String(formData.sourceAccountId || '').trim();
   const destinationId = String(formData.destinationAccountId || '').trim();
   const transferAmount = Number(formData.amount);
@@ -175,10 +176,23 @@ export default function SelfTransferDetails({
                 onChange={handleAmountChange}
                 placeholder="1000"
               />
+              <div className="transfer-toggle" role="radiogroup" aria-label="Choose transfer currency">
+                {currencyOptions.map((currencyCode) => (
+                  <button
+                    key={currencyCode}
+                    type="button"
+                    className={(formData.currency || 'INR') === currencyCode ? 'active' : ''}
+                    aria-pressed={(formData.currency || 'INR') === currencyCode}
+                    onClick={() => setFormData({ ...formData, currency: currencyCode })}
+                  >
+                    {currencyCode}
+                  </button>
+                ))}
+              </div>
               {Number.isFinite(transferAmount) && transferAmount > 0 && (
                 <div className={`live-balance-preview ${balanceAfterPayment < 0 ? 'insufficient' : ''}`}>
                   <span>Balance after transfer</span>
-                  <strong>INR {balanceAfterPayment.toLocaleString('en-IN')}</strong>
+                  <strong>{sourceAccount?.currency || formData.currency || 'INR'} {balanceAfterPayment.toLocaleString('en-IN')}</strong>
                 </div>
               )}
               {fxQuote && <div className="fx-quote-card"><strong>{fxQuote.sourceAmount} {fxQuote.sourceCurrency} → {fxQuote.destinationAmount} {fxQuote.destinationCurrency}</strong><span>Rate: 1 {fxQuote.sourceCurrency} = {fxQuote.exchangeRate} {fxQuote.destinationCurrency}</span></div>}

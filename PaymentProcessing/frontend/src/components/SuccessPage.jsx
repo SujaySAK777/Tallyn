@@ -20,6 +20,7 @@ function SuccessPage({
   const [sharingPdf, setSharingPdf] = useState(false);
   const [saveBeneficiaryStatus, setSaveBeneficiaryStatus] = useState('idle');
   const hasPlayedNotificationRef = useRef(false);
+  const paymentCurrencyCode = formState.currency || 'INR';
   const beneficiaryName = formState.recipientName || formState.accountHolder || selectedDestination || 'Recipient';
   const accountNumber = formState.destinationAccountNumber || formState.accountNumber || '—';
   const bankName = formState.bankName || '—';
@@ -112,7 +113,7 @@ function SuccessPage({
   };
   const receiptSummary = [
     'Tallyn payment receipt',
-    `Amount: ${currency(amountValue)}`,
+    `Amount: ${currency(amountValue, paymentCurrencyCode)}`,
     `Recipient: ${beneficiaryName}`,
     `Reference: ${referenceNumber}`
   ].join('\n');
@@ -181,7 +182,7 @@ function SuccessPage({
           <div className="success-transfer-strip">
             <FiCheckCircle />
             <div>
-              <strong>The amount {currency(amountValue)} has been transferred to {isSelfTransfer ? 'your account' : beneficiaryName}</strong>
+              <strong>The amount {currency(amountValue, paymentCurrencyCode)} has been transferred to {isSelfTransfer ? 'your account' : beneficiaryName}</strong>
               <span>You will receive a confirmation notification shortly.</span>
             </div>
           </div>
@@ -218,9 +219,9 @@ function SuccessPage({
             <div className="info-row"><span>Account Number</span><strong>{accountNumber}</strong></div>
             <div className="info-row"><span>Bank Name</span><strong>{bankName}</strong></div>
             <div className="info-row"><span>IFSC Code</span><strong>{ifsc}</strong></div>
-            <div className="info-row"><span>Amount</span><strong>{currency(amountValue)}</strong></div>
-            <div className="info-row"><span>Transfer Charges</span><strong>{currency(0)}</strong></div>
-            <div className="info-row total"><span>Total Payable</span><strong>{currency(amountValue)}</strong></div>
+            <div className="info-row"><span>Amount</span><strong>{currency(amountValue, paymentCurrencyCode)}</strong></div>
+            <div className="info-row"><span>Transfer Charges</span><strong>{currency(0, paymentCurrencyCode)}</strong></div>
+            <div className="info-row total"><span>Total Payable</span><strong>{currency(amountValue, paymentCurrencyCode)}</strong></div>
           </div>
 
           <div className="security-banner premium-card success-security-card">
