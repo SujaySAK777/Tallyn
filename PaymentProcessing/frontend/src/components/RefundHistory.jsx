@@ -37,6 +37,8 @@ function RefundHistory({ currency, payments = [], viewerAccountId, onTicketRaise
   const [activeTab, setActiveTab] = useState('ALL');
 
   const [selectedPaymentId, setSelectedPaymentId] = useState('');
+  const [paymentSearchQuery, setPaymentSearchQuery] = useState('');
+  const [paymentSearchOpen, setPaymentSearchOpen] = useState(false);
   const [newTicketType, setNewTicketType] = useState('');
   const [newTicketReason, setNewTicketReason] = useState('');
   const [raising, setRaising] = useState(false);
@@ -92,6 +94,33 @@ function RefundHistory({ currency, payments = [], viewerAccountId, onTicketRaise
     ));
   }, [payments, viewerAccountId, decorated]);
 
+  const paymentLabel = (payment) => (
+    `${payment.referenceNumber} — ${currency ? currency(payment.amount, payment.currency) : `${payment.currency} ${payment.amount}`}`
+  );
+
+  const selectedPayment = eligiblePayments.find((payment) => String(payment.paymentId) === String(selectedPaymentId)) || null;
+
+  const searchResults = useMemo(() => {
+    const query = paymentSearchQuery.trim().toLowerCase();
+    if (!query) return eligiblePayments;
+    return eligiblePayments.filter((payment) => (
+      String(payment.referenceNumber).toLowerCase().includes(query)
+      || String(payment.amount).includes(query)
+    ));
+  }, [eligiblePayments, paymentSearchQuery]);
+
+  const choosePayment = (payment) => {
+    setSelectedPaymentId(String(payment.paymentId));
+    setPaymentSearchQuery(paymentLabel(payment));
+    setPaymentSearchOpen(false);
+  };
+
+  const clearChosenPayment = () => {
+    setSelectedPaymentId('');
+    setPaymentSearchQuery('');
+    setPaymentSearchOpen(true);
+  };
+
   const handleRaiseTicket = async () => {
     if (!selectedPaymentId) {
       setRaiseError('Choose a payment first.');
@@ -107,6 +136,7 @@ function RefundHistory({ currency, payments = [], viewerAccountId, onTicketRaise
       const params = new URLSearchParams({ reason: newTicketReason, type: newTicketType });
       await apiRequest(`/payments/${selectedPaymentId}/refund-requests?${params.toString()}`, { method: 'POST' });
       setSelectedPaymentId('');
+      setPaymentSearchQuery('');
       setNewTicketType('');
       setNewTicketReason('');
       await load();
@@ -129,20 +159,48 @@ function RefundHistory({ currency, payments = [], viewerAccountId, onTicketRaise
 
         {eligiblePayments.length > 0 && (
           <div>
-            <div style={{ marginBottom: '0.5rem' }}>
+            <div style={{ marginBottom: '0.5rem', position: 'relative' }}>
               <div style={{ fontWeight: 600, marginBottom: '0.35rem' }}>Payment</div>
-              <select
-                value={selectedPaymentId}
-                onChange={(event) => setSelectedPaymentId(event.target.value)}
-                style={{ width: '100%', padding: '0.5rem', borderRadius: '8px', border: '1px solid #ccc' }}
-              >
-                <option value="">Choose a payment...</option>
-                {eligiblePayments.map((payment) => (
-                  <option key={payment.paymentId} value={payment.paymentId}>
-                    {payment.referenceNumber} — {currency ? currency(payment.amount, payment.currency) : `${payment.currency} ${payment.amount}`}
-                  </option>
-                ))}
-              </select>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input
+                  type="text"
+                  placeholder="Search by reference number or amount..."
+                  value={paymentSearchQuery}
+                  onChange={(event) => {
+                    setPaymentSearchQuery(event.target.value);
+                    setSelectedPaymentId('');
+                    setPaymentSearchOpen(true);
+                  }}
+                  onFocus={() => setPaymentSearchOpen(true)}
+                  onBlur={() => window.setTimeout(() => setPaymentSearchOpen(false), 150)}
+                  style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: '1px solid #ccc' }}
+                />
+                {selectedPayment && (
+                  <button type="button" onClick={clearChosenPayment} aria-label="Clear chosen payment">✕</button>
+                )}
+              </div>
+
+              {paymentSearchOpen && (
+                <div style={{
+                  position: 'absolute', zIndex: 5, top: '100%', left: 0, right: 0,
+                  background: 'var(--surface, #fff)', border: '1px solid #ccc', borderRadius: '8px',
+                  marginTop: '0.25rem', maxHeight: '220px', overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.12)'
+                }}>
+                  {searchResults.length === 0 && (
+                    <div style={{ padding: '0.5rem 0.75rem', color: '#888' }}>No matching payments.</div>
+                  )}
+                  {searchResults.map((payment) => (
+                    <div
+                      key={payment.paymentId}
+                      onClick={() => choosePayment(payment)}
+                      style={{ padding: '0.5rem 0.75rem', cursor: 'pointer' }}
+                      onMouseDown={(event) => event.preventDefault()}
+                    >
+                      {paymentLabel(payment)}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div style={{ marginBottom: '0.5rem' }}>
