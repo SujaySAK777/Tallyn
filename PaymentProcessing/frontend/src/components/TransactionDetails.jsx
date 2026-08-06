@@ -44,7 +44,23 @@ function TransactionDetails({ paymentId, formState, accounts = [], referenceNumb
     try {
       const data = await apiRequest(`/payments/${resolvedPaymentId}/refund-requests`);
       setRefundTickets(Array.isArray(data) ? data : []);
-    } catch {
+    } catch (error) {
+      const message = String(error?.message || '').toLowerCase();
+      const canFallbackToMine = message.includes('no static resource') || message.includes('request failed with status 404');
+
+      if (canFallbackToMine) {
+        try {
+          const mine = await apiRequest('/refund-requests/mine');
+          const filtered = Array.isArray(mine)
+            ? mine.filter((ticket) => String(ticket.paymentId) === String(resolvedPaymentId))
+            : [];
+          setRefundTickets(filtered);
+          return;
+        } catch {
+          // Fall through to the generic non-fatal behavior below.
+        }
+      }
+
       // Non-participants (or a stale token) just see no ticket state - not fatal to the receipt view.
       setRefundTickets([]);
     }
