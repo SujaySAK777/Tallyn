@@ -269,6 +269,7 @@ function PaymentJourney({
     ifsc: formState.ifsc || formState.ifscCode || '',
     bankName: formState.bankName || '',
     amount: formState.amount || '',
+    currency: formState.currency || 'INR',
     category: formState.category || 'OTHERS',
     reference: formState.reference || formState.referenceNumber || '',
     remarks: formState.remarks || '',
@@ -282,7 +283,7 @@ function PaymentJourney({
     setFormState((prev) => ({
       ...prev,
       ...nextData,
-      currency: sourceAccount?.currency || prev.currency || 'INR',
+      currency: nextData.currency || sourceAccount?.currency || prev.currency || 'INR',
       recipientName: nextData.accountHolder ?? prev.recipientName,
       ifscCode: nextData.ifsc ?? prev.ifscCode,
       referenceNumber: nextData.reference ?? prev.referenceNumber

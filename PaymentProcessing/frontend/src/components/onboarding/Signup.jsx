@@ -5,7 +5,19 @@ import Shell from './Shell';
 import TermsModal from './TermsModal';
 
 const steps = ['Register', 'Link account', 'Set TPIN', 'Complete'];
-const bankOptions = ['HDFC BANK', 'ICICI BANK', 'STATE BANK OF INDIA', 'AXIS BANK'];
+const bankOptions = [
+  'HDFC BANK',
+  'ICICI BANK',
+  'STATE BANK OF INDIA',
+  'AXIS BANK',
+  'KOTAK MAHINDRA BANK',
+  'PUNJAB NATIONAL BANK',
+  'BANK OF BARODA',
+  'YES BANK',
+  'WELLS FARGO',
+  'HSBC'
+];
+const currencyOptions = ['INR', 'USD', 'EUR', 'GBP'];
 
 const initial = {
   fullName: '',
@@ -15,6 +27,7 @@ const initial = {
   confirmPassword: '',
   acceptedTerms: false,
   bankName: '',
+  currency: 'INR',
   tpin: '',
   confirmTpin: ''
 };
@@ -95,7 +108,7 @@ export default function Signup({ onSwitchToLogin }) {
     if (!form.bankName) throw new Error('Please select a bank to continue.');
     await apiRequest(`/onboarding/${customerId}/link-account`, {
       method: 'POST',
-      body: JSON.stringify({ bankName: form.bankName })
+      body: JSON.stringify({ bankName: form.bankName, currency: form.currency || 'INR' })
     });
     setStep(2);
   };
@@ -197,6 +210,23 @@ export default function Signup({ onSwitchToLogin }) {
                     onClick={() => setForm((v) => ({ ...v, bankName: bank }))}
                   >
                     {bank}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="field-span2">
+              <label>Choose currency</label>
+              <div className="bank-toggle-group" role="radiogroup" aria-label="Choose account currency">
+                {currencyOptions.map((currencyCode) => (
+                  <button
+                    key={currencyCode}
+                    type="button"
+                    role="radio"
+                    aria-checked={(form.currency || 'INR') === currencyCode}
+                    className={`bank-toggle-btn ${(form.currency || 'INR') === currencyCode ? 'active' : ''}`}
+                    onClick={() => setForm((v) => ({ ...v, currency: currencyCode }))}
+                  >
+                    {currencyCode}
                   </button>
                 ))}
               </div>

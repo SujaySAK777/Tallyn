@@ -164,7 +164,19 @@ function classifyTransaction(payment) {
 }
 
 function Dashboard({ session, onLogout }) {
-  const supportedBanks = ['HDFC BANK', 'ICICI BANK', 'STATE BANK OF INDIA', 'AXIS BANK'];
+  const supportedBanks = [
+    'HDFC BANK',
+    'ICICI BANK',
+    'STATE BANK OF INDIA',
+    'AXIS BANK',
+    'KOTAK MAHINDRA BANK',
+    'PUNJAB NATIONAL BANK',
+    'BANK OF BARODA',
+    'YES BANK',
+    'WELLS FARGO',
+    'HSBC'
+  ];
+  const supportedCurrencies = ['INR', 'USD', 'EUR', 'GBP'];
 
   const [theme, setTheme] = useState('light');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -1129,6 +1141,7 @@ function Dashboard({ session, onLogout }) {
         const payload = {
           bank_name: accountForm.bankName,
           mobile_number: accountForm.mobileNumber.trim(),
+          currency: accountForm.currency || 'INR',
           account_holder_name: accountForm.accountHolderName.trim() || undefined,
           customer_id: session?.customerId
         };
@@ -1734,6 +1747,22 @@ function Dashboard({ session, onLogout }) {
                         <input name="amount" placeholder={t('amount')} type="number" value={formState.amount} onChange={handleFormChange} />
                         {scheduleFxQuote && <div className="fx-quote-card"><strong>{scheduleFxQuote.sourceAmount} {scheduleFxQuote.sourceCurrency} → {scheduleFxQuote.destinationAmount} {scheduleFxQuote.destinationCurrency}</strong><span>Rate: 1 {scheduleFxQuote.sourceCurrency} = {scheduleFxQuote.exchangeRate} {scheduleFxQuote.destinationCurrency}</span></div>}
                         {scheduleFxQuoteError && <div className="error-msg">FX quote: {scheduleFxQuoteError}</div>}
+                      </label>
+                      <label className="field-col">
+                        <span>{t('currency')}</span>
+                        <div className="transfer-toggle" role="radiogroup" aria-label="Choose payment currency">
+                          {supportedCurrencies.map((currencyCode) => (
+                            <button
+                              key={currencyCode}
+                              type="button"
+                              className={(formState.currency || 'INR') === currencyCode ? 'active' : ''}
+                              aria-pressed={(formState.currency || 'INR') === currencyCode}
+                              onClick={() => setFormState((prev) => ({ ...prev, currency: currencyCode }))}
+                            >
+                              {currencyCode}
+                            </button>
+                          ))}
+                        </div>
                       </label>
                       <label className="field-col">
                         <span>Category</span>
@@ -2770,6 +2799,22 @@ function Dashboard({ session, onLogout }) {
                               <option key={bank} value={bank}>{bank}</option>
                             ))}
                           </select>
+                        </label>
+                        <label className="field-col">
+                          <span>Currency</span>
+                          <div className="transfer-toggle" role="radiogroup" aria-label="Choose account currency">
+                            {supportedCurrencies.map((currencyCode) => (
+                              <button
+                                key={currencyCode}
+                                type="button"
+                                className={accountForm.currency === currencyCode ? 'active' : ''}
+                                aria-pressed={accountForm.currency === currencyCode}
+                                onClick={() => setAccountForm((prev) => ({ ...prev, currency: currencyCode }))}
+                              >
+                                {currencyCode}
+                              </button>
+                            ))}
+                          </div>
                         </label>
                         <label className="field-col">
                           <span>Mobile Number</span>

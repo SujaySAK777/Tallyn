@@ -16,6 +16,7 @@ function AuthorizePayment({
   const pinInputRef = useRef(null);
   const [pin, setPin] = useState('');
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
+  const paymentCurrencyCode = formState.currency || 'INR';
   const beneficiaryName = formState.recipientName || formState.accountHolder || selectedDestination || 'Recipient';
   const accountNumber = formState.destinationAccountNumber || formState.accountNumber || '—';
   const bankName = formState.bankName || '—';
@@ -107,9 +108,9 @@ function AuthorizePayment({
             <div className="info-row"><span>To</span><strong>{beneficiaryName}</strong></div>
             <div className="info-row"><span>Account Number</span><strong>{accountNumber}</strong></div>
             <div className="info-row"><span>Bank Name</span><strong>{bankName}</strong></div>
-            <div className="info-row"><span>Amount</span><strong>{currency(amountValue)}</strong></div>
-            <div className="info-row"><span>Transfer Charges</span><strong>{currency(0)}</strong></div>
-            <div className="info-row total"><span>Total Payable</span><strong>{currency(amountValue)}</strong></div>
+            <div className="info-row"><span>Amount</span><strong>{currency(amountValue, paymentCurrencyCode)}</strong></div>
+            <div className="info-row"><span>Transfer Charges</span><strong>{currency(0, paymentCurrencyCode)}</strong></div>
+            <div className="info-row total"><span>Total Payable</span><strong>{currency(amountValue, paymentCurrencyCode)}</strong></div>
           </div>
 
           <div className="premium-card authorize-safe-card">
@@ -128,7 +129,7 @@ function AuthorizePayment({
             <div className="duplicate-icon"><FiAlertTriangle /></div>
             <span className="eyebrow">Similar payment detected</span>
             <h3 id="duplicate-payment-title">Check before sending again</h3>
-            <p>You already transferred {currency(amountValue)} to {beneficiaryName} in the last 5 minutes.</p>
+            <p>You already transferred {currency(amountValue, paymentCurrencyCode)} to {beneficiaryName} in the last 5 minutes.</p>
             <div className="duplicate-actions">
               <button type="button" className="secondary-btn" onClick={() => setShowDuplicateWarning(false)}>Cancel</button>
               <button type="button" className="primary-btn" onClick={() => { setShowDuplicateWarning(false); onAuthorize?.(pin); }}>Continue anyway</button>
