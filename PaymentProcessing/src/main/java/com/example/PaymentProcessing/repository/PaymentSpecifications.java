@@ -47,6 +47,18 @@ public final class PaymentSpecifications {
         return (root, query, cb) -> cb.between(root.get("amount"), min, max);
     }
 
+    // Mandatory scoping for any customer-facing search/summary: a payment belongs to a
+    // customer if they own either side of it (sent it or received it).
+    public static Specification<Payment> belongsToCustomer(Long customerId) {
+        if (customerId == null) {
+            return null;
+        }
+        return (root, query, cb) -> cb.or(
+                cb.equal(root.get("sourceAccount").get("customerId"), customerId),
+                cb.equal(root.get("destinationAccount").get("customerId"), customerId)
+        );
+    }
+
     public static Specification<Payment> hasSourceAccount(Long accountId) {
         if (accountId == null) {
             return null;

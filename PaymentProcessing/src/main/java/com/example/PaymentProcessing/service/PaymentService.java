@@ -185,21 +185,18 @@ public class PaymentService {
     }
 
     @Transactional(readOnly = true)
-    public List<PaymentResponse> listPayments(PaymentStatus status, Long customerId) {
-        List<Payment> items;
-        if (customerId != null) {
-            items = paymentRepository.findBySourceAccount_CustomerIdOrDestinationAccount_CustomerId(customerId, customerId);
-            if (status != null) {
-                items = items.stream().filter(p -> p.getStatus() == status).toList();
-            }
-        } else {
-            items = status == null ? paymentRepository.findAll() : paymentRepository.findByStatus(status);
+    public List<PaymentResponse> listPayments(PaymentStatus status, Long authenticatedCustomerId) {
+        List<Payment> items = paymentRepository.findBySourceAccount_CustomerIdOrDestinationAccount_CustomerId(
+                authenticatedCustomerId, authenticatedCustomerId);
+        if (status != null) {
+            items = items.stream().filter(p -> p.getStatus() == status).toList();
         }
         return items.stream().map(PaymentResponse::fromEntity).toList();
     }
 
     @Transactional(readOnly = true)
     public PaymentSearchResponse searchPayments(
+            Long authenticatedCustomerId,
             List<PaymentStatus> statuses,
             LocalDate fromDate,
             LocalDate toDate,
@@ -215,7 +212,7 @@ public class PaymentService {
             int page,
             int size
     ) {
-        Specification<Payment> baseSpec = buildBaseSpec(fromDate, toDate, minAmount, maxAmount, senderAccountId, category, paymentMethod, search);
+        Specification<Payment> baseSpec = buildBaseSpec(authenticatedCustomerId, fromDate, toDate, minAmount, maxAmount, senderAccountId, category, paymentMethod, search);
         Specification<Payment> spec = withStatus(baseSpec, statuses);
 
         Pageable pageable = PageRequest.of(page, size, buildSort(sortDateDir, sortAmountDir, sortPrimary));
@@ -250,6 +247,7 @@ public class PaymentService {
 
     @Transactional(readOnly = true)
     public PaymentSummaryResponse getSummary(
+            Long authenticatedCustomerId,
             LocalDate fromDate,
             LocalDate toDate,
             BigDecimal minAmount,
@@ -259,7 +257,7 @@ public class PaymentService {
             String paymentMethod,
             String search
     ) {
-        Specification<Payment> baseSpec = buildBaseSpec(fromDate, toDate, minAmount, maxAmount, senderAccountId, category, paymentMethod, search);
+        Specification<Payment> baseSpec = buildBaseSpec(authenticatedCustomerId, fromDate, toDate, minAmount, maxAmount, senderAccountId, category, paymentMethod, search);
         Specification<Payment> completedSpec = withStatus(baseSpec, List.of(PaymentStatus.COMPLETED));
         Specification<Payment> failedSpec = withStatus(baseSpec, List.of(PaymentStatus.FAILED));
         Specification<Payment> pendingSpec = withStatus(baseSpec,
@@ -295,6 +293,7 @@ public class PaymentService {
     }
 
     private Specification<Payment> buildBaseSpec(
+            Long authenticatedCustomerId,
             LocalDate fromDate,
             LocalDate toDate,
             BigDecimal minAmount,
@@ -308,6 +307,7 @@ public class PaymentService {
         LocalDateTime to = toDate == null ? null : LocalDateTime.of(toDate, LocalTime.MAX);
 
         List<Specification<Payment>> specs = Stream.of(
+                PaymentSpecifications.belongsToCustomer(authenticatedCustomerId),
                 PaymentSpecifications.createdBetween(from, to),
                 PaymentSpecifications.amountBetween(minAmount, maxAmount),
                 PaymentSpecifications.hasSourceAccount(senderAccountId),

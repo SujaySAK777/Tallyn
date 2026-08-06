@@ -54,14 +54,15 @@ public class PaymentController {
 
     @GetMapping
     public List<PaymentResponse> list(
-            @RequestParam(required = false) PaymentStatus status,
-            @RequestParam(required = false) Long customerId
+            @RequestAttribute("customerId") Long customerId,
+            @RequestParam(required = false) PaymentStatus status
     ) {
         return paymentService.listPayments(status, customerId);
     }
 
     @GetMapping("/search")
     public PaymentSearchResponse search(
+            @RequestAttribute("customerId") Long customerId,
             @RequestParam(required = false) List<PaymentStatus> status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
@@ -77,11 +78,12 @@ public class PaymentController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        return paymentService.searchPayments(status, fromDate, toDate, minAmount, maxAmount, senderAccountId, category, paymentMethod, search, sortDateDir, sortAmountDir, sortPrimary, page, size);
+        return paymentService.searchPayments(customerId, status, fromDate, toDate, minAmount, maxAmount, senderAccountId, category, paymentMethod, search, sortDateDir, sortAmountDir, sortPrimary, page, size);
     }
 
     @GetMapping("/summary")
     public PaymentSummaryResponse summary(
+            @RequestAttribute("customerId") Long customerId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
             @RequestParam(required = false) BigDecimal minAmount,
@@ -91,7 +93,7 @@ public class PaymentController {
             @RequestParam(required = false) String paymentMethod,
             @RequestParam(required = false) String search
     ) {
-        return paymentService.getSummary(fromDate, toDate, minAmount, maxAmount, senderAccountId, category, paymentMethod, search);
+        return paymentService.getSummary(customerId, fromDate, toDate, minAmount, maxAmount, senderAccountId, category, paymentMethod, search);
     }
 
     @GetMapping("/{paymentId}/history")
