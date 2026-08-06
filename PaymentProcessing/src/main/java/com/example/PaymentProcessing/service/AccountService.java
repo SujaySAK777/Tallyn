@@ -95,6 +95,7 @@ public class AccountService {
                 accountHolderName != null && !accountHolderName.isBlank() ? accountHolderName.trim() : "Account Holder"
         );
         account.setMobileNumber(normalizedMobile);
+        account.setUpiId(generateUniqueUpiId(accountHolderName, normalizedMobile));
         account.setBalance(randomBalance());
         account.setCurrency(currency == null || currency.isBlank() ? "INR" : currency.trim().toUpperCase());
         account.setStatus(AccountStatus.INACTIVE);
@@ -149,6 +150,13 @@ public class AccountService {
     public AccountResponse getAccountByNumber(String accountNumber) {
         Account account = accountRepository.findByAccountNumber(accountNumber.trim())
                 .orElseThrow(() -> new ApiException("ACCOUNT_NOT_FOUND", "Account not found", HttpStatus.NOT_FOUND));
+        return AccountResponse.fromEntity(account);
+    }
+
+    @Transactional(readOnly = true)
+    public AccountResponse getAccountByUpiId(String upiId) {
+        Account account = accountRepository.findByUpiId(upiId.trim().toLowerCase())
+                .orElseThrow(() -> new ApiException("ACCOUNT_NOT_FOUND", "No account is linked to this UPI ID", HttpStatus.NOT_FOUND));
         return AccountResponse.fromEntity(account);
     }
 
@@ -230,5 +238,27 @@ public class AccountService {
                 candidate = randomDigits(12);
             } while (accountRepository.findByAccountNumber(candidate).isPresent());
             return candidate;
+    }
+
+    // Mirrors a real UPI handle (name-or-mobile @ psp-style suffix). Falls back to a
+    // random slug when neither a usable name nor mobile number is available.
+    private String generateUniqueUpiId(String accountHolderName, String mobileNumber) {
+        String base;
+        if (mobileNumber != null && !mobileNumber.isBlank()) {
+            base = mobileNumber.trim();
+        } else if (accountHolderName != null && !accountHolderName.isBlank()) {
+            base = accountHolderName.trim().toLowerCase().replaceAll("[^a-z0-9]+", "");
+        } else {
+            base = "user";
+        }
+        if (base.isBlank()) {
+            base = "user";
+        }
+
+        String candidate;
+        do {
+            candidate = base + randomDigits(3) + "@tallyn";
+        } while (accountRepository.findByUpiId(candidate).isPresent());
+        return candidate;
     }
 }

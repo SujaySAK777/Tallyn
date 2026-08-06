@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { FiArrowDown, FiCheckCircle, FiRepeat } from 'react-icons/fi';
+import { apiRequest } from '../services/api';
 
 export default function SelfTransferDetails({
   formData,
@@ -9,6 +10,8 @@ export default function SelfTransferDetails({
   sourceBalance = 0,
   accounts = []
 }) {
+  const [fxQuote, setFxQuote] = useState(null);
+  const [fxQuoteError, setFxQuoteError] = useState('');
   const sourceId = String(formData.sourceAccountId || '').trim();
   const destinationId = String(formData.destinationAccountId || '').trim();
   const transferAmount = Number(formData.amount);
@@ -16,6 +19,21 @@ export default function SelfTransferDetails({
   const destinationOptions = accounts.filter((account) => String(account.accountId) !== sourceId);
   const sourceAccount = accounts.find((account) => String(account.accountId) === sourceId);
   const destinationAccount = accounts.find((account) => String(account.accountId) === destinationId);
+
+  useEffect(() => {
+    const from = sourceAccount?.currency;
+    const to = destinationAccount?.currency;
+    if (!from || !to || from === to || !Number.isFinite(transferAmount) || transferAmount <= 0) {
+      setFxQuote(null);
+      setFxQuoteError('');
+      return undefined;
+    }
+    let cancelled = false;
+    apiRequest(`/fx/quote?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&amount=${encodeURIComponent(transferAmount)}`)
+      .then((quote) => { if (!cancelled) { setFxQuote(quote); setFxQuoteError(''); } })
+      .catch((err) => { if (!cancelled) { setFxQuote(null); setFxQuoteError(err.message || 'Unable to retrieve the FX quote.'); } });
+    return () => { cancelled = true; };
+  }, [sourceAccount?.currency, destinationAccount?.currency, transferAmount]);
 
   const handleSourceChange = (event) => {
     const nextSourceId = event.target.value;
@@ -163,6 +181,8 @@ export default function SelfTransferDetails({
                   <strong>INR {balanceAfterPayment.toLocaleString('en-IN')}</strong>
                 </div>
               )}
+              {fxQuote && <div className="fx-quote-card"><strong>{fxQuote.sourceAmount} {fxQuote.sourceCurrency} → {fxQuote.destinationAmount} {fxQuote.destinationCurrency}</strong><span>Rate: 1 {fxQuote.sourceCurrency} = {fxQuote.exchangeRate} {fxQuote.destinationCurrency}</span></div>}
+              {fxQuoteError && <div className="error-msg">FX quote: {fxQuoteError}</div>}
             </div>
 
             <div className="field-group field-span-2">

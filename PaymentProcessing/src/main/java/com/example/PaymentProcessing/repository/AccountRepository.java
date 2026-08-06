@@ -9,4 +9,5 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     Optional<Account> findFirstByCustomerId(Long customerId);
     java.util.List<Account> findByCustomerId(Long customerId);
     Optional<Account> findByMobileNumber(String mobileNumber);
+    Optional<Account> findByUpiId(String upiId);
 }

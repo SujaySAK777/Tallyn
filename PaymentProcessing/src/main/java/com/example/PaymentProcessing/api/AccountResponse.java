@@ -13,6 +13,7 @@ public class AccountResponse {
     private String accountNumber;
     private String accountHolderName;
     private String mobileNumber;
+    private String upiId;
     private BigDecimal balance;
     private String currency;
     private AccountStatus status;
@@ -27,6 +28,7 @@ public class AccountResponse {
         response.setAccountNumber(account.getAccountNumber());
         response.setAccountHolderName(account.getAccountHolderName());
         response.setMobileNumber(account.getMobileNumber());
+        response.setUpiId(account.getUpiId());
         response.setBalance(account.getBalance());
         response.setCurrency(account.getCurrency());
         response.setStatus(account.getStatus());
@@ -112,4 +114,7 @@ public class AccountResponse {
 
     public String getMobileNumber() { return mobileNumber; }
     public void setMobileNumber(String mobileNumber) { this.mobileNumber = mobileNumber; }
+
+    public String getUpiId() { return upiId; }
+    public void setUpiId(String upiId) { this.upiId = upiId; }
 }

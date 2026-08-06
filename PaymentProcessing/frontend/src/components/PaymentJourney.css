@@ -633,6 +633,26 @@
   background: transparent;
 }
 
+.payment-journey .upi-id-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--c-n-200);
+  border-radius: var(--r-sm);
+  background: var(--c-n-0);
+  padding: 9px 12px;
+  color: var(--journey-subtext);
+}
+
+.payment-journey .upi-id-input input {
+  border: none;
+  outline: none;
+  flex: 1;
+  font-size: 13px;
+  color: var(--journey-text);
+  background: transparent;
+}
+
 .payment-journey .beneficiary-picker-list {
   display: grid;
   gap: 8px;

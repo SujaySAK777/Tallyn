@@ -23,7 +23,7 @@ const paymentMethods = [
     title: 'UPI',
     icon: FiSmartphone,
     description: 'Pay using UPI ID',
-    available: false
+    available: true
   },
   {
     id: 'card',
