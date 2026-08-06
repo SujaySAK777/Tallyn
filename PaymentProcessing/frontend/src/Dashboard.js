@@ -2085,7 +2085,7 @@ function Dashboard({ session, onLogout }) {
                   <button className="icon-btn" onClick={toggleNotifications} aria-label="Notifications" aria-expanded={notificationsOpen}>
                     <FiBell />
                     {unreadNotifications.length > 0 && (
-                      <span className="badge">{unreadNotifications.length}</span>
+                      <span className="notification-badge">{unreadNotifications.length}</span>
                     )}
                   </button>
                   {notificationsOpen && (
