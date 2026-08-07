@@ -2,6 +2,15 @@
 
 Comprehensive payment processing platform combining a React frontend and a Spring Boot backend. This repository contains the full source, database scripts, and a multi-stage Dockerfile to build and run the application.
 
+## Tech Stack
+
+- Frontend: React, JavaScript, HTML5, CSS3
+- Backend: Java 17, Spring Boot, Maven
+- Database: PostgreSQL (recommended), plain SQL scripts in `database/`
+- Build & CI: Maven, npm, Docker (multi-stage)
+- Runtime: OpenJDK / Eclipse Temurin JRE
+- External integrations: payment gateway adapters, notification (email/SMS) hooks
+
 ## Features
 
 - Payment initiation: one-time and scheduled payments with validation and retry handling.
@@ -17,32 +26,50 @@ Comprehensive payment processing platform combining a React frontend and a Sprin
 
 ## Flowchart
 
-High-level flow of the application (frontend → backend → database / external services):
+Detailed high-level flow of the application (client → frontend → backend → infra):
 
 ```mermaid
 flowchart LR
-  User[User / Client]
-  Frontend[React Frontend]
-  Backend[Spring Boot Backend]
-  DB[(Database)]
-  Scheduler[Scheduler / Cron Jobs]
-  PaymentGateway[External Payment Gateway]
-  Notification[Notification Service]
-  Admin[Admin Dashboard]
+  subgraph Client[Client / User]
+    U(User)
+  end
 
-  User -->|interacts via UI/API| Frontend
-  Frontend -->|REST / GraphQL| Backend
-  Backend -->|reads/writes| DB
-  Backend -->|calls| PaymentGateway
-  PaymentGateway -->|callback/status| Backend
-  Backend -->|write events| DB
-  Backend -->|publish| Notification
-  Scheduler -->|triggers| Backend
-  Admin -->|manages via UI| Backend
-  Frontend -->|admin UI| Admin
+  subgraph Frontend[React Frontend]
+    FE[SPA]
+    Static[Static Build]
+  end
 
-  classDef infra fill:#f9f,stroke:#333,stroke-width:1px;
-  class DB,PaymentGateway,Notification infra;
+  subgraph Backend[Spring Boot Backend]
+    API[REST API]
+    Auth[Auth & Session]
+    Jobs[Scheduler / Jobs]
+    Workers[Background Workers]
+  end
+
+  subgraph Infra[Infrastructure]
+    DB[(Postgres DB)]
+    PG[Payment Gateway]
+    NS[Notification Service]
+  end
+
+  U -->|browses / clicks| FE
+  FE -->|API calls (HTTPS)| API
+  FE -->|served static files| Static
+  Static -->|served by| API
+
+  API -->|authenticate| Auth
+  API -->|read / write| DB
+  API -->|enqueue/process| Workers
+  Workers -->|update| DB
+  API -->|call| PG
+  PG -->|callback/status| API
+  API -->|trigger| NS
+  Jobs -->|scheduled triggers| API
+
+  click PG href "#" "External payment gateway"
+
+  classDef infra fill:#f3f4f6,stroke:#999,stroke-width:1px;
+  class DB,PG,NS infra;
 ```
 
 ---
